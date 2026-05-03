@@ -17,6 +17,69 @@ pnpm run pipeline
 
 - `http://localhost:4173/`
 
+## 1.1 站点图片生成
+
+现在 pipeline 已经支持站点视觉资产层：
+
+- 目标页型默认会生成 page hero visual
+  - `hub`
+  - `workflow`
+  - `use-cases`
+  - `template-kit`
+  - `case-study`
+- 目标转化资产默认会生成 asset cover visual
+  - `template_pack`
+  - `checklist`
+  - `worksheet`
+
+最低配置（OpenAI 直连）：
+
+```bash
+OPENAI_API_KEY=<your key>
+SITE_IMAGE_GENERATION_ENABLED=true
+SITE_IMAGE_PROVIDER=openai
+SITE_IMAGE_MODEL=gpt-image-2
+```
+
+如果你想先走 HiAPI 供应商，不用配 `OPENAI_API_KEY`，直接这样：
+
+```bash
+HIAPI_API_KEY=<your hiapi key>
+SITE_IMAGE_GENERATION_ENABLED=true
+SITE_IMAGE_PROVIDER=hiapi
+SITE_IMAGE_MODEL=gpt-image-2
+```
+
+也可以统一只配：
+
+```bash
+SITE_IMAGE_API_KEY=<your hiapi key>
+SITE_IMAGE_PROVIDER=hiapi
+```
+
+可选配置：
+
+```bash
+SITE_IMAGE_FALLBACK_MODELS=gpt-image-1.5,gpt-image-1
+SITE_IMAGE_OUTPUT_FORMAT=webp
+SITE_IMAGE_PAGE_TYPES=hub,workflow,use-cases,template-kit,case-study
+SITE_IMAGE_ASSET_KINDS=template_pack,checklist,worksheet
+```
+
+HiAPI 相关可选项：
+
+```bash
+SITE_IMAGE_API_BASE_URL=https://api.hiapi.ai/v1
+SITE_IMAGE_HIAPI_ASPECT_RATIO=16:9
+SITE_IMAGE_HIAPI_IMAGE_SIZE=2K
+```
+
+说明：
+
+- `SITE_IMAGE_PROVIDER=openai` 时，脚本走 `/images/generations`
+- `SITE_IMAGE_PROVIDER=hiapi` 时，脚本走 `/chat/completions`，并解析返回的 markdown 图片内容
+- 如果没有配置可用 key，系统仍会为这些页面生成 fallback SVG visual，所以站点不会退回纯文字头图
+
 ## 2. 修改后校验顺序
 
 ```bash

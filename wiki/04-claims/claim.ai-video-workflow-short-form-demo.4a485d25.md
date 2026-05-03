@@ -8,7 +8,7 @@ claim_kind: "pricing"
 decision_stage: "compare"
 confidence: 0.82
 quality_score: 100
-freshness: "derived"
+freshness: "current-run"
 reuse_priority: "high"
 lifecycle_decision: "active"
 source_ids: ["source.ai-video-workflow-short-form-demo.official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","source.ai-video-workflow-short-form-demo.official-aistudio-google-com-google-ai-studio-86e7d7fc8c"]

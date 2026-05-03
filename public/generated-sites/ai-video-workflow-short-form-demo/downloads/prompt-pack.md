@@ -11,6 +11,7 @@ A ready-to-run pack covering hooks, screenshots, transitions, and short-form dem
 - First-pilot cost anchor: A visible public benchmark starts at $20 for a 3-12 min workflow, billed one time. The prompt pack earns the click only if it shortens review waste on that first pilot.
 - Why a prompt pack matters later: AriaFlow sells workflow controls like autopilot, scheduling, and one workspace. That is the point where a reusable prompt pack matters more than another blank generation box.
 - Business-proof standard: Synthesia uses 160+ languages and up to 90% time-and-cost savings as buyer language. The pack should create cleaner inputs for that kind of business workflow, not just prettier prompts.
+- Operator pain signal: Operators are still comparing which workflow keeps quality stable as models change. The pack reduces trial-and-error by making the brief, prompt blocks, and review criteria explicit.
 
 ## What is inside
 - Brief intake block: A one-screen intake for source asset, target channel, conversion goal, reviewer, and publish-ready definition before prompting begins.

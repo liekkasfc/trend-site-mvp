@@ -1,0 +1,53 @@
+filters: type == "claim"
+formulas:
+  updated_at: file.mtime.format("YYYY-MM-DD HH:mm")
+properties:
+  file.name:
+    displayName: Note
+  claim_kind:
+    displayName: Claim Kind
+  decision_stage:
+    displayName: Stage
+  reuse_priority:
+    displayName: Reuse
+  quality_score:
+    displayName: Quality
+  confidence:
+    displayName: Confidence
+  lifecycle_decision:
+    displayName: Lifecycle
+  page_types:
+    displayName: Page Types
+  source_ids:
+    displayName: Source IDs
+  formula.updated_at:
+    displayName: Updated
+views:
+  - type: table
+    name: Claim Library
+    groupBy:
+      property: claim_kind
+      direction: ASC
+    order:
+      - file.name
+      - decision_stage
+      - reuse_priority
+      - quality_score
+      - confidence
+      - lifecycle_decision
+      - page_types
+      - source_ids
+      - formula.updated_at
+  - type: cards
+    name: High Reuse Claims
+    filters:
+      and:
+        - type == "claim"
+        - reuse_priority == "high"
+    order:
+      - file.name
+      - claim_kind
+      - decision_stage
+      - confidence
+      - page_types
+      - lifecycle_decision

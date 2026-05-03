@@ -8,7 +8,7 @@ claim_kind: "workflow"
 decision_stage: "implement"
 confidence: 0.82
 quality_score: 100
-freshness: "derived"
+freshness: "current-run"
 reuse_priority: "high"
 lifecycle_decision: "active"
 source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","source.ai-video-workflow-short-form-demo.serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"]
@@ -26,7 +26,7 @@ The first production-shaped test reveals where the real review loop and workflow
 
 - Start with one narrow use case tied to short-form product demo videos, not the whole category at once.
 - Define the input, output, owner, and quality bar before comparing tools or templates.
-- Use ltx.studio, vidworkflow.com, aistudio.google.com, ariaflow.ai as a starting field, then cut the list by buyer fit.
+- Use ltx.studio, vidworkflow.com, aistudio.google.com, reddit.com as a starting field, then cut the list by buyer fit.
 
 ## Counterpoint / limitation
 

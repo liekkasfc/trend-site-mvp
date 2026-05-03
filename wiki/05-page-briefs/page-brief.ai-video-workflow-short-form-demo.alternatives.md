@@ -6,7 +6,7 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "alternatives"
 target_intent: "decision_stage_comparison"
 target_asset: "AI Video Workflow workflow checklist"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.recommendation.913017be","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.caveat.9c8ecbcf"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.recommendation.913017be","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.caveat.a9652179"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.failure-mode.6b5adbb7"]
 required_sections: ["Verdict table","Ranking criteria","Outbound click block","CTA asset"]
 cta_strategy: "comparison_to_asset"
@@ -41,7 +41,8 @@ Compare options without reopening search results five more times.
 
 ## Required caveats
 
-- Do not recommend a stack without naming the operational cost, review loop, and failure mode.
+- As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
+- Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.
 
 ## CTA strategy
 

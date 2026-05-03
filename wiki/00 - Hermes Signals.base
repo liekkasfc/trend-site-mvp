@@ -1,0 +1,48 @@
+filters:
+  or:
+    - type == "review"
+    - type == "experiment"
+formulas:
+  updated_at: file.mtime.format("YYYY-MM-DD HH:mm")
+properties:
+  file.name:
+    displayName: Note
+  type:
+    displayName: Type
+  target_type:
+    displayName: Target Type
+  signal_source:
+    displayName: Signal Source
+  decision:
+    displayName: Decision
+  action:
+    displayName: Action
+  owner:
+    displayName: Owner
+  created_at:
+    displayName: Created At
+  formula.updated_at:
+    displayName: Updated
+views:
+  - type: table
+    name: Review and Experiment Queue
+    groupBy:
+      property: type
+      direction: ASC
+    order:
+      - file.name
+      - target_type
+      - signal_source
+      - decision
+      - action
+      - owner
+      - created_at
+      - formula.updated_at
+  - type: cards
+    name: Current Decisions
+    order:
+      - file.name
+      - type
+      - decision
+      - action
+      - created_at

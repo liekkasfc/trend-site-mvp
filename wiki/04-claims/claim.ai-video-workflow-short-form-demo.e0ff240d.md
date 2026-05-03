@@ -8,7 +8,7 @@ claim_kind: "use_case"
 decision_stage: "discover"
 confidence: 0.82
 quality_score: 100
-freshness: "derived"
+freshness: "current-run"
 reuse_priority: "high"
 lifecycle_decision: "active"
 source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","source.ai-video-workflow-short-form-demo.serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"]

@@ -96,12 +96,19 @@
 - verdicts
 - keyFacts
 - examples
+- visualAsset
 - materialSlots
 - commercialModules
 - sourceReferences
 - claimIds
 - pageBrief
 - researchDossier
+
+`visualAsset` 现在支持多 provider 生成：
+
+- `openai`：`/images/generations`
+- `hiapi`：`/chat/completions` + markdown image content
+- `fallback`：本地 SVG poster
 
 ### Hermes LLM Wiki
 
@@ -163,6 +170,7 @@
 每页都可以绑定：
 
 - conversion asset
+- visual asset
 - CTA
 - commercial module
 - source refs

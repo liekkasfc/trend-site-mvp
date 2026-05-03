@@ -13,6 +13,8 @@ if (typeof process.loadEnvFile === 'function') {
   }
 }
 
+const { buildSiteVisualAssets } = await import('./site-visuals.mjs')
+
 const projectRoot = process.cwd()
 const publicDir = path.join(projectRoot, 'public')
 const generatedDir = path.join(publicDir, 'generated')
@@ -380,6 +382,8 @@ function dedupe(values) {
 function dedupeBy(values, key) {
   const seen = new Map()
   for (const value of values) {
+    if (!value || typeof value !== 'object') continue
+    if (value[key] == null) continue
     seen.set(value[key], value)
   }
   return [...seen.values()]
@@ -9450,6 +9454,20 @@ function renderComparisonTable(rows) {
   `
 }
 
+function renderVisualFigure(visualAsset, title, detail = '') {
+  if (!visualAsset?.src && !visualAsset?.url) return ''
+
+  return `
+    <figure class="hero-visual" data-visual-mode="${escapeHtml(visualAsset.mode ?? 'unknown')}">
+      <img src="${escapeHtml(visualAsset.src ?? visualAsset.url)}" alt="${escapeHtml(visualAsset.alt ?? title)}" loading="eager" decoding="async" />
+      <figcaption>
+        <strong>${escapeHtml(title)}</strong>
+        ${detail ? `<span>${escapeHtml(detail)}</span>` : ''}
+      </figcaption>
+    </figure>
+  `
+}
+
 function renderFaq(page) {
   if (!page.faqItems?.length) return ''
 
@@ -10298,8 +10316,16 @@ function renderAssetDeliverySnippet(asset) {
 
 function renderSiteHtml(site, page) {
   const canonicalUrl = new URL(page.path, `${config.baseUrl}/`).toString()
+  const socialImage = page.visualAsset?.canonicalUrl ?? ''
   const schema = JSON.stringify(renderSchema(site, page, canonicalUrl))
   const ga4Snippet = renderGa4Snippet(page)
+  const heroVisual = renderVisualFigure(
+    page.visualAsset,
+    `${site.cluster.label} visual`,
+    page.assetBinding?.primary?.title
+      ? `Primary next step: ${page.assetBinding.primary.title}`
+      : site.cluster.primaryKeyword,
+  )
   const navigation = site.pages
     .map((item) => {
       const href = item.slug === page.slug ? item.fileName : item.fileName
@@ -10321,6 +10347,11 @@ function renderSiteHtml(site, page) {
     <meta property="og:description" content="${escapeHtml(page.metaDescription)}" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
+    ${socialImage ? `<meta property="og:image" content="${escapeHtml(socialImage)}" />` : ''}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(page.title)}" />
+    <meta name="twitter:description" content="${escapeHtml(page.metaDescription)}" />
+    ${socialImage ? `<meta name="twitter:image" content="${escapeHtml(socialImage)}" />` : ''}
     <script type="application/ld+json">${schema}</script>
 ${ga4Snippet}
     <style>
@@ -10340,6 +10371,18 @@ ${ga4Snippet}
       }
       header {
         padding: 32px 0 18px;
+      }
+      .hero-shell {
+        display: grid;
+        gap: 24px;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        align-items: start;
+      }
+      .hero-copy {
+        min-width: 0;
+      }
+      .hero-shell--single {
+        grid-template-columns: 1fr;
       }
       nav {
         display: flex;
@@ -10393,6 +10436,34 @@ ${ga4Snippet}
       }
       .lede {
         max-width: 64ch;
+      }
+      .hero-visual {
+        margin: 0;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+        overflow: hidden;
+      }
+      .hero-visual img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 3 / 2;
+        object-fit: cover;
+        background: #111;
+      }
+      .hero-visual figcaption {
+        display: grid;
+        gap: 6px;
+        padding: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .hero-visual figcaption strong {
+        color: #f3f1ea;
+      }
+      .hero-visual figcaption span {
+        color: #cfc8ba;
+        font-size: 0.95rem;
+        line-height: 1.6;
       }
       .cta {
         padding: 18px;
@@ -10502,6 +10573,9 @@ ${ga4Snippet}
       }
       @media (max-width: 720px) {
         h1 { font-size: 2rem; }
+        .hero-shell {
+          grid-template-columns: 1fr;
+        }
         .card-grid,
         .fact-grid {
           grid-template-columns: 1fr;
@@ -10511,10 +10585,15 @@ ${ga4Snippet}
   </head>
   <body>
     <header>
-      <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
-      <h1>${escapeHtml(page.h1)}</h1>
-      <p class="lede">${escapeHtml(page.intro)}</p>
-      <nav>${navigation}</nav>
+      <div class="hero-shell${heroVisual ? '' : ' hero-shell--single'}">
+        <div class="hero-copy">
+          <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
+          <h1>${escapeHtml(page.h1)}</h1>
+          <p class="lede">${escapeHtml(page.intro)}</p>
+          <nav>${navigation}</nav>
+        </div>
+        ${heroVisual}
+      </div>
     </header>
     <main>
       ${renderSections(page)}
@@ -10578,6 +10657,14 @@ ${ga4Snippet}
 
 function renderAssetLandingHtml(site, asset) {
   const canonicalUrl = new URL(asset.landingPath, `${config.baseUrl}/`).toString()
+  const socialImage = asset.visualAsset?.canonicalUrl ?? ''
+  const heroVisual = renderVisualFigure(
+    asset.visualAsset,
+    `${asset.title} preview`,
+    asset.deliverables?.[0]?.label
+      ? `Includes ${asset.deliverables[0].label.toLowerCase()}`
+      : 'Reusable workflow asset',
+  )
   const ga4Snippet = renderGa4Snippet(
     {
       title: `${asset.title} delivery`,
@@ -10615,6 +10702,11 @@ function renderAssetLandingHtml(site, asset) {
     <title>${escapeHtml(asset.title)} delivery</title>
     <meta name="description" content="${escapeHtml(asset.summary)}" />
     <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
+    ${socialImage ? `<meta property="og:image" content="${escapeHtml(socialImage)}" />` : ''}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(asset.title)} delivery" />
+    <meta name="twitter:description" content="${escapeHtml(asset.summary)}" />
+    ${socialImage ? `<meta name="twitter:image" content="${escapeHtml(socialImage)}" />` : ''}
 ${ga4Snippet}
 ${leadCaptureSnippet}
     <style>
@@ -10628,8 +10720,32 @@ ${leadCaptureSnippet}
       h2 { font-size: 1.08rem; margin-bottom: 10px; }
       p, li, label, input, textarea { color: #d3cec3; line-height: 1.7; }
       .eyebrow { color: #8eb777; font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
+      .hero-shell { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr); align-items: start; }
+      .hero-shell--single { grid-template-columns: 1fr; }
       .lede { max-width: 64ch; }
       .kicker { margin-top: 10px; color: #f5e6b0; max-width: 64ch; }
+      .hero-visual {
+        margin: 0;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        overflow: hidden;
+      }
+      .hero-visual img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 3 / 2;
+        object-fit: cover;
+        background: #111;
+      }
+      .hero-visual figcaption {
+        display: grid;
+        gap: 6px;
+        padding: 14px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.02);
+      }
+      .hero-visual figcaption strong { color: #f3f1ea; }
+      .hero-visual figcaption span { color: #d3cec3; font-size: 0.95rem; line-height: 1.6; }
       .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .card { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); padding: 14px; }
       .card strong { display: block; color: #f3f1ea; margin-bottom: 8px; }
@@ -10670,6 +10786,7 @@ ${leadCaptureSnippet}
       .note-list { display: grid; gap: 8px; margin: 0; padding-left: 20px; }
       ul { padding-left: 20px; }
       @media (max-width: 720px) {
+        .hero-shell { grid-template-columns: 1fr; }
         .grid { grid-template-columns: 1fr; }
         h1 { font-size: 2rem; }
       }
@@ -10677,10 +10794,15 @@ ${leadCaptureSnippet}
   </head>
   <body>
     <main>
-      <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
-      <h1>${escapeHtml(asset.title)}</h1>
-      <p class="lede">${escapeHtml(asset.landingIntro ?? asset.summary)}</p>
-      <p class="kicker">${escapeHtml(`Best for ${asset.useCaseLabels.slice(0, 3).join(', ') || site.cluster.primaryKeyword}.`)}</p>
+      <div class="hero-shell${heroVisual ? '' : ' hero-shell--single'}">
+        <div>
+          <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
+          <h1>${escapeHtml(asset.title)}</h1>
+          <p class="lede">${escapeHtml(asset.landingIntro ?? asset.summary)}</p>
+          <p class="kicker">${escapeHtml(`Best for ${asset.useCaseLabels.slice(0, 3).join(', ') || site.cluster.primaryKeyword}.`)}</p>
+        </div>
+        ${heroVisual}
+      </div>
 
       ${
         evidenceCards.length > 0
@@ -10836,6 +10958,14 @@ ${leadCaptureSnippet}
 
 function renderAssetThankYouHtml(site, asset) {
   const canonicalUrl = new URL(asset.thankYouPath, `${config.baseUrl}/`).toString()
+  const socialImage = asset.visualAsset?.canonicalUrl ?? ''
+  const heroVisual = renderVisualFigure(
+    asset.visualAsset,
+    `${asset.title} ready`,
+    asset.deliverySteps?.[0]?.title
+      ? `Start with ${asset.deliverySteps[0].title.toLowerCase()}`
+      : 'Reusable workflow asset',
+  )
   const readyEvents = [
     {
       event: asset.formEvent,
@@ -10895,6 +11025,11 @@ function renderAssetThankYouHtml(site, asset) {
     <title>${escapeHtml(asset.title)} ready</title>
     <meta name="description" content="${escapeHtml(`Download ${asset.title} and move straight into the first pilot.`)}" />
     <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
+    ${socialImage ? `<meta property="og:image" content="${escapeHtml(socialImage)}" />` : ''}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(asset.title)} ready" />
+    <meta name="twitter:description" content="${escapeHtml(`Download ${asset.title} and move straight into the first pilot.`)}" />
+    ${socialImage ? `<meta name="twitter:image" content="${escapeHtml(socialImage)}" />` : ''}
 ${ga4Snippet}
 ${assetDeliverySnippet}
     <style>
@@ -10908,7 +11043,31 @@ ${assetDeliverySnippet}
       h2 { font-size: 1.05rem; margin-bottom: 10px; }
       p, li { color: #d3cec3; line-height: 1.7; }
       .eyebrow { color: #8eb777; font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
+      .hero-shell { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr); align-items: start; }
+      .hero-shell--single { grid-template-columns: 1fr; }
       .lede { max-width: 62ch; }
+      .hero-visual {
+        margin: 0;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        overflow: hidden;
+      }
+      .hero-visual img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 3 / 2;
+        object-fit: cover;
+        background: #111;
+      }
+      .hero-visual figcaption {
+        display: grid;
+        gap: 6px;
+        padding: 14px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.02);
+      }
+      .hero-visual figcaption strong { color: #f3f1ea; }
+      .hero-visual figcaption span { color: #d3cec3; font-size: 0.95rem; line-height: 1.6; }
       .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .card { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); padding: 14px; }
       .card strong { display: block; color: #f3f1ea; margin-bottom: 8px; }
@@ -10943,6 +11102,7 @@ ${assetDeliverySnippet}
       .text-link { color: #f5e6b0; }
       ul { padding-left: 20px; }
       @media (max-width: 720px) {
+        .hero-shell { grid-template-columns: 1fr; }
         .grid { grid-template-columns: 1fr; }
         h1 { font-size: 1.95rem; }
       }
@@ -10950,9 +11110,14 @@ ${assetDeliverySnippet}
   </head>
   <body>
     <main>
-      <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
-      <h1>${escapeHtml(asset.title)} is ready</h1>
-      <p class="lede">Download the asset, use the first module on one narrow pilot, and keep the workflow notes that make the second run cleaner than the first.</p>
+      <div class="hero-shell${heroVisual ? '' : ' hero-shell--single'}">
+        <div>
+          <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
+          <h1>${escapeHtml(asset.title)} is ready</h1>
+          <p class="lede">Download the asset, use the first module on one narrow pilot, and keep the workflow notes that make the second run cleaner than the first.</p>
+        </div>
+        ${heroVisual}
+      </div>
 
       <section>
         <h2>Start here in the first 30 minutes</h2>
@@ -14933,7 +15098,22 @@ async function runPipeline() {
       wikiSeed,
     )
     await writeJson(path.join(siteArtifactsDir, 'research-dossier.json'), pagePlanning.researchDossier)
-    const pageModels = pagePlanning.pages
+    const siteVisualBundle = await buildSiteVisualAssets({
+      baseUrl: config.baseUrl,
+      siteDir,
+      siteArtifactsDir,
+      cluster,
+      pages: pagePlanning.pages,
+      conversionAssets: pagePlanning.conversionAssets,
+    })
+    const pageModels = pagePlanning.pages.map((page) => ({
+      ...page,
+      visualAsset: siteVisualBundle.pageVisuals[page.slug] ?? null,
+    }))
+    const conversionAssets = pagePlanning.conversionAssets.map((asset) => ({
+      ...asset,
+      visualAsset: siteVisualBundle.assetVisuals[asset.slug] ?? null,
+    }))
     const siteRecord = {
       siteSlug: cluster.siteSlug,
       siteName: cluster.thesisName,
@@ -14943,7 +15123,8 @@ async function runPipeline() {
       claims: pagePlanning.claims,
       pageBriefs: pagePlanning.pageBriefs,
       researchDossier: pagePlanning.researchDossier,
-      conversionAssets: pagePlanning.conversionAssets,
+      conversionAssets,
+      visualAssets: siteVisualBundle.manifest,
       homePath: `/generated-sites/${cluster.siteSlug}/index.html`,
       outputDir: siteDir,
       pages: pageModels,
@@ -15011,6 +15192,8 @@ async function runPipeline() {
         landingPath: asset.landingPath,
         thankYouPath: asset.thankYouPath,
         downloadPath: asset.downloadPath,
+        visualAssetPath: asset.visualAsset?.url ?? '',
+        visualAssetStatus: asset.visualAsset?.mode ?? 'none',
       })
     }
 
@@ -15049,6 +15232,8 @@ async function runPipeline() {
       sourceReferenceCount: page.sourceReferences?.length ?? 0,
       materialSlotCount: page.materialSlots?.length ?? 0,
       commercialModuleCount: page.commercialModules?.length ?? 0,
+      visualAssetPath: page.visualAsset?.url ?? '',
+      visualAssetStatus: page.visualAsset?.mode ?? 'none',
       indexingDirective: publishGate.status === 'pass' ? 'index' : 'noindex',
     }))
     sites.push(siteRecord)

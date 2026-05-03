@@ -10,6 +10,11 @@
     <meta property="og:description" content="A template and asset page for ai video workflow that explains what is included, who it is for, and how to use it after the first visit." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://automiora.com/generated-sites/ai-video-workflow-short-form-demo/template-kit.html" />
+    <meta property="og:image" content="https://automiora.com/generated-sites/ai-video-workflow-short-form-demo/media/template-kit-hero.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ai video workflow template kit: assets and prompts" />
+    <meta name="twitter:description" content="A template and asset page for ai video workflow that explains what is included, who it is for, and how to use it after the first visit." />
+    <meta name="twitter:image" content="https://automiora.com/generated-sites/ai-video-workflow-short-form-demo/media/template-kit-hero.svg" />
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"ai video workflow template kit: assets and prompts","url":"https://automiora.com/generated-sites/ai-video-workflow-short-form-demo/template-kit.html","about":"ai video workflow"}</script>
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-0YDYHQCDQC"></script>
@@ -71,6 +76,18 @@
       header {
         padding: 32px 0 18px;
       }
+      .hero-shell {
+        display: grid;
+        gap: 24px;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        align-items: start;
+      }
+      .hero-copy {
+        min-width: 0;
+      }
+      .hero-shell--single {
+        grid-template-columns: 1fr;
+      }
       nav {
         display: flex;
         flex-wrap: wrap;
@@ -123,6 +140,34 @@
       }
       .lede {
         max-width: 64ch;
+      }
+      .hero-visual {
+        margin: 0;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+        overflow: hidden;
+      }
+      .hero-visual img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 3 / 2;
+        object-fit: cover;
+        background: #111;
+      }
+      .hero-visual figcaption {
+        display: grid;
+        gap: 6px;
+        padding: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .hero-visual figcaption strong {
+        color: #f3f1ea;
+      }
+      .hero-visual figcaption span {
+        color: #cfc8ba;
+        font-size: 0.95rem;
+        line-height: 1.6;
       }
       .cta {
         padding: 18px;
@@ -232,6 +277,9 @@
       }
       @media (max-width: 720px) {
         h1 { font-size: 2rem; }
+        .hero-shell {
+          grid-template-columns: 1fr;
+        }
         .card-grid,
         .fact-grid {
           grid-template-columns: 1fr;
@@ -241,10 +289,23 @@
   </head>
   <body>
     <header>
-      <p class="eyebrow">AI Video Workflow</p>
-      <h1>ai video workflow template kit</h1>
-      <p class="lede">The template kit bundles one first-run prompt pack, one repeat-run workflow checklist, and one comparison worksheet so a team can move from first pilot to reusable handoff without reopening search or rebuilding the brief. The asset should feel immediately usable, not like a vague lead magnet.</p>
-      <nav><a href="index.html">Overview</a><a href="alternatives.html">Alternatives</a><a href="workflow.html">Workflow</a><a href="faq.html">FAQ</a><a href="best-tools.html">Best Tools</a><a href="pricing.html">Pricing</a><a href="free-vs-paid.html">Free vs Paid</a><a href="use-cases.html">Use Cases</a><a class="active" href="template-kit.html">Template Kit</a><a href="case-study.html">Case Study</a></nav>
+      <div class="hero-shell">
+        <div class="hero-copy">
+          <p class="eyebrow">AI Video Workflow</p>
+          <h1>ai video workflow template kit</h1>
+          <p class="lede">The template kit bundles one first-run prompt pack, one repeat-run workflow checklist, and one comparison worksheet so a team can move from first pilot to reusable handoff without reopening search or rebuilding the brief. The asset should feel immediately usable, not like a vague lead magnet.</p>
+          <nav><a href="index.html">Overview</a><a href="alternatives.html">Alternatives</a><a href="workflow.html">Workflow</a><a href="faq.html">FAQ</a><a href="best-tools.html">Best Tools</a><a href="pricing.html">Pricing</a><a href="free-vs-paid.html">Free vs Paid</a><a href="use-cases.html">Use Cases</a><a class="active" href="template-kit.html">Template Kit</a><a href="case-study.html">Case Study</a></nav>
+        </div>
+        
+    <figure class="hero-visual" data-visual-mode="fallback">
+      <img src="media/template-kit-hero.svg" alt="AI Video Workflow hero visual showing an ai video workflow workflow for short-form product demo videos." loading="eager" decoding="async" />
+      <figcaption>
+        <strong>AI Video Workflow visual</strong>
+        <span>Primary next step: AI Video Workflow prompt pack</span>
+      </figcaption>
+    </figure>
+  
+      </div>
     </header>
     <main>
       
@@ -294,8 +355,16 @@
                 <p class="claim-meta">Workflow · Implement · score 100</p>
                 <strong>Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.</strong>
                 <p>The first production-shaped test reveals where the real review loop and workflow friction live.</p>
-                <ul class="mini-list"><li>Start with one narrow use case tied to short-form product demo videos, not the whole category at once.</li><li>Define the input, output, owner, and quality bar before comparing tools or templates.</li><li>Use ltx.studio, vidworkflow.com, aistudio.google.com, ariaflow.ai as a starting field, then cut the list by buyer fit.</li></ul>
+                <ul class="mini-list"><li>Start with one narrow use case tied to short-form product demo videos, not the whole category at once.</li><li>Define the input, output, owner, and quality bar before comparing tools or templates.</li><li>Use ltx.studio, vidworkflow.com, aistudio.google.com, reddit.com as a starting field, then cut the list by buyer fit.</li></ul>
                 <p class="mini-note"><span class="meta-label">Watch-out</span> Broad pilots make it harder to isolate which step actually caused failure or rework.</p>
+              </article>
+            
+              <article class="mini-card">
+                <p class="claim-meta">Caveat · Compare · score 100</p>
+                <strong>Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.</strong>
+                <p>This keeps the content honest when the evidence is incomplete.</p>
+                <ul class="mini-list"><li>AI-Powered Video Generation Workflows End-to-end video creation pipelines powered by AI. Pick a workflow, customize it, and get a finished video ready to publish. Create Horizontal Video — $20 3-12 min video duration. One-time payment. No subscription.</li><li>Detected 1 outdated SERP results.</li></ul>
+                <p class="mini-note"><span class="meta-label">Watch-out</span> If pricing becomes explicit later, the page should switch from caveat-heavy to benchmark-heavy.</p>
               </article>
             
       </div>
@@ -544,7 +613,7 @@
       
     <section>
       <h2>Original operator notes</h2>
-      <ul><li>SERP gap summary: pricing gap in top SERP results; outdated results still present in top SERP</li><li>Live query set: ai video workflow / topaz video ai workflow / flux ai text to video workflow comfy ui</li><li>Conversion asset: AI Video Workflow prompt pack</li><li>Source pack coverage: official 4, competitive 1, community 0, workflow 4, product 2, video 4, deep research 0</li></ul>
+      <ul><li>SERP gap summary: pricing gap in top SERP results; outdated results still present in top SERP; community questions show unresolved workflow pain</li><li>Live query set: ai video workflow / topaz video ai workflow / flux ai text to video workflow comfy ui</li><li>Conversion asset: AI Video Workflow prompt pack</li><li>Source pack coverage: official 4, competitive 3, community 2, workflow 4, product 4, video 4, deep research 0</li></ul>
     </section>
   
       

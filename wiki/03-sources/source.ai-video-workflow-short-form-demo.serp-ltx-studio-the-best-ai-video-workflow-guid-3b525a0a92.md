@@ -8,7 +8,7 @@ title: "The Best AI Video Workflow Guide & Tool Stack (2026)"
 url: "https://ltx.studio/blog/ai-video-workflow"
 domain: "ltx.studio"
 published_at: "2026-01-01"
-captured_at: "2026-05-03T11:41:12.595Z"
+captured_at: "2026-05-03T12:49:23.647Z"
 freshness_score: 92
 credibility_score: 70
 status: "active"

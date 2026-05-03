@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-03T11:41:12.595Z",
+  "generatedAt": "2026-05-03T12:49:23.647Z",
   "instructions": [
     "Copy this file to storage/review-overrides.json and edit only the fields you want to override.",
     "Supported fields per page: intro, ctaCopy, verdicts, keyFacts, sectionParagraphs, reviewer, reviewedAt, notes."
@@ -25,7 +25,7 @@
         },
         {
           "title": "Weak pages lose visitors when they hide pricing clarity or rollout cost",
-          "detail": "Do not recommend a stack without naming the operational cost, review loop, and failure mode.",
+          "detail": "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?",
           "sourceIds": [
             "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
             "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
@@ -57,7 +57,7 @@
         },
         {
           "label": "SERP coverage",
-          "value": "4 visible results and 1 commercial-style results shaped this cluster.",
+          "value": "4 visible results and 2 commercial-style results shaped this cluster.",
           "sourceIds": [
             "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
             "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
@@ -78,7 +78,7 @@
           "That means the page should tell the visitor who this category is for, who should skip it, and what to test first."
         ],
         [
-          "Current search coverage still leaves these gaps: pricing gap in top SERP results; outdated results still present in top SERP.",
+          "Current search coverage still leaves these gaps: pricing gap in top SERP results; outdated results still present in top SERP; community questions show unresolved workflow pain.",
           "Use cases like short-form product demo videos, launch and product update videos, screenshot-to-video launch clips should map to distinct decision paths rather than a single generic recommendation."
         ]
       ]
@@ -115,40 +115,40 @@
           ]
         },
         {
-          "title": "ariaflow.ai",
+          "title": "reddit.com",
           "detail": "Useful benchmark or fallback. Best for operators comparing fit against an already-shortlisted option.",
           "sourceIds": [
-            "official-ariaflow-ai-ariaflow-ai-create-viral-facel-6c4ae0bac8"
+            "community-reddit-com-which-video-editing-ai-tool-is--c953fa0136"
           ]
         }
       ],
       "keyFacts": [
         {
           "label": "ltx.studio",
-          "value": "Teams that want the fastest path from evaluation to execution. Watch-out: Do not recommend a stack without naming the operational cost, review loop, and failure mode.",
+          "value": "Teams that want the fastest path from evaluation to execution. Watch-out: As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
           ]
         },
         {
           "label": "vidworkflow.com",
-          "value": "Visitors who need clearer tradeoffs before they commit. Watch-out: Not ideal if the buyer still needs category context before comparing tools.",
+          "value": "Visitors who need clearer tradeoffs before they commit. Watch-out: Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.",
           "sourceIds": [
             "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
           ]
         },
         {
           "label": "aistudio.google.com",
-          "value": "Operators comparing fit against an already-shortlisted option. Watch-out: Not ideal if the buyer still needs category context before comparing tools.",
+          "value": "Operators comparing fit against an already-shortlisted option. Watch-out: Do not recommend a stack without naming the operational cost, review loop, and failure mode.",
           "sourceIds": [
             "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
           ]
         },
         {
-          "label": "ariaflow.ai",
+          "label": "reddit.com",
           "value": "Operators comparing fit against an already-shortlisted option. Useful benchmark or fallback.",
           "sourceIds": [
-            "official-ariaflow-ai-ariaflow-ai-create-viral-facel-6c4ae0bac8"
+            "community-reddit-com-which-video-editing-ai-tool-is--c953fa0136"
           ]
         }
       ],
@@ -205,7 +205,7 @@
         },
         {
           "label": "Primary risk",
-          "value": "Do not recommend a stack without naming the operational cost, review loop, and failure mode.",
+          "value": "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
             "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"

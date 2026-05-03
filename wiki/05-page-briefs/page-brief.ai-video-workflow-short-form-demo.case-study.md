@@ -6,7 +6,7 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "case-study"
 target_intent: "proof_of_path"
 target_asset: "AI Video Workflow prompt pack"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.failure-mode.63d7bd51","claim.ai-video-workflow-short-form-demo.use-case.3c28df3f","claim.ai-video-workflow-short-form-demo.use-case.e0ff240d"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.use-case.3c28df3f","claim.ai-video-workflow-short-form-demo.use-case.e0ff240d","claim.ai-video-workflow-short-form-demo.failure-mode.9eb3ee95"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.use-case.5d966843"]
 required_sections: ["Before","Intervention","Outcome","CTA asset or consult"]
 cta_strategy: "implementation_asset"
@@ -30,9 +30,9 @@ See whether the path works in practice and what changed after adoption.
 ## Required claims
 
 - Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
-- Do not recommend a stack without naming the operational cost, review loop, and failure mode.
 - short-form product demo videos is a concrete entry point for ai video workflow.
 - launch and product update videos is a concrete entry point for ai video workflow.
+- As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
 
 ## Required examples
 
@@ -41,7 +41,7 @@ See whether the path works in practice and what changed after adoption.
 
 ## Required caveats
 
-- Do not recommend a stack without naming the operational cost, review loop, and failure mode.
+- As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
 
 ## CTA strategy
 
@@ -73,5 +73,5 @@ implementation_asset -> AI Video Workflow prompt pack
 - page_brief:page-brief.ai-video-workflow-short-form-demo.case-study
 - conversion_asset:prompt-pack
 - claim:claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e
-- claim:claim.ai-video-workflow-short-form-demo.failure-mode.63d7bd51
+- claim:claim.ai-video-workflow-short-form-demo.use-case.3c28df3f
 - claim:claim.ai-video-workflow-short-form-demo.use-case.5d966843
