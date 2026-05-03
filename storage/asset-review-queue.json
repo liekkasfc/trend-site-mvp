@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-05-03T08:37:39.354Z",
+  "entries": [
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "assetSlug": "prompt-pack",
+      "assetTitle": "AI Video Workflow prompt pack",
+      "assetKind": "template_pack",
+      "acceptanceMode": "B",
+      "acceptanceStatus": "human_quick_review",
+      "totalScore": 100,
+      "estimatedReviewMinutes": 4,
+      "reviewRequired": true,
+      "failedChecks": [],
+      "reviewerPrompt": "Check whether this solves a specific action, starts in 10 minutes, shows one concrete example, exposes a failure point, and matches the CTA promise.",
+      "rewriteInstructions": [],
+      "suggestedAction": "accept",
+      "strongestUseCase": "short-form product demo videos",
+      "bestPageTypes": [
+        "index",
+        "faq",
+        "best-tools",
+        "pricing",
+        "free-vs-paid",
+        "use-cases",
+        "template-kit",
+        "case-study"
+      ],
+      "landingPath": "/generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack.html",
+      "thankYouPath": "/generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack-thank-you.html",
+      "downloadPath": "/generated-sites/ai-video-workflow-short-form-demo/downloads/prompt-pack.md"
+    }
+  ]
+}

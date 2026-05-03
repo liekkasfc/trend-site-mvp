@@ -1,0 +1,895 @@
+{
+  "keyword": "ai video workflow",
+  "thesisKey": "video-creation",
+  "originalAnchors": [
+    "SERP gap summary: pricing gap in top SERP results; outdated results still present in top SERP; community questions show unresolved workflow pain",
+    "Live query set: ai video workflow / topaz video ai workflow / flux ai text to video workflow comfy ui",
+    "Conversion asset: AI Video Workflow prompt pack",
+    "Source pack coverage: official 4, competitive 3, community 2, workflow 4, product 4, video 4, deep research 0"
+  ],
+  "sourceReferences": [
+    {
+      "id": "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+      "label": "AI Video Generation Workflows | VidWorkflow",
+      "url": "https://vidworkflow.com/",
+      "domain": "vidworkflow.com",
+      "reason": "AI-Powered Video Generation Workflows End-to-end video creation pipelines powered by AI. Pick a workflow, customize it, and get a finished video ready to publish. Create Horizontal Video — $20 3-12 min video duration. One-time payment. No subscription."
+    },
+    {
+      "id": "official-aistudio-google-com-google-ai-studio-86e7d7fc8c",
+      "label": "Google AI Studio",
+      "url": "https://aistudio.google.com/",
+      "domain": "aistudio.google.com",
+      "reason": "Holywater Holywater scales content analysis and creation by integrating Gemini Pro and Leo models into video production workflows for My Drama, an award-winning AI video streaming app."
+    },
+    {
+      "id": "official-ariaflow-ai-ariaflow-ai-create-viral-facel-6c4ae0bac8",
+      "label": "AriaFlow.ai | Create Viral Faceless Videos with AI, Auto-Post to ...",
+      "url": "https://ariaflow.ai/",
+      "domain": "ariaflow.ai",
+      "reason": "Create Viral Faceless Videos on Autopilot Choose from dedicated workflows for faceless videos, storybooks, and AI podcasts. Create, schedule, and scale content faster from a single workspace."
+    },
+    {
+      "id": "official-synthesia-io-synthesia-1-ai-video-platform-5000af18b9",
+      "label": "Synthesia: #1 AI Video Platform for Business",
+      "url": "https://www.synthesia.io/",
+      "domain": "synthesia.io",
+      "reason": "All-in-one AI Video platform for business Create studio-quality videos with AI avatars and voiceovers in 160+ languages. Save up to 90% of time and cost on video production."
+    }
+  ],
+  "materialSlots": [
+    {
+      "title": "Evidence sources",
+      "type": "sources",
+      "items": [
+        {
+          "label": "vidworkflow.com",
+          "detail": "AI-Powered Video Generation Workflows End-to-end video creation pipelines powered by AI. Pick a workflow, customize it, and get a finished video ready to publish. Create Horizontal Video — $20 3-12 min video duration. One-time payment. No subscription.",
+          "url": "https://vidworkflow.com/"
+        },
+        {
+          "label": "aistudio.google.com",
+          "detail": "Holywater Holywater scales content analysis and creation by integrating Gemini Pro and Leo models into video production workflows for My Drama, an award-winning AI video streaming app.",
+          "url": "https://aistudio.google.com/"
+        },
+        {
+          "label": "ariaflow.ai",
+          "detail": "Create Viral Faceless Videos on Autopilot Choose from dedicated workflows for faceless videos, storybooks, and AI podcasts. Create, schedule, and scale content faster from a single workspace.",
+          "url": "https://ariaflow.ai/"
+        }
+      ]
+    }
+  ],
+  "commercialModules": [
+    {
+      "type": "consult-cta",
+      "title": "Need implementation help?",
+      "description": "Use a consult CTA for visitors who want a faster rollout than a template alone can provide.",
+      "items": [
+        {
+          "label": "Book an audit or consult",
+          "url": "/generated-sites/ai-video-workflow-short-form-demo/audit-request.html",
+          "note": "Higher-friction CTA for commercial-intent visitors",
+          "event": "consult_click",
+          "actionTier": "consult_interest"
+        }
+      ]
+    }
+  ],
+  "assetBinding": {
+    "primary": {
+      "slug": "prompt-pack",
+      "title": "AI Video Workflow prompt pack",
+      "type": "template",
+      "event": "generate_lead",
+      "summary": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts.",
+      "wikiId": "asset.ai-video-workflow-short-form-demo.prompt-pack",
+      "deliveryMode": "download",
+      "primaryPages": [
+        "index",
+        "faq",
+        "best-tools",
+        "pricing",
+        "free-vs-paid",
+        "use-cases",
+        "template-kit",
+        "case-study"
+      ],
+      "bestPageTypes": [],
+      "acceptanceStatus": "human_quick_review",
+      "refreshPriority": "medium",
+      "reuseScore": 0
+    },
+    "secondary": {
+      "slug": "workflow-checklist",
+      "title": "AI Video Workflow workflow checklist",
+      "type": "checklist",
+      "event": "download_checklist",
+      "summary": "A checklist for moving from source asset to publish-ready short-form demo.",
+      "wikiId": "asset.ai-video-workflow-short-form-demo.workflow-checklist",
+      "deliveryMode": "download",
+      "primaryPages": [
+        "alternatives"
+      ],
+      "bestPageTypes": [],
+      "acceptanceStatus": "auto_release_candidate",
+      "refreshPriority": "low",
+      "reuseScore": 0
+    },
+    "title": "AI Video Workflow prompt pack",
+    "copy": "Use ai video workflow prompt pack as the main asset that carries visitors from reading into action."
+  },
+  "pageBrief": {
+    "id": "page-brief.ai-video-workflow-short-form-demo.use-cases",
+    "type": "page_brief",
+    "thesisId": "thesis.video-creation",
+    "clusterId": "cluster.ai-video-workflow-short-form-demo",
+    "pageType": "use-cases",
+    "targetIntent": "job_to_be_done",
+    "targetAsset": "AI Video Workflow prompt pack",
+    "primaryClaimIds": [
+      "claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c",
+      "claim.ai-video-workflow-short-form-demo.use-case.4d724d31",
+      "claim.ai-video-workflow-short-form-demo.use-case.c8bb6abd",
+      "claim.ai-video-workflow-short-form-demo.use-case.2d45b02e"
+    ],
+    "secondaryClaimIds": [
+      "claim.ai-video-workflow-short-form-demo.caveat.a9652179"
+    ],
+    "requiredSections": [
+      "Use case map",
+      "Example scenario",
+      "Workflow next step",
+      "CTA asset"
+    ],
+    "ctaStrategy": "lead_with_asset",
+    "reviewPriority": "medium",
+    "internalLinkRole": "execution-spoke",
+    "pageGoal": "Tie the category to narrow jobs-to-be-done with a believable first workflow.",
+    "visitorIntent": "See whether this category fits my job, not a generic market segment.",
+    "mustWinQuestions": [
+      "Which use case fits me?",
+      "What workflow starts there?",
+      "What asset helps me test it?"
+    ],
+    "requiredExamples": [
+      "short-form product demo videos",
+      "launch and product update videos",
+      "screenshot-to-video launch clips",
+      "image-to-video clips"
+    ],
+    "requiredCaveats": [
+      "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?"
+    ],
+    "failureConditions": [
+      "Repeats the same use case with different nouns",
+      "No scenario feels real"
+    ],
+    "manualSource": "/Users/max/code/trend-site-mvp/wiki/05-page-briefs/page-brief.ai-video-workflow-short-form-demo.use-cases.md",
+    "completenessScore": 100
+  },
+  "briefId": "page-brief.ai-video-workflow-short-form-demo.use-cases",
+  "claimIds": [
+    "claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c",
+    "claim.ai-video-workflow-short-form-demo.use-case.4d724d31",
+    "claim.ai-video-workflow-short-form-demo.use-case.c8bb6abd",
+    "claim.ai-video-workflow-short-form-demo.use-case.2d45b02e",
+    "claim.ai-video-workflow-short-form-demo.caveat.a9652179"
+  ],
+  "primaryClaimIds": [
+    "claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c",
+    "claim.ai-video-workflow-short-form-demo.use-case.4d724d31",
+    "claim.ai-video-workflow-short-form-demo.use-case.c8bb6abd",
+    "claim.ai-video-workflow-short-form-demo.use-case.2d45b02e"
+  ],
+  "claimCards": [
+    {
+      "id": "claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c",
+      "type": "claim",
+      "thesisId": "thesis.video-creation",
+      "clusterId": "cluster.ai-video-workflow-short-form-demo",
+      "pageTypes": [
+        "hub",
+        "faq",
+        "template-kit",
+        "use-cases"
+      ],
+      "claimKind": "conversion",
+      "decisionStage": "buy",
+      "confidence": 0.7,
+      "freshness": "current-run",
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
+      ],
+      "status": "active",
+      "statement": "AI Video Workflow prompt pack is the main conversion asset because it shortens the time from reading to the first test.",
+      "whyItMatters": "The page should sell the next useful action, not just publish more opinionated prose.",
+      "evidence": [
+        "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts.",
+        "A checklist for moving from source asset to publish-ready short-form demo.",
+        "A worksheet to compare output quality, speed, pricing clarity, and editing overhead."
+      ],
+      "counterpoint": "If visitors want hands-on help, a consult CTA can outperform a low-friction download.",
+      "bestPageTypes": [
+        "hub",
+        "faq",
+        "template-kit",
+        "use-cases"
+      ],
+      "reusePriority": "high",
+      "performanceNote": "Used in 4 page type(s), backed by 1 source anchor(s), confidence 0.7.",
+      "lifecycleDecision": "active",
+      "refreshCondition": "Refresh when pricing, rankings, or community complaints change materially.",
+      "qualityScore": 100
+    },
+    {
+      "id": "claim.ai-video-workflow-short-form-demo.use-case.4d724d31",
+      "type": "claim",
+      "thesisId": "thesis.video-creation",
+      "clusterId": "cluster.ai-video-workflow-short-form-demo",
+      "pageTypes": [
+        "hub",
+        "workflow",
+        "use-cases",
+        "case-study"
+      ],
+      "claimKind": "use_case",
+      "decisionStage": "discover",
+      "confidence": 0.82,
+      "freshness": "current-run",
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ],
+      "status": "active",
+      "statement": "short-form product demo videos is a concrete entry point for ai video workflow.",
+      "whyItMatters": "Specific use cases reduce generic category copy and make the first workflow test easier to define.",
+      "evidence": [
+        "Audience: product marketers and indie hackers shipping feature launches, homepage refreshes, or short SaaS walkthroughs",
+        "Trigger: A release, feature walkthrough, or landing page update needs a concrete demo clip without rebuilding the process from scratch.",
+        "Workflow: Collect the product states, define the single angle to show, generate one short pass, and save the winning prompt plus review notes for the next launch."
+      ],
+      "counterpoint": "A use case page gets weak when multiple jobs collapse into the same generic recommendation.",
+      "bestPageTypes": [
+        "hub",
+        "workflow",
+        "use-cases",
+        "case-study"
+      ],
+      "reusePriority": "high",
+      "performanceNote": "Used in 4 page type(s), backed by 2 source anchor(s), confidence 0.82.",
+      "lifecycleDecision": "active",
+      "refreshCondition": "Refresh when pricing, rankings, or community complaints change materially.",
+      "qualityScore": 100
+    },
+    {
+      "id": "claim.ai-video-workflow-short-form-demo.use-case.c8bb6abd",
+      "type": "claim",
+      "thesisId": "thesis.video-creation",
+      "clusterId": "cluster.ai-video-workflow-short-form-demo",
+      "pageTypes": [
+        "hub",
+        "workflow",
+        "use-cases",
+        "case-study"
+      ],
+      "claimKind": "use_case",
+      "decisionStage": "discover",
+      "confidence": 0.82,
+      "freshness": "current-run",
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ],
+      "status": "active",
+      "statement": "launch and product update videos is a concrete entry point for ai video workflow.",
+      "whyItMatters": "Specific use cases reduce generic category copy and make the first workflow test easier to define.",
+      "evidence": [
+        "Audience: operators turning changelogs, launch notes, and feature drops into repeatable announcement assets",
+        "Trigger: The team has a new release to announce and wants a faster path from product update to publish-ready clip.",
+        "Workflow: Turn the release note into a one-angle brief, pick the launch frames, run a short pilot, then document the review loop for the next announcement."
+      ],
+      "counterpoint": "A use case page gets weak when multiple jobs collapse into the same generic recommendation.",
+      "bestPageTypes": [
+        "hub",
+        "workflow",
+        "use-cases",
+        "case-study"
+      ],
+      "reusePriority": "high",
+      "performanceNote": "Used in 4 page type(s), backed by 2 source anchor(s), confidence 0.82.",
+      "lifecycleDecision": "active",
+      "refreshCondition": "Refresh when pricing, rankings, or community complaints change materially.",
+      "qualityScore": 100
+    },
+    {
+      "id": "claim.ai-video-workflow-short-form-demo.use-case.2d45b02e",
+      "type": "claim",
+      "thesisId": "thesis.video-creation",
+      "clusterId": "cluster.ai-video-workflow-short-form-demo",
+      "pageTypes": [
+        "hub",
+        "workflow",
+        "use-cases",
+        "case-study"
+      ],
+      "claimKind": "use_case",
+      "decisionStage": "discover",
+      "confidence": 0.82,
+      "freshness": "current-run",
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ],
+      "status": "active",
+      "statement": "screenshot-to-video launch clips is a concrete entry point for ai video workflow.",
+      "whyItMatters": "Specific use cases reduce generic category copy and make the first workflow test easier to define.",
+      "evidence": [
+        "Audience: product teams converting UI screenshots, changelog visuals, and before-after states into launch content",
+        "Trigger: The product already has screenshots, but the team needs a clean way to turn them into motion assets for launch or sales follow-up.",
+        "Workflow: Pick the screenshot sequence, define the story arc, run one motion pass, and save the prompt structure that makes screenshots reusable in future launches."
+      ],
+      "counterpoint": "A use case page gets weak when multiple jobs collapse into the same generic recommendation.",
+      "bestPageTypes": [
+        "hub",
+        "workflow",
+        "use-cases",
+        "case-study"
+      ],
+      "reusePriority": "high",
+      "performanceNote": "Used in 4 page type(s), backed by 2 source anchor(s), confidence 0.82.",
+      "lifecycleDecision": "active",
+      "refreshCondition": "Refresh when pricing, rankings, or community complaints change materially.",
+      "qualityScore": 100
+    },
+    {
+      "id": "claim.ai-video-workflow-short-form-demo.caveat.a9652179",
+      "type": "claim",
+      "thesisId": "thesis.video-creation",
+      "clusterId": "cluster.ai-video-workflow-short-form-demo",
+      "pageTypes": [
+        "hub",
+        "alternatives",
+        "pricing",
+        "free-vs-paid"
+      ],
+      "claimKind": "caveat",
+      "decisionStage": "compare",
+      "confidence": 0.82,
+      "freshness": "current-run",
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "community-reddit-com-which-ai-video-generation-workf-ded74c1191"
+      ],
+      "status": "active",
+      "statement": "Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.",
+      "whyItMatters": "This keeps the content honest when the evidence is incomplete.",
+      "evidence": [
+        "AI-Powered Video Generation Workflows End-to-end video creation pipelines powered by AI. Pick a workflow, customize it, and get a finished video ready to publish. Create Horizontal Video — $20 3-12 min video duration. One-time payment. No subscription.",
+        "Detected 1 outdated SERP results."
+      ],
+      "counterpoint": "If pricing becomes explicit later, the page should switch from caveat-heavy to benchmark-heavy.",
+      "bestPageTypes": [
+        "hub",
+        "alternatives",
+        "pricing",
+        "free-vs-paid"
+      ],
+      "reusePriority": "high",
+      "performanceNote": "Used in 4 page type(s), backed by 2 source anchor(s), confidence 0.82.",
+      "lifecycleDecision": "active",
+      "refreshCondition": "Refresh when pricing, rankings, or community complaints change materially.",
+      "qualityScore": 100
+    }
+  ],
+  "researchDossier": {
+    "id": "research-dossier.ai-video-workflow-short-form-demo",
+    "thesisId": "thesis.video-creation",
+    "clusterId": "cluster.ai-video-workflow-short-form-demo",
+    "generatedAt": "2026-05-03T08:37:39.354Z",
+    "pricingSummary": [
+      {
+        "label": "vidworkflow.com",
+        "detail": "AI-Powered Video Generation Workflows End-to-end video creation pipelines powered by AI. Pick a workflow, customize it, and get a finished video ready to publish. Create Horizontal Video — $20 3-12 min video duration. One-time payment. No subscription.",
+        "sourceIds": [
+          "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+        ]
+      }
+    ],
+    "changelogSignals": [
+      {
+        "title": "The Best AI Video Workflow Guide & Tool Stack (2026)",
+        "detail": "An AI video workflow is a structured production process in which artificial intelligence handles the generation, iteration, and refinement of video content — replacing or accelera...",
+        "sourceIds": [
+          "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
+        ]
+      },
+      {
+        "title": "How to Build an AI Video Workflow [2025] - tavus.io",
+        "detail": "Learn how to build an AI video workflow that optimizes production, automates repetitive tasks, personalizes content, and scales effortlessly with Tavus’ API.",
+        "sourceIds": [
+          "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+        ]
+      }
+    ],
+    "communityPainSignals": [
+      {
+        "title": "Which ai video generation workflow has given you the best ... - Reddit",
+        "detail": "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the...",
+        "sourceIds": [
+          "community-reddit-com-which-ai-video-generation-workf-ded74c1191"
+        ]
+      },
+      {
+        "title": "Which video editing AI tool is the best? - Reddit",
+        "detail": "Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.",
+        "sourceIds": [
+          "community-reddit-com-which-video-editing-ai-tool-is--c953fa0136"
+        ]
+      }
+    ],
+    "useCases": [
+      "short-form product demo videos",
+      "launch and product update videos",
+      "screenshot-to-video launch clips",
+      "image-to-video clips"
+    ],
+    "useCaseModels": [
+      {
+        "id": "short-form-product-demo-videos",
+        "label": "short-form product demo videos",
+        "audience": "product marketers and indie hackers shipping feature launches, homepage refreshes, or short SaaS walkthroughs",
+        "trigger": "A release, feature walkthrough, or landing page update needs a concrete demo clip without rebuilding the process from scratch.",
+        "workflow": "Collect the product states, define the single angle to show, generate one short pass, and save the winning prompt plus review notes for the next launch.",
+        "outcome": "A reusable demo workflow the next teammate can repeat for the next feature announcement.",
+        "cta": {
+          "assetSlug": "prompt-pack",
+          "title": "AI Video Workflow prompt pack",
+          "event": "generate_lead",
+          "reason": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts."
+        },
+        "sourceIds": [
+          "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+          "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+        ]
+      },
+      {
+        "id": "launch-and-product-update-videos",
+        "label": "launch and product update videos",
+        "audience": "operators turning changelogs, launch notes, and feature drops into repeatable announcement assets",
+        "trigger": "The team has a new release to announce and wants a faster path from product update to publish-ready clip.",
+        "workflow": "Turn the release note into a one-angle brief, pick the launch frames, run a short pilot, then document the review loop for the next announcement.",
+        "outcome": "A launch clip process that keeps release marketing consistent instead of reinventing each update.",
+        "cta": {
+          "assetSlug": "prompt-pack",
+          "title": "AI Video Workflow prompt pack",
+          "event": "generate_lead",
+          "reason": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts."
+        },
+        "sourceIds": [
+          "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+          "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+        ]
+      },
+      {
+        "id": "screenshot-to-video-launch-clips",
+        "label": "screenshot-to-video launch clips",
+        "audience": "product teams converting UI screenshots, changelog visuals, and before-after states into launch content",
+        "trigger": "The product already has screenshots, but the team needs a clean way to turn them into motion assets for launch or sales follow-up.",
+        "workflow": "Pick the screenshot sequence, define the story arc, run one motion pass, and save the prompt structure that makes screenshots reusable in future launches.",
+        "outcome": "A screenshot-to-video playbook that turns product visuals into a repeatable launch asset.",
+        "cta": {
+          "assetSlug": "prompt-pack",
+          "title": "AI Video Workflow prompt pack",
+          "event": "generate_lead",
+          "reason": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts."
+        },
+        "sourceIds": [
+          "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+          "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+        ]
+      },
+      {
+        "id": "image-to-video-clips",
+        "label": "image-to-video clips",
+        "audience": "creators and operators who start from screenshots, still frames, artwork, or product images instead of filmed footage",
+        "trigger": "A still image or screenshot set needs motion treatment, but the team does not yet know which workflow creates the cleanest first pass.",
+        "workflow": "Choose the source image set, define the motion goal, compare one primary tool plus one fallback, then capture the settings that survive review.",
+        "outcome": "A first-pass image-to-video recipe with less prompt thrash and clearer review criteria.",
+        "cta": {
+          "assetSlug": "comparison-worksheet",
+          "title": "AI Video Workflow comparison worksheet",
+          "event": "download_shortlist",
+          "reason": "A worksheet to compare output quality, speed, pricing clarity, and editing overhead."
+        },
+        "sourceIds": [
+          "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+          "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+        ]
+      }
+    ],
+    "failureModes": [
+      "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?",
+      "Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.",
+      "Do not recommend a stack without naming the operational cost, review loop, and failure mode."
+    ],
+    "competitorPositioning": [
+      {
+        "name": "ltx.studio",
+        "bestFor": "Teams that want the fastest path from evaluation to execution",
+        "watchout": "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?",
+        "sourceIds": [
+          "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
+        ]
+      },
+      {
+        "name": "vidworkflow.com",
+        "bestFor": "Visitors who need clearer tradeoffs before they commit",
+        "watchout": "Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.",
+        "sourceIds": [
+          "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+        ]
+      },
+      {
+        "name": "aistudio.google.com",
+        "bestFor": "Operators comparing fit against an already-shortlisted option",
+        "watchout": "Do not recommend a stack without naming the operational cost, review loop, and failure mode.",
+        "sourceIds": [
+          "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+        ]
+      },
+      {
+        "name": "reddit.com",
+        "bestFor": "Operators comparing fit against an already-shortlisted option",
+        "watchout": "Not ideal if the buyer still needs category context before comparing tools.",
+        "sourceIds": [
+          "community-reddit-com-which-video-editing-ai-tool-is--c953fa0136"
+        ]
+      }
+    ],
+    "sourceIds": [
+      "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+      "official-aistudio-google-com-google-ai-studio-86e7d7fc8c",
+      "official-ariaflow-ai-ariaflow-ai-create-viral-facel-6c4ae0bac8",
+      "official-synthesia-io-synthesia-1-ai-video-platform-5000af18b9",
+      "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+      "community-reddit-com-which-ai-video-generation-workf-ded74c1191",
+      "community-reddit-com-which-video-editing-ai-tool-is--c953fa0136",
+      "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248",
+      "serp-aivideo-school-ai-video-workflow-67aaab53cc",
+      "serp-gisteo-com-ai-video-workflow-for-businesse-dba0e4262c",
+      "serp-github-com-ai-video-workflow-ai-github-c08b08e04d"
+    ],
+    "claimIds": [
+      "claim.ai-video-workflow-short-form-demo.definition.6bfd358e",
+      "claim.ai-video-workflow-short-form-demo.workflow.b15a946e",
+      "claim.ai-video-workflow-short-form-demo.pricing.4a485d25",
+      "claim.ai-video-workflow-short-form-demo.comparison.7507b7f7",
+      "claim.ai-video-workflow-short-form-demo.recommendation.913017be",
+      "claim.ai-video-workflow-short-form-demo.failure-mode.9eb3ee95",
+      "claim.ai-video-workflow-short-form-demo.caveat.a9652179",
+      "claim.ai-video-workflow-short-form-demo.use-case.4d724d31",
+      "claim.ai-video-workflow-short-form-demo.use-case.c8bb6abd",
+      "claim.ai-video-workflow-short-form-demo.use-case.2d45b02e",
+      "claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c"
+    ],
+    "assetIdeas": [],
+    "extractionSources": {
+      "heuristic": true,
+      "firecrawlAgent": false,
+      "deepResearchPages": 0
+    }
+  },
+  "useCaseModels": [
+    {
+      "id": "short-form-product-demo-videos",
+      "label": "short-form product demo videos",
+      "audience": "product marketers and indie hackers shipping feature launches, homepage refreshes, or short SaaS walkthroughs",
+      "trigger": "A release, feature walkthrough, or landing page update needs a concrete demo clip without rebuilding the process from scratch.",
+      "workflow": "Collect the product states, define the single angle to show, generate one short pass, and save the winning prompt plus review notes for the next launch.",
+      "outcome": "A reusable demo workflow the next teammate can repeat for the next feature announcement.",
+      "cta": {
+        "assetSlug": "prompt-pack",
+        "title": "AI Video Workflow prompt pack",
+        "event": "generate_lead",
+        "reason": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts."
+      },
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    },
+    {
+      "id": "launch-and-product-update-videos",
+      "label": "launch and product update videos",
+      "audience": "operators turning changelogs, launch notes, and feature drops into repeatable announcement assets",
+      "trigger": "The team has a new release to announce and wants a faster path from product update to publish-ready clip.",
+      "workflow": "Turn the release note into a one-angle brief, pick the launch frames, run a short pilot, then document the review loop for the next announcement.",
+      "outcome": "A launch clip process that keeps release marketing consistent instead of reinventing each update.",
+      "cta": {
+        "assetSlug": "prompt-pack",
+        "title": "AI Video Workflow prompt pack",
+        "event": "generate_lead",
+        "reason": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts."
+      },
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    },
+    {
+      "id": "screenshot-to-video-launch-clips",
+      "label": "screenshot-to-video launch clips",
+      "audience": "product teams converting UI screenshots, changelog visuals, and before-after states into launch content",
+      "trigger": "The product already has screenshots, but the team needs a clean way to turn them into motion assets for launch or sales follow-up.",
+      "workflow": "Pick the screenshot sequence, define the story arc, run one motion pass, and save the prompt structure that makes screenshots reusable in future launches.",
+      "outcome": "A screenshot-to-video playbook that turns product visuals into a repeatable launch asset.",
+      "cta": {
+        "assetSlug": "prompt-pack",
+        "title": "AI Video Workflow prompt pack",
+        "event": "generate_lead",
+        "reason": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts."
+      },
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    },
+    {
+      "id": "image-to-video-clips",
+      "label": "image-to-video clips",
+      "audience": "creators and operators who start from screenshots, still frames, artwork, or product images instead of filmed footage",
+      "trigger": "A still image or screenshot set needs motion treatment, but the team does not yet know which workflow creates the cleanest first pass.",
+      "workflow": "Choose the source image set, define the motion goal, compare one primary tool plus one fallback, then capture the settings that survive review.",
+      "outcome": "A first-pass image-to-video recipe with less prompt thrash and clearer review criteria.",
+      "cta": {
+        "assetSlug": "comparison-worksheet",
+        "title": "AI Video Workflow comparison worksheet",
+        "event": "download_shortlist",
+        "reason": "A worksheet to compare output quality, speed, pricing clarity, and editing overhead."
+      },
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    }
+  ],
+  "researchDossierId": "research-dossier.ai-video-workflow-short-form-demo",
+  "reviewSignals": {
+    "needsSpotCheck": false,
+    "reasons": []
+  },
+  "slug": "use-cases",
+  "navLabel": "Use Cases",
+  "type": "use-cases",
+  "fileName": "use-cases.html",
+  "path": "/generated-sites/ai-video-workflow-short-form-demo/use-cases.html",
+  "title": "ai video workflow use cases: who should use it and how",
+  "metaDescription": "A use-case page for ai video workflow that maps different buyer jobs to the right workflow, template, or shortlist path.",
+  "h1": "ai video workflow use cases",
+  "intro": "Use-case pages make the category feel concrete by tying it to a job, a trigger, and a measurable outcome. The strongest examples map the category to a narrow production job and a measurable output.",
+  "coveredIntents": [
+    "overview",
+    "workflow"
+  ],
+  "useCaseCards": [
+    {
+      "title": "short-form product demo videos",
+      "audience": "product marketers and indie hackers shipping feature launches, homepage refreshes, or short SaaS walkthroughs",
+      "trigger": "A release, feature walkthrough, or landing page update needs a concrete demo clip without rebuilding the process from scratch.",
+      "workflow": "Collect the product states, define the single angle to show, generate one short pass, and save the winning prompt plus review notes for the next launch.",
+      "outcome": "A reusable demo workflow the next teammate can repeat for the next feature announcement.",
+      "ctaTitle": "AI Video Workflow prompt pack",
+      "ctaHref": "/generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack.html"
+    },
+    {
+      "title": "launch and product update videos",
+      "audience": "operators turning changelogs, launch notes, and feature drops into repeatable announcement assets",
+      "trigger": "The team has a new release to announce and wants a faster path from product update to publish-ready clip.",
+      "workflow": "Turn the release note into a one-angle brief, pick the launch frames, run a short pilot, then document the review loop for the next announcement.",
+      "outcome": "A launch clip process that keeps release marketing consistent instead of reinventing each update.",
+      "ctaTitle": "AI Video Workflow prompt pack",
+      "ctaHref": "/generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack.html"
+    },
+    {
+      "title": "screenshot-to-video launch clips",
+      "audience": "product teams converting UI screenshots, changelog visuals, and before-after states into launch content",
+      "trigger": "The product already has screenshots, but the team needs a clean way to turn them into motion assets for launch or sales follow-up.",
+      "workflow": "Pick the screenshot sequence, define the story arc, run one motion pass, and save the prompt structure that makes screenshots reusable in future launches.",
+      "outcome": "A screenshot-to-video playbook that turns product visuals into a repeatable launch asset.",
+      "ctaTitle": "AI Video Workflow prompt pack",
+      "ctaHref": "/generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack.html"
+    },
+    {
+      "title": "image-to-video clips",
+      "audience": "creators and operators who start from screenshots, still frames, artwork, or product images instead of filmed footage",
+      "trigger": "A still image or screenshot set needs motion treatment, but the team does not yet know which workflow creates the cleanest first pass.",
+      "workflow": "Choose the source image set, define the motion goal, compare one primary tool plus one fallback, then capture the settings that survive review.",
+      "outcome": "A first-pass image-to-video recipe with less prompt thrash and clearer review criteria.",
+      "ctaTitle": "AI Video Workflow comparison worksheet",
+      "ctaHref": "/generated-sites/ai-video-workflow-short-form-demo/asset-comparison-worksheet.html"
+    }
+  ],
+  "keyFacts": [
+    {
+      "label": "Use case 1",
+      "value": "short-form product demo videos -> AI Video Workflow prompt pack",
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    },
+    {
+      "label": "Use case 2",
+      "value": "launch and product update videos -> AI Video Workflow prompt pack",
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    },
+    {
+      "label": "Use case 3",
+      "value": "screenshot-to-video launch clips -> AI Video Workflow prompt pack",
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    },
+    {
+      "label": "Use case 4",
+      "value": "image-to-video clips",
+      "sourceIds": [
+        "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+        "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+      ]
+    }
+  ],
+  "examples": [
+    {
+      "title": "short-form product demo videos",
+      "body": "A release, feature walkthrough, or landing page update needs a concrete demo clip without rebuilding the process from scratch. Workflow: Collect the product states, define the single angle to show, generate one short pass, and save the winning prompt plus review notes for the next launch. Outcome: A reusable demo workflow the next teammate can repeat for the next feature announcement."
+    },
+    {
+      "title": "launch and product update videos",
+      "body": "The team has a new release to announce and wants a faster path from product update to publish-ready clip. Workflow: Turn the release note into a one-angle brief, pick the launch frames, run a short pilot, then document the review loop for the next announcement. Outcome: A launch clip process that keeps release marketing consistent instead of reinventing each update."
+    },
+    {
+      "title": "screenshot-to-video launch clips",
+      "body": "The product already has screenshots, but the team needs a clean way to turn them into motion assets for launch or sales follow-up. Workflow: Pick the screenshot sequence, define the story arc, run one motion pass, and save the prompt structure that makes screenshots reusable in future launches. Outcome: A screenshot-to-video playbook that turns product visuals into a repeatable launch asset."
+    },
+    {
+      "title": "image-to-video clips",
+      "body": "A still image or screenshot set needs motion treatment, but the team does not yet know which workflow creates the cleanest first pass. Workflow: Choose the source image set, define the motion goal, compare one primary tool plus one fallback, then capture the settings that survive review. Outcome: A first-pass image-to-video recipe with less prompt thrash and clearer review criteria."
+    }
+  ],
+  "sections": [
+    {
+      "heading": "Common production-shaped use cases",
+      "paragraphs": [
+        "Use-case pages should feel like a researcher already narrowed the category into real operator jobs, not like a glossary shuffled into bullet points.",
+        "Each card needs an audience, a trigger, a workflow, and a CTA path that makes the next move obvious."
+      ],
+      "bullets": [
+        "short-form product demo videos",
+        "launch and product update videos",
+        "screenshot-to-video launch clips",
+        "image-to-video clips"
+      ]
+    }
+  ],
+  "ctaTitle": "AI Video Workflow prompt pack",
+  "ctaCopy": "Offer ai video workflow prompt pack so visitors can move from “this sounds relevant” to a concrete first test.",
+  "ctaEvent": "asset_cta_click",
+  "schemaType": "WebPage",
+  "verdicts": [
+    {
+      "title": "Split the category by job, not by broad persona",
+      "detail": "Different ai video workflow jobs deserve different workflows and CTA paths.",
+      "sourceIds": [
+        "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+        "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+      ]
+    }
+  ],
+  "playbook": {
+    "targets": {
+      "facts": 4,
+      "verdicts": 1,
+      "examples": 6,
+      "refs": 4
+    },
+    "introStrategy": "pain_then_outcome",
+    "ctaStrategy": "lead_with_asset",
+    "guidance": "At least one active site showed weak CTR, so intros and meta copy should promise a clearer outcome.",
+    "reasons": [
+      "At least one active site showed weak CTR, so intros and meta copy should promise a clearer outcome.",
+      "Keep reinforcing this page type with stronger examples and CTAs.",
+      "Search visibility is still thin, so the next run should bias toward clearer coverage and stronger support pages.",
+      "This site already has 8 conversion events, so keep the CTA asset explicit and reusable."
+    ]
+  },
+  "draftEngine": "fact-synthesizer",
+  "internalLinks": [
+    {
+      "label": "Overview",
+      "path": "/generated-sites/ai-video-workflow-short-form-demo/index.html",
+      "fileName": "index.html"
+    },
+    {
+      "label": "Alternatives",
+      "path": "/generated-sites/ai-video-workflow-short-form-demo/alternatives.html",
+      "fileName": "alternatives.html"
+    },
+    {
+      "label": "Workflow",
+      "path": "/generated-sites/ai-video-workflow-short-form-demo/workflow.html",
+      "fileName": "workflow.html"
+    },
+    {
+      "label": "FAQ",
+      "path": "/generated-sites/ai-video-workflow-short-form-demo/faq.html",
+      "fileName": "faq.html"
+    },
+    {
+      "label": "Best Tools",
+      "path": "/generated-sites/ai-video-workflow-short-form-demo/best-tools.html",
+      "fileName": "best-tools.html"
+    },
+    {
+      "label": "Pricing",
+      "path": "/generated-sites/ai-video-workflow-short-form-demo/pricing.html",
+      "fileName": "pricing.html"
+    },
+    {
+      "label": "Free vs Paid",
+      "path": "/generated-sites/ai-video-workflow-short-form-demo/free-vs-paid.html",
+      "fileName": "free-vs-paid.html"
+    },
+    {
+      "label": "Template Kit",
+      "path": "/generated-sites/ai-video-workflow-short-form-demo/template-kit.html",
+      "fileName": "template-kit.html"
+    },
+    {
+      "label": "Case Study",
+      "path": "/generated-sites/ai-video-workflow-short-form-demo/case-study.html",
+      "fileName": "case-study.html"
+    }
+  ],
+  "ctaHref": "/generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack.html",
+  "contentStats": {
+    "factCount": 4,
+    "verdictCount": 1,
+    "exampleCount": 4,
+    "caveatCount": 3,
+    "sourceRefCount": 4,
+    "materialSlotCount": 1,
+    "commercialModuleCount": 1,
+    "claimCount": 5,
+    "claimStatementCount": 5,
+    "claimEvidenceLineCount": 14,
+    "primaryClaimCount": 4,
+    "briefSectionCount": 4,
+    "briefQuestionCount": 3,
+    "briefCompletenessScore": 100,
+    "signalRichSourceCount": 4,
+    "lowSignalSourceCount": 0,
+    "specificityScore": 23,
+    "repeatedSentenceCount": 0,
+    "dossierSignalCount": 5,
+    "paragraphCount": 8,
+    "genericPhraseCount": 0,
+    "aiFlavorPhraseCount": 0,
+    "genericParagraphCount": 0,
+    "aiFlavorParagraphCount": 0,
+    "lowEvidenceParagraphCount": 1,
+    "structuredUseCaseCount": 4,
+    "decisionPathCount": 0,
+    "evidenceCardCount": 0,
+    "workflowDetailCount": 0,
+    "assetPreviewCount": 0,
+    "beforeAfterCount": 0,
+    "deliveryFlowCount": 0,
+    "proofModuleCount": 1
+  }
+}

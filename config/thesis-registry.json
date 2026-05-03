@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "theses": [
+    {
+      "thesisKey": "video-creation",
+      "status": "active",
+      "domain": "automiora.com",
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "theme": "video-creation",
+      "label": "AI Video Workflow",
+      "thesisName": "AI video workflow for short-form product and demo content",
+      "primaryKeywordStrategy": "pinned",
+      "pinnedPrimaryKeyword": "ai video workflow",
+      "audience": "indie hackers, product marketers, and content operators shipping short-form product/demo videos",
+      "intentTypes": ["tool", "compare", "buy"],
+      "monetization": ["affiliate", "template-sale", "lead-gen"],
+      "seedKeywords": [
+        "ai video workflow",
+        "image to video workflow",
+        "ai product demo video",
+        "product screenshot to demo video"
+      ],
+      "topicKeywords": [
+        "short-form product demo video",
+        "screenshot to video",
+        "launch video workflow",
+        "product update video",
+        "ai video prompts",
+        "demo video generator for saas"
+      ],
+      "keywordBoundary": [
+        "ai video workflow",
+        "image to video workflow",
+        "ai product demo video",
+        "product screenshot to demo video",
+        "short-form product demo video",
+        "screenshot to video",
+        "launch video workflow",
+        "product update video",
+        "ai video prompts",
+        "demo video generator for saas"
+      ],
+      "contentAssets": [
+        "prompt pack",
+        "workflow checklist",
+        "comparison table",
+        "template stack"
+      ],
+      "brandBoundary": "Focused on AI-assisted product demo, launch, and screenshot-to-video workflows for SaaS and product teams."
+    },
+    {
+      "thesisKey": "agent-infrastructure",
+      "status": "candidate",
+      "domain": null,
+      "siteSlug": "ai-agent-infrastructure-candidate",
+      "theme": "agent-infrastructure",
+      "label": "AI Agent Infrastructure",
+      "thesisName": "AI agent infrastructure for orchestration, runtime, and tool-calling stacks",
+      "primaryKeywordStrategy": "dynamic",
+      "audience": "builders evaluating agent runtime, orchestration, memory, and tool-calling choices",
+      "intentTypes": ["tool", "compare", "buy"],
+      "monetization": ["affiliate", "template-sale", "lead-gen"],
+      "seedKeywords": [
+        "ai agent orchestration",
+        "agent runtime framework",
+        "multi agent workflow",
+        "tool calling sdk"
+      ],
+      "topicKeywords": [
+        "openai agents sdk alternatives",
+        "agent memory stack",
+        "orchestration framework for llm agents",
+        "best agent runtime for production"
+      ],
+      "contentAssets": [
+        "evaluation worksheet",
+        "stack shortlist",
+        "benchmark checklist",
+        "architecture template"
+      ],
+      "brandBoundary": "Focused on the technical stack decisions behind production-grade AI agents: orchestration, memory, runtime, observability, and tool execution."
+    }
+  ]
+}

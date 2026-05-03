@@ -1,0 +1,197 @@
+{
+  "generatedAt": "2026-05-03T08:37:39.354Z",
+  "recentRuns": [
+    {
+      "runId": "2026-05-03T08-07-11-075Z",
+      "generatedAt": "2026-05-03T08:07:11.077Z",
+      "mode": "live_google"
+    },
+    {
+      "runId": "2026-05-03T08-10-49-214Z",
+      "generatedAt": "2026-05-03T08:10:49.216Z",
+      "mode": "live_google"
+    },
+    {
+      "runId": "2026-05-03T08-13-19-148Z",
+      "generatedAt": "2026-05-03T08:13:19.150Z",
+      "mode": "live_google"
+    },
+    {
+      "runId": "2026-05-03T08-28-05-936Z",
+      "generatedAt": "2026-05-03T08:28:05.938Z",
+      "mode": "live_google"
+    },
+    {
+      "runId": "2026-05-03T08-29-38-367Z",
+      "generatedAt": "2026-05-03T08:29:38.369Z",
+      "mode": "live_google"
+    },
+    {
+      "runId": "2026-05-03T08-37-39-353Z",
+      "generatedAt": "2026-05-03T08:37:39.354Z",
+      "mode": "live_google"
+    }
+  ],
+  "pageTypeSignals": [
+    {
+      "pageType": "hub",
+      "pageCount": 1,
+      "totalFacts": 4,
+      "totalVerdicts": 3,
+      "totalExamples": 1,
+      "totalRefs": 4,
+      "totalImpressions": 0,
+      "totalConversions": 8,
+      "averageFacts": 4,
+      "averageVerdicts": 3,
+      "averageExamples": 1,
+      "averageRefs": 4,
+      "guidance": "Keep reinforcing this page type with stronger examples and CTAs."
+    },
+    {
+      "pageType": "alternatives",
+      "pageCount": 1,
+      "totalFacts": 4,
+      "totalVerdicts": 4,
+      "totalExamples": 1,
+      "totalRefs": 4,
+      "totalImpressions": 0,
+      "totalConversions": 8,
+      "averageFacts": 4,
+      "averageVerdicts": 4,
+      "averageExamples": 1,
+      "averageRefs": 4,
+      "guidance": "Keep reinforcing this page type with stronger examples and CTAs."
+    },
+    {
+      "pageType": "workflow",
+      "pageCount": 1,
+      "totalFacts": 5,
+      "totalVerdicts": 2,
+      "totalExamples": 3,
+      "totalRefs": 4,
+      "totalImpressions": 0,
+      "totalConversions": 8,
+      "averageFacts": 5,
+      "averageVerdicts": 2,
+      "averageExamples": 3,
+      "averageRefs": 4,
+      "guidance": "Keep reinforcing this page type with stronger examples and CTAs."
+    },
+    {
+      "pageType": "faq",
+      "pageCount": 1,
+      "totalFacts": 4,
+      "totalVerdicts": 0,
+      "totalExamples": 1,
+      "totalRefs": 4,
+      "totalImpressions": 0,
+      "totalConversions": 8,
+      "averageFacts": 4,
+      "averageVerdicts": 0,
+      "averageExamples": 1,
+      "averageRefs": 4,
+      "guidance": "Keep reinforcing this page type with stronger examples and CTAs."
+    },
+    {
+      "pageType": "best-tools",
+      "pageCount": 1,
+      "totalFacts": 4,
+      "totalVerdicts": 4,
+      "totalExamples": 1,
+      "totalRefs": 4,
+      "totalImpressions": 0,
+      "totalConversions": 8,
+      "averageFacts": 4,
+      "averageVerdicts": 4,
+      "averageExamples": 1,
+      "averageRefs": 4,
+      "guidance": "Keep reinforcing this page type with stronger examples and CTAs."
+    },
+    {
+      "pageType": "pricing",
+      "pageCount": 1,
+      "totalFacts": 5,
+      "totalVerdicts": 5,
+      "totalExamples": 4,
+      "totalRefs": 4,
+      "totalImpressions": 0,
+      "totalConversions": 8,
+      "averageFacts": 5,
+      "averageVerdicts": 5,
+      "averageExamples": 4,
+      "averageRefs": 4,
+      "guidance": "Keep reinforcing this page type with stronger examples and CTAs."
+    },
+    {
+      "pageType": "free-vs-paid",
+      "pageCount": 1,
+      "totalFacts": 6,
+      "totalVerdicts": 5,
+      "totalExamples": 4,
+      "totalRefs": 4,
+      "totalImpressions": 0,
+      "totalConversions": 8,
+      "averageFacts": 6,
+      "averageVerdicts": 5,
+      "averageExamples": 4,
+      "averageRefs": 4,
+      "guidance": "Keep reinforcing this page type with stronger examples and CTAs."
+    },
+    {
+      "pageType": "use-cases",
+      "pageCount": 1,
+      "totalFacts": 4,
+      "totalVerdicts": 1,
+      "totalExamples": 4,
+      "totalRefs": 4,
+      "totalImpressions": 0,
+      "totalConversions": 8,
+      "averageFacts": 4,
+      "averageVerdicts": 1,
+      "averageExamples": 4,
+      "averageRefs": 4,
+      "guidance": "Keep reinforcing this page type with stronger examples and CTAs."
+    },
+    {
+      "pageType": "template-kit",
+      "pageCount": 1,
+      "totalFacts": 6,
+      "totalVerdicts": 5,
+      "totalExamples": 4,
+      "totalRefs": 4,
+      "totalImpressions": 0,
+      "totalConversions": 8,
+      "averageFacts": 6,
+      "averageVerdicts": 5,
+      "averageExamples": 4,
+      "averageRefs": 4,
+      "guidance": "Keep reinforcing this page type with stronger examples and CTAs."
+    },
+    {
+      "pageType": "case-study",
+      "pageCount": 1,
+      "totalFacts": 4,
+      "totalVerdicts": 1,
+      "totalExamples": 3,
+      "totalRefs": 4,
+      "totalImpressions": 0,
+      "totalConversions": 8,
+      "averageFacts": 4,
+      "averageVerdicts": 1,
+      "averageExamples": 3,
+      "averageRefs": 4,
+      "guidance": "Keep reinforcing this page type with stronger examples and CTAs."
+    }
+  ],
+  "siteRecommendations": [
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "lifecycle": "maintain",
+      "nextMove": "Test new titles, descriptions, and entry visuals before creating more pages.",
+      "contentActions": [
+        "Rewrite titles, descriptions, and click-driving visuals"
+      ]
+    }
+  ]
+}

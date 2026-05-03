@@ -1,0 +1,5 @@
+# Trend Site Pipeline
+
+This project generates compact decision pages from validated trend clusters.
+
+- AI video workflow for short-form product and demo content: https://automiora.com/generated-sites/ai-video-workflow-short-form-demo/index.html

@@ -1,0 +1,198 @@
+{
+  "id": "research-dossier.ai-video-workflow-short-form-demo",
+  "thesisId": "thesis.video-creation",
+  "clusterId": "cluster.ai-video-workflow-short-form-demo",
+  "generatedAt": "2026-05-03T08:37:39.354Z",
+  "pricingSummary": [
+    {
+      "label": "vidworkflow.com",
+      "detail": "AI-Powered Video Generation Workflows End-to-end video creation pipelines powered by AI. Pick a workflow, customize it, and get a finished video ready to publish. Create Horizontal Video — $20 3-12 min video duration. One-time payment. No subscription.",
+      "sourceIds": [
+        "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+      ]
+    }
+  ],
+  "changelogSignals": [
+    {
+      "title": "The Best AI Video Workflow Guide & Tool Stack (2026)",
+      "detail": "An AI video workflow is a structured production process in which artificial intelligence handles the generation, iteration, and refinement of video content — replacing or accelera...",
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
+      ]
+    },
+    {
+      "title": "How to Build an AI Video Workflow [2025] - tavus.io",
+      "detail": "Learn how to build an AI video workflow that optimizes production, automates repetitive tasks, personalizes content, and scales effortlessly with Tavus’ API.",
+      "sourceIds": [
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    }
+  ],
+  "communityPainSignals": [
+    {
+      "title": "Which ai video generation workflow has given you the best ... - Reddit",
+      "detail": "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the...",
+      "sourceIds": [
+        "community-reddit-com-which-ai-video-generation-workf-ded74c1191"
+      ]
+    },
+    {
+      "title": "Which video editing AI tool is the best? - Reddit",
+      "detail": "Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.",
+      "sourceIds": [
+        "community-reddit-com-which-video-editing-ai-tool-is--c953fa0136"
+      ]
+    }
+  ],
+  "useCases": [
+    "short-form product demo videos",
+    "launch and product update videos",
+    "screenshot-to-video launch clips",
+    "image-to-video clips"
+  ],
+  "useCaseModels": [
+    {
+      "id": "short-form-product-demo-videos",
+      "label": "short-form product demo videos",
+      "audience": "product marketers and indie hackers shipping feature launches, homepage refreshes, or short SaaS walkthroughs",
+      "trigger": "A release, feature walkthrough, or landing page update needs a concrete demo clip without rebuilding the process from scratch.",
+      "workflow": "Collect the product states, define the single angle to show, generate one short pass, and save the winning prompt plus review notes for the next launch.",
+      "outcome": "A reusable demo workflow the next teammate can repeat for the next feature announcement.",
+      "cta": {
+        "assetSlug": "prompt-pack",
+        "title": "AI Video Workflow prompt pack",
+        "event": "generate_lead",
+        "reason": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts."
+      },
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    },
+    {
+      "id": "launch-and-product-update-videos",
+      "label": "launch and product update videos",
+      "audience": "operators turning changelogs, launch notes, and feature drops into repeatable announcement assets",
+      "trigger": "The team has a new release to announce and wants a faster path from product update to publish-ready clip.",
+      "workflow": "Turn the release note into a one-angle brief, pick the launch frames, run a short pilot, then document the review loop for the next announcement.",
+      "outcome": "A launch clip process that keeps release marketing consistent instead of reinventing each update.",
+      "cta": {
+        "assetSlug": "prompt-pack",
+        "title": "AI Video Workflow prompt pack",
+        "event": "generate_lead",
+        "reason": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts."
+      },
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    },
+    {
+      "id": "screenshot-to-video-launch-clips",
+      "label": "screenshot-to-video launch clips",
+      "audience": "product teams converting UI screenshots, changelog visuals, and before-after states into launch content",
+      "trigger": "The product already has screenshots, but the team needs a clean way to turn them into motion assets for launch or sales follow-up.",
+      "workflow": "Pick the screenshot sequence, define the story arc, run one motion pass, and save the prompt structure that makes screenshots reusable in future launches.",
+      "outcome": "A screenshot-to-video playbook that turns product visuals into a repeatable launch asset.",
+      "cta": {
+        "assetSlug": "prompt-pack",
+        "title": "AI Video Workflow prompt pack",
+        "event": "generate_lead",
+        "reason": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts."
+      },
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    },
+    {
+      "id": "image-to-video-clips",
+      "label": "image-to-video clips",
+      "audience": "creators and operators who start from screenshots, still frames, artwork, or product images instead of filmed footage",
+      "trigger": "A still image or screenshot set needs motion treatment, but the team does not yet know which workflow creates the cleanest first pass.",
+      "workflow": "Choose the source image set, define the motion goal, compare one primary tool plus one fallback, then capture the settings that survive review.",
+      "outcome": "A first-pass image-to-video recipe with less prompt thrash and clearer review criteria.",
+      "cta": {
+        "assetSlug": "comparison-worksheet",
+        "title": "AI Video Workflow comparison worksheet",
+        "event": "download_shortlist",
+        "reason": "A worksheet to compare output quality, speed, pricing clarity, and editing overhead."
+      },
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+        "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+      ]
+    }
+  ],
+  "failureModes": [
+    "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?",
+    "Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.",
+    "Do not recommend a stack without naming the operational cost, review loop, and failure mode."
+  ],
+  "competitorPositioning": [
+    {
+      "name": "ltx.studio",
+      "bestFor": "Teams that want the fastest path from evaluation to execution",
+      "watchout": "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?",
+      "sourceIds": [
+        "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
+      ]
+    },
+    {
+      "name": "vidworkflow.com",
+      "bestFor": "Visitors who need clearer tradeoffs before they commit",
+      "watchout": "Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.",
+      "sourceIds": [
+        "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+      ]
+    },
+    {
+      "name": "aistudio.google.com",
+      "bestFor": "Operators comparing fit against an already-shortlisted option",
+      "watchout": "Do not recommend a stack without naming the operational cost, review loop, and failure mode.",
+      "sourceIds": [
+        "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+      ]
+    },
+    {
+      "name": "reddit.com",
+      "bestFor": "Operators comparing fit against an already-shortlisted option",
+      "watchout": "Not ideal if the buyer still needs category context before comparing tools.",
+      "sourceIds": [
+        "community-reddit-com-which-video-editing-ai-tool-is--c953fa0136"
+      ]
+    }
+  ],
+  "sourceIds": [
+    "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+    "official-aistudio-google-com-google-ai-studio-86e7d7fc8c",
+    "official-ariaflow-ai-ariaflow-ai-create-viral-facel-6c4ae0bac8",
+    "official-synthesia-io-synthesia-1-ai-video-platform-5000af18b9",
+    "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+    "community-reddit-com-which-ai-video-generation-workf-ded74c1191",
+    "community-reddit-com-which-video-editing-ai-tool-is--c953fa0136",
+    "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248",
+    "serp-aivideo-school-ai-video-workflow-67aaab53cc",
+    "serp-gisteo-com-ai-video-workflow-for-businesse-dba0e4262c",
+    "serp-github-com-ai-video-workflow-ai-github-c08b08e04d"
+  ],
+  "claimIds": [
+    "claim.ai-video-workflow-short-form-demo.definition.6bfd358e",
+    "claim.ai-video-workflow-short-form-demo.workflow.b15a946e",
+    "claim.ai-video-workflow-short-form-demo.pricing.4a485d25",
+    "claim.ai-video-workflow-short-form-demo.comparison.7507b7f7",
+    "claim.ai-video-workflow-short-form-demo.recommendation.913017be",
+    "claim.ai-video-workflow-short-form-demo.failure-mode.9eb3ee95",
+    "claim.ai-video-workflow-short-form-demo.caveat.a9652179",
+    "claim.ai-video-workflow-short-form-demo.use-case.4d724d31",
+    "claim.ai-video-workflow-short-form-demo.use-case.c8bb6abd",
+    "claim.ai-video-workflow-short-form-demo.use-case.2d45b02e",
+    "claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c"
+  ],
+  "assetIdeas": [],
+  "extractionSources": {
+    "heuristic": true,
+    "firecrawlAgent": false,
+    "deepResearchPages": 0
+  }
+}

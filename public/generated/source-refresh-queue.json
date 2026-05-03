@@ -1,0 +1,91 @@
+{
+  "generatedAt": "2026-05-03T08:37:39.354Z",
+  "entries": [
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "keyword": "ai video workflow",
+      "refreshTargets": [
+        {
+          "category": "competitive",
+          "title": "Which ai video generation workflow has given you the best ... - Reddit",
+          "url": "https://www.reddit.com/r/aivideo/comments/17syzyl/which_ai_video_generation_workflow_has_given_you/",
+          "domain": "reddit.com",
+          "sourceSubtype": "workflow",
+          "freshnessScore": 0.46,
+          "sourceQualityScore": 0.37,
+          "reason": "freshness is weak"
+        },
+        {
+          "category": "competitive",
+          "title": "Which video editing AI tool is the best? - Reddit",
+          "url": "https://www.reddit.com/r/ArtificialInteligence/comments/16779q1/which_video_editing_ai_tool_is_the_best/",
+          "domain": "reddit.com",
+          "sourceSubtype": "community",
+          "freshnessScore": 0.46,
+          "sourceQualityScore": 0.37,
+          "reason": "freshness is weak"
+        },
+        {
+          "category": "community",
+          "title": "Which ai video generation workflow has given you the best ... - Reddit",
+          "url": "https://www.reddit.com/r/aivideo/comments/17syzyl/which_ai_video_generation_workflow_has_given_you/",
+          "domain": "reddit.com",
+          "sourceSubtype": "workflow",
+          "freshnessScore": 0.46,
+          "sourceQualityScore": 0.37,
+          "reason": "freshness is weak"
+        },
+        {
+          "category": "community",
+          "title": "Which video editing AI tool is the best? - Reddit",
+          "url": "https://www.reddit.com/r/ArtificialInteligence/comments/16779q1/which_video_editing_ai_tool_is_the_best/",
+          "domain": "reddit.com",
+          "sourceSubtype": "community",
+          "freshnessScore": 0.46,
+          "sourceQualityScore": 0.37,
+          "reason": "freshness is weak"
+        },
+        {
+          "category": "product",
+          "title": "Which ai video generation workflow has given you the best ... - Reddit",
+          "url": "https://www.reddit.com/r/aivideo/comments/17syzyl/which_ai_video_generation_workflow_has_given_you/",
+          "domain": "reddit.com",
+          "sourceSubtype": "workflow",
+          "freshnessScore": 0.46,
+          "sourceQualityScore": 0.37,
+          "reason": "freshness is weak"
+        },
+        {
+          "category": "product",
+          "title": "Which video editing AI tool is the best? - Reddit",
+          "url": "https://www.reddit.com/r/ArtificialInteligence/comments/16779q1/which_video_editing_ai_tool_is_the_best/",
+          "domain": "reddit.com",
+          "sourceSubtype": "community",
+          "freshnessScore": 0.46,
+          "sourceQualityScore": 0.37,
+          "reason": "freshness is weak"
+        },
+        {
+          "category": "official",
+          "title": "AriaFlow.ai | Create Viral Faceless Videos with AI, Auto-Post to ...",
+          "url": "https://ariaflow.ai/",
+          "domain": "ariaflow.ai",
+          "sourceSubtype": "workflow",
+          "freshnessScore": 0.46,
+          "sourceQualityScore": 0.65,
+          "reason": "freshness is weak"
+        },
+        {
+          "category": "official",
+          "title": "AI Video Generation Workflows | VidWorkflow",
+          "url": "https://vidworkflow.com/",
+          "domain": "vidworkflow.com",
+          "sourceSubtype": "workflow",
+          "freshnessScore": 0.46,
+          "sourceQualityScore": 0.69,
+          "reason": "freshness is weak"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "name": "trend-site-mvp",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "ingest": "node scripts/run-pipeline.mjs",
+    "pipeline": "node scripts/run-pipeline.mjs",
+    "thesis:promote": "node scripts/thesis-promote.mjs",
+    "google:oauth": "node scripts/google-oauth-bootstrap.mjs",
+    "release:redirect": "node scripts/check-www-redirect.mjs",
+    "release:test-lead": "node scripts/submit-test-lead.mjs",
+    "release:deliver": "node scripts/check-deliver-head.mjs",
+    "release:ga4": "node scripts/check-ga4-realtime.mjs",
+    "release:health": "node scripts/release-health.mjs",
+    "release:prod": "node scripts/release-prod.mjs",
+    "seo:indexnow:init": "node scripts/indexnow-bootstrap.mjs",
+    "seo:diagnostics": "node scripts/seo-diagnostics.mjs",
+    "seo:submit": "node scripts/seo-submit.mjs",
+    "commercial:ops": "node scripts/commercial-ops.mjs",
+    "worker:dev": "wrangler dev --config workers/automiora-api/wrangler.toml",
+    "worker:deploy": "wrangler deploy --config workers/automiora-api/wrangler.toml",
+    "worker:d1:apply": "wrangler d1 execute automiora-site-prod --remote --file workers/automiora-api/schema.sql --config workers/automiora-api/wrangler.toml",
+    "worker:d1:migrate": "node scripts/worker-d1-migrate.mjs",
+    "worker:r2:sync": "node scripts/sync-r2-assets.mjs",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.5.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.58.2",
+    "vite": "^8.0.10",
+    "wrangler": "^4.44.0"
+  }
+}

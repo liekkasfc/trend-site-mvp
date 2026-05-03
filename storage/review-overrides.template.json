@@ -1,0 +1,402 @@
+{
+  "generatedAt": "2026-05-03T08:37:39.354Z",
+  "instructions": [
+    "Copy this file to storage/review-overrides.json and edit only the fields you want to override.",
+    "Supported fields per page: intro, ctaCopy, verdicts, keyFacts, sectionParagraphs, reviewer, reviewedAt, notes."
+  ],
+  "pages": [
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "pageSlug": "index",
+      "pageType": "hub",
+      "reviewer": "",
+      "reviewedAt": "",
+      "notes": "",
+      "intro": "Use this hub to decide whether ai video workflow deserves a place in your stack, which option to shortlist first, and what workflow to test next. Visitors usually need one clear path from problem to shortlist, not a broad category recap.",
+      "ctaCopy": "Use ai video workflow prompt pack as the main asset that carries visitors from reading into action.",
+      "verdicts": [
+        {
+          "title": "Best for operators who need a decision surface, not another explainer",
+          "detail": "This cluster works when the buyer wants a shortlist, a workflow, and one asset that reduces execution friction.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        },
+        {
+          "title": "Weak pages lose visitors when they hide pricing clarity or rollout cost",
+          "detail": "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        },
+        {
+          "title": "Start with the narrowest repeatable use case",
+          "detail": "Visitors evaluating ai video workflow usually need one shortlist, one workflow, and one asset before they need more breadth.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        }
+      ],
+      "keyFacts": [
+        {
+          "label": "Audience",
+          "value": "indie hackers, product marketers, and content operators shipping short-form product/demo videos",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+          ]
+        },
+        {
+          "label": "Monetization path",
+          "value": "affiliate, template-sale, lead-gen",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+          ]
+        },
+        {
+          "label": "SERP coverage",
+          "value": "4 visible results and 1 commercial-style results shaped this cluster.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        },
+        {
+          "label": "Support depth",
+          "value": "3 support keywords are mapped into comparison, pricing, and workflow paths for this hub.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        }
+      ],
+      "sectionParagraphs": [
+        [
+          "The best ai video workflow pages help indie hackers, product marketers, and content operators shipping short-form product/demo videos move from curiosity to a concrete next step.",
+          "That means the page should tell the visitor who this category is for, who should skip it, and what to test first."
+        ],
+        [
+          "Current search coverage still leaves these gaps: pricing gap in top SERP results; outdated results still present in top SERP; community questions show unresolved workflow pain.",
+          "Use cases like short-form product demo videos, launch and product update videos, screenshot-to-video launch clips should map to distinct decision paths rather than a single generic recommendation."
+        ]
+      ]
+    },
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "pageSlug": "alternatives",
+      "pageType": "alternatives",
+      "reviewer": "",
+      "reviewedAt": "",
+      "notes": "",
+      "intro": "This page should help a buyer collapse a noisy field into a shortlist with one recommended first review and one fallback path. The page should help a buyer decide the first click quickly, then explain the fallback path.",
+      "ctaCopy": "Convert comparison-stage visitors with ai video workflow workflow checklist so they can score options instead of reopening search.",
+      "verdicts": [
+        {
+          "title": "ltx.studio",
+          "detail": "Recommended first shortlist review. Best for teams that want the fastest path from evaluation to execution.",
+          "sourceIds": [
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
+          ]
+        },
+        {
+          "title": "vidworkflow.com",
+          "detail": "Good second opinion. Best for visitors who need clearer tradeoffs before they commit.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+          ]
+        },
+        {
+          "title": "aistudio.google.com",
+          "detail": "Useful benchmark or fallback. Best for operators comparing fit against an already-shortlisted option.",
+          "sourceIds": [
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        },
+        {
+          "title": "reddit.com",
+          "detail": "Useful benchmark or fallback. Best for operators comparing fit against an already-shortlisted option.",
+          "sourceIds": [
+            "community-reddit-com-which-video-editing-ai-tool-is--c953fa0136"
+          ]
+        }
+      ],
+      "keyFacts": [
+        {
+          "label": "ltx.studio",
+          "value": "Teams that want the fastest path from evaluation to execution. Watch-out: As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?",
+          "sourceIds": [
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
+          ]
+        },
+        {
+          "label": "vidworkflow.com",
+          "value": "Visitors who need clearer tradeoffs before they commit. Watch-out: Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+          ]
+        },
+        {
+          "label": "aistudio.google.com",
+          "value": "Operators comparing fit against an already-shortlisted option. Watch-out: Do not recommend a stack without naming the operational cost, review loop, and failure mode.",
+          "sourceIds": [
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        },
+        {
+          "label": "reddit.com",
+          "value": "Operators comparing fit against an already-shortlisted option. Useful benchmark or fallback.",
+          "sourceIds": [
+            "community-reddit-com-which-video-editing-ai-tool-is--c953fa0136"
+          ]
+        }
+      ],
+      "sectionParagraphs": [
+        [
+          "Collapse ai video workflow into one first click, one fallback, and one asset path for each serious buyer job.",
+          "Rank by buyer fit, implementation burden, and how quickly the visitor can turn the comparison into a repeatable decision record."
+        ]
+      ]
+    },
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "pageSlug": "workflow",
+      "pageType": "workflow",
+      "reviewer": "",
+      "reviewedAt": "",
+      "notes": "",
+      "intro": "Implementation pages should remove ambiguity: what to input, what to output, what to measure, and what usually breaks first. The winning workflow is the one a team can review, reuse, and hand off after the first pass.",
+      "ctaCopy": "Use ai video workflow comparison worksheet to remove implementation friction after the first pilot.",
+      "verdicts": [
+        {
+          "title": "Start with one pilot, not the whole workflow",
+          "detail": "The fastest way to learn is to run one production-shaped pilot and turn the result into a repeatable asset.",
+          "sourceIds": [
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+          ]
+        },
+        {
+          "title": "Document the review loop inside the workflow",
+          "detail": "The page should show who reviews the first draft, what usually fails, and how the next run gets faster.",
+          "sourceIds": [
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+          ]
+        }
+      ],
+      "keyFacts": [
+        {
+          "label": "Workflow refs",
+          "value": "4 workflow references and 2 prompt examples back this page.",
+          "sourceIds": [
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+          ]
+        },
+        {
+          "label": "Pilot target",
+          "value": "Start with short-form product demo videos before expanding the surface area.",
+          "sourceIds": [
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+          ]
+        },
+        {
+          "label": "Primary risk",
+          "value": "As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?",
+          "sourceIds": [
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+          ]
+        },
+        {
+          "label": "Pilot shape",
+          "value": "A useful first pilot for ai video workflow should have one owner, one source asset, and one publish target.",
+          "sourceIds": [
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+          ]
+        },
+        {
+          "label": "Prompt coverage",
+          "value": "2 reusable prompt examples were attached to the workflow page.",
+          "sourceIds": [
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
+          ]
+        }
+      ],
+      "sectionParagraphs": [
+        [
+          "A workflow page earns trust when it names the operating handoff, the review owner, and the failure point the team is likely to hit first.",
+          "The page should leave the reader with one believable pilot and one asset they can reuse on the second run."
+        ]
+      ]
+    },
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "pageSlug": "template-kit",
+      "pageType": "template-kit",
+      "reviewer": "",
+      "reviewedAt": "",
+      "notes": "",
+      "intro": "The template kit bundles one first-run prompt pack, one repeat-run workflow checklist, and one comparison worksheet so a team can move from first pilot to reusable handoff without reopening search or rebuilding the brief. The asset should feel immediately usable, not like a vague lead magnet.",
+      "ctaCopy": "Make the asset the page, not an afterthought. AI Video Workflow prompt pack should feel like the concrete first-run move inside a reusable kit.",
+      "verdicts": [
+        {
+          "title": "The kit should remove first-run setup, not add another download",
+          "detail": "The ai video workflow prompt pack only earns the click if it makes the first pilot faster to brief, review, and hand off.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+          ]
+        },
+        {
+          "title": "A real kit covers first run, second run, and the next buying decision",
+          "detail": "AI Video Workflow prompt pack, AI Video Workflow workflow checklist, and AI Video Workflow comparison worksheet should each shorten a different stage of the workflow.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        },
+        {
+          "title": "Reusable assets matter more once the workflow repeats",
+          "detail": "AriaFlow style workflow promises around autopilot, scheduling, and one workspace only pay off when the underlying prompts, checklists, and review notes are reusable.",
+          "sourceIds": [
+            "official-ariaflow-ai-ariaflow-ai-create-viral-facel-6c4ae0bac8"
+          ]
+        },
+        {
+          "title": "The kit becomes commercial when it supports a business case",
+          "detail": "Synthesia style ROI claims like 160+ languages or major time savings make the kit more valuable because cleaner prompts, clearer review, and better comparison notes support the higher-stakes workflow.",
+          "sourceIds": [
+            "official-synthesia-io-synthesia-1-ai-video-platform-5000af18b9"
+          ]
+        },
+        {
+          "title": "The asset should reduce the first-run setup cost",
+          "detail": "If ai video workflow prompt pack does not help the first pilot happen faster, the page is not product-shaped enough.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        }
+      ],
+      "keyFacts": [
+        {
+          "label": "Asset bundle",
+          "value": "3 linked downloads cover first run, repeat run, and comparison.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+          ]
+        },
+        {
+          "label": "Primary asset depth",
+          "value": "5 concrete modules ship inside ai video workflow prompt pack.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+          ]
+        },
+        {
+          "label": "Workflow backbone",
+          "value": "5 workflow steps already have owner, success metric, and failure point definitions.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+          ]
+        },
+        {
+          "label": "Use-case coverage",
+          "value": "4 use-case models already map audience, trigger, workflow, and outcome to the kit.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+          ]
+        },
+        {
+          "label": "Visible pilot benchmark",
+          "value": "$20 for 3-12 min, one-time payment, no subscription shown.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+          ]
+        },
+        {
+          "label": "AI Video Workflow prompt pack",
+          "value": "A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        }
+      ],
+      "sectionParagraphs": [
+        [
+          "A public benchmark still starts around $20 for 3-12 min, so the first pilot should stay cheap. The kit earns its keep by reducing prompt thrash, review waste, and handoff confusion around that pilot.",
+          "The real value appears on the second run, when another teammate has to reuse the workflow, defend the shortlist, or compare the next tool without reopening five tabs."
+        ],
+        [
+          "AI Video Workflow prompt pack, AI Video Workflow workflow checklist, and AI Video Workflow comparison worksheet each remove a different kind of drag: drafting, reviewing, and deciding.",
+          "AriaFlow and Synthesia show why this matters: once the workflow is recurring, buyers pay for scheduling, shared workspace, multilingual delivery, and time savings. The kit needs to support that more serious workflow, not just hand out a download."
+        ]
+      ]
+    },
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "pageSlug": "case-study",
+      "pageType": "case-study",
+      "reviewer": "",
+      "reviewedAt": "",
+      "notes": "",
+      "intro": "Case-study pages earn trust by showing a believable before, a concrete intervention, and an outcome that maps back to the real workflow. What matters is the workflow shift, the reusable asset, and the outcome the team can repeat.",
+      "ctaCopy": "If the visitor wants the same outcome faster, send them to ai video workflow prompt pack or a consult CTA.",
+      "verdicts": [
+        {
+          "title": "Trust comes from the workflow change, not vague ROI language",
+          "detail": "The page should show what changed in the decision surface, what got documented, and what the team can now repeat.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        }
+      ],
+      "keyFacts": [
+        {
+          "label": "Before",
+          "value": "No shortlist, no workflow, and no reusable asset for the next launch.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        },
+        {
+          "label": "Intervention",
+          "value": "Reduce the decision surface to one shortlist, one workflow, and one asset.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        },
+        {
+          "label": "Outcome",
+          "value": "The next cycle gets faster because the team reuses the winning path instead of starting from search again.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        },
+        {
+          "label": "After",
+          "value": "The team left with one shortlist, one workflow, and one asset they could reuse on the next cycle.",
+          "sourceIds": [
+            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
+            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
+          ]
+        }
+      ],
+      "sectionParagraphs": [
+        [
+          "The useful case-study pattern is not “AI saved time.” It is “the team reduced decision overhead, clarified the workflow, and packaged the winning path into an asset.”"
+        ]
+      ]
+    }
+  ]
+}

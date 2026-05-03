@@ -1,0 +1,257 @@
+{
+  "generatedAt": "2026-05-03T08:37:39.354Z",
+  "history": [
+    {
+      "runId": "2026-05-03T08-07-11-075Z",
+      "generatedAt": "2026-05-03T08:07:11.077Z",
+      "mode": "live_google",
+      "seeded": false,
+      "sites": [
+        {
+          "siteSlug": "ai-video-workflow-short-form-demo",
+          "mode": "live_google",
+          "impressions": 0,
+          "clicks": 0,
+          "ctr": 0,
+          "avgPosition": 0,
+          "conversions": 8,
+          "conversionRate": 0.5333,
+          "revenue": 0,
+          "sessions": 15,
+          "rankingSource": "gsc",
+          "conversionSource": "ga4",
+          "rankingQueryCount": 0,
+          "liveTop50KeywordCount": 0,
+          "liveTop20KeywordCount": 0,
+          "gscStatus": "live",
+          "ga4Status": "live",
+          "gscLookbackDays": 30,
+          "ga4LookbackDays": 30,
+          "conversionEvents": [
+            "generate_lead",
+            "sign_up",
+            "purchase"
+          ],
+          "notes": [],
+          "deltaFromPrevious": {
+            "impressions": 0,
+            "clicks": 0,
+            "avgPosition": 0,
+            "conversions": 0,
+            "revenue": 0
+          }
+        }
+      ]
+    },
+    {
+      "runId": "2026-05-03T08-10-49-214Z",
+      "generatedAt": "2026-05-03T08:10:49.216Z",
+      "mode": "live_google",
+      "seeded": false,
+      "sites": [
+        {
+          "siteSlug": "ai-video-workflow-short-form-demo",
+          "mode": "live_google",
+          "impressions": 0,
+          "clicks": 0,
+          "ctr": 0,
+          "avgPosition": 0,
+          "conversions": 8,
+          "conversionRate": 0.5333,
+          "revenue": 0,
+          "sessions": 15,
+          "rankingSource": "gsc",
+          "conversionSource": "ga4",
+          "rankingQueryCount": 0,
+          "liveTop50KeywordCount": 0,
+          "liveTop20KeywordCount": 0,
+          "gscStatus": "live",
+          "ga4Status": "live",
+          "gscLookbackDays": 30,
+          "ga4LookbackDays": 30,
+          "conversionEvents": [
+            "generate_lead",
+            "sign_up",
+            "purchase"
+          ],
+          "notes": [],
+          "deltaFromPrevious": {
+            "impressions": 0,
+            "clicks": 0,
+            "avgPosition": 0,
+            "conversions": 0,
+            "revenue": 0
+          }
+        }
+      ]
+    },
+    {
+      "runId": "2026-05-03T08-13-19-148Z",
+      "generatedAt": "2026-05-03T08:13:19.150Z",
+      "mode": "live_google",
+      "seeded": false,
+      "sites": [
+        {
+          "siteSlug": "ai-video-workflow-short-form-demo",
+          "mode": "live_google",
+          "impressions": 0,
+          "clicks": 0,
+          "ctr": 0,
+          "avgPosition": 0,
+          "conversions": 8,
+          "conversionRate": 0.5333,
+          "revenue": 0,
+          "sessions": 15,
+          "rankingSource": "gsc",
+          "conversionSource": "ga4",
+          "rankingQueryCount": 0,
+          "liveTop50KeywordCount": 0,
+          "liveTop20KeywordCount": 0,
+          "gscStatus": "live",
+          "ga4Status": "live",
+          "gscLookbackDays": 30,
+          "ga4LookbackDays": 30,
+          "conversionEvents": [
+            "generate_lead",
+            "sign_up",
+            "purchase"
+          ],
+          "notes": [],
+          "deltaFromPrevious": {
+            "impressions": 0,
+            "clicks": 0,
+            "avgPosition": 0,
+            "conversions": 0,
+            "revenue": 0
+          }
+        }
+      ]
+    },
+    {
+      "runId": "2026-05-03T08-28-05-936Z",
+      "generatedAt": "2026-05-03T08:28:05.938Z",
+      "mode": "live_google",
+      "seeded": false,
+      "sites": [
+        {
+          "siteSlug": "ai-video-workflow-short-form-demo",
+          "mode": "live_google",
+          "impressions": 0,
+          "clicks": 0,
+          "ctr": 0,
+          "avgPosition": 0,
+          "conversions": 8,
+          "conversionRate": 0.5333,
+          "revenue": 0,
+          "sessions": 15,
+          "rankingSource": "gsc",
+          "conversionSource": "ga4",
+          "rankingQueryCount": 0,
+          "liveTop50KeywordCount": 0,
+          "liveTop20KeywordCount": 0,
+          "gscStatus": "live",
+          "ga4Status": "live",
+          "gscLookbackDays": 30,
+          "ga4LookbackDays": 30,
+          "conversionEvents": [
+            "generate_lead",
+            "sign_up",
+            "purchase"
+          ],
+          "notes": [],
+          "deltaFromPrevious": {
+            "impressions": 0,
+            "clicks": 0,
+            "avgPosition": 0,
+            "conversions": 0,
+            "revenue": 0
+          }
+        }
+      ]
+    },
+    {
+      "runId": "2026-05-03T08-29-38-367Z",
+      "generatedAt": "2026-05-03T08:29:38.369Z",
+      "mode": "live_google",
+      "seeded": false,
+      "sites": [
+        {
+          "siteSlug": "ai-video-workflow-short-form-demo",
+          "mode": "live_google",
+          "impressions": 0,
+          "clicks": 0,
+          "ctr": 0,
+          "avgPosition": 0,
+          "conversions": 8,
+          "conversionRate": 0.5333,
+          "revenue": 0,
+          "sessions": 15,
+          "rankingSource": "gsc",
+          "conversionSource": "ga4",
+          "rankingQueryCount": 0,
+          "liveTop50KeywordCount": 0,
+          "liveTop20KeywordCount": 0,
+          "gscStatus": "live",
+          "ga4Status": "live",
+          "gscLookbackDays": 30,
+          "ga4LookbackDays": 30,
+          "conversionEvents": [
+            "generate_lead",
+            "sign_up",
+            "purchase"
+          ],
+          "notes": [],
+          "deltaFromPrevious": {
+            "impressions": 0,
+            "clicks": 0,
+            "avgPosition": 0,
+            "conversions": 0,
+            "revenue": 0
+          }
+        }
+      ]
+    },
+    {
+      "runId": "2026-05-03T08-37-39-353Z",
+      "generatedAt": "2026-05-03T08:37:39.354Z",
+      "mode": "live_google",
+      "seeded": false,
+      "sites": [
+        {
+          "siteSlug": "ai-video-workflow-short-form-demo",
+          "mode": "live_google",
+          "impressions": 0,
+          "clicks": 0,
+          "ctr": 0,
+          "avgPosition": 0,
+          "conversions": 8,
+          "conversionRate": 0.5,
+          "revenue": 0,
+          "sessions": 16,
+          "rankingSource": "gsc",
+          "conversionSource": "ga4",
+          "rankingQueryCount": 0,
+          "liveTop50KeywordCount": 0,
+          "liveTop20KeywordCount": 0,
+          "gscStatus": "live",
+          "ga4Status": "live",
+          "gscLookbackDays": 30,
+          "ga4LookbackDays": 30,
+          "conversionEvents": [
+            "generate_lead",
+            "sign_up",
+            "purchase"
+          ],
+          "notes": [],
+          "deltaFromPrevious": {
+            "impressions": 0,
+            "clicks": 0,
+            "avgPosition": 0,
+            "conversions": 0,
+            "revenue": 0
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "generatedAt": "2026-05-03T08:37:39.354Z",
+  "entries": [
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "assetSlug": "prompt-pack",
+      "assetTitle": "AI Video Workflow prompt pack",
+      "measurementMode": "live_ops",
+      "strongestPath": "/generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack.html",
+      "modeledSubmitRate": 0.95,
+      "modeledDeliveryRate": 0.95,
+      "modeledDeeperActionRate": 0,
+      "pagePaths": [
+        {
+          "pageSlug": "template-kit",
+          "pageType": "template-kit",
+          "path": "template-kit -> prompt-pack",
+          "modeledSubmitRate": 0.36,
+          "modeledDeliveryRate": 0.302,
+          "modeledDeeperActionRate": 0.127
+        },
+        {
+          "pageSlug": "case-study",
+          "pageType": "case-study",
+          "path": "case-study -> prompt-pack",
+          "modeledSubmitRate": 0.25,
+          "modeledDeliveryRate": 0.21,
+          "modeledDeeperActionRate": 0.088
+        },
+        {
+          "pageSlug": "best-tools",
+          "pageType": "best-tools",
+          "path": "best-tools -> prompt-pack",
+          "modeledSubmitRate": 0.31,
+          "modeledDeliveryRate": 0.26,
+          "modeledDeeperActionRate": 0.073
+        },
+        {
+          "pageSlug": "pricing",
+          "pageType": "pricing",
+          "path": "pricing -> prompt-pack",
+          "modeledSubmitRate": 0.31,
+          "modeledDeliveryRate": 0.26,
+          "modeledDeeperActionRate": 0.073
+        },
+        {
+          "pageSlug": "free-vs-paid",
+          "pageType": "free-vs-paid",
+          "path": "free-vs-paid -> prompt-pack",
+          "modeledSubmitRate": 0.31,
+          "modeledDeliveryRate": 0.26,
+          "modeledDeeperActionRate": 0.073
+        },
+        {
+          "pageSlug": "index",
+          "pageType": "hub",
+          "path": "index -> prompt-pack",
+          "modeledSubmitRate": 0.25,
+          "modeledDeliveryRate": 0.21,
+          "modeledDeeperActionRate": 0.059
+        },
+        {
+          "pageSlug": "faq",
+          "pageType": "faq",
+          "path": "faq -> prompt-pack",
+          "modeledSubmitRate": 0.25,
+          "modeledDeliveryRate": 0.21,
+          "modeledDeeperActionRate": 0.059
+        },
+        {
+          "pageSlug": "use-cases",
+          "pageType": "use-cases",
+          "path": "use-cases -> prompt-pack",
+          "modeledSubmitRate": 0.25,
+          "modeledDeliveryRate": 0.21,
+          "modeledDeeperActionRate": 0.059
+        }
+      ],
+      "liveLeadCount": 7,
+      "liveDeliveredCount": 7,
+      "liveQualifiedEvents": 0,
+      "liveWonEvents": 0,
+      "liveRevenueUsd": 0,
+      "note": "Live ops data: 7 lead(s), 7 delivered, 0 qualified, 0 won, $0 revenue."
+    },
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "assetSlug": "workflow-checklist",
+      "assetTitle": "AI Video Workflow workflow checklist",
+      "measurementMode": "proxy_on_live_sessions",
+      "strongestPath": "alternatives -> workflow-checklist",
+      "modeledSubmitRate": 0.301,
+      "modeledDeliveryRate": 0.253,
+      "modeledDeeperActionRate": 0.071,
+      "pagePaths": [
+        {
+          "pageSlug": "alternatives",
+          "pageType": "alternatives",
+          "path": "alternatives -> workflow-checklist",
+          "modeledSubmitRate": 0.301,
+          "modeledDeliveryRate": 0.253,
+          "modeledDeeperActionRate": 0.071
+        }
+      ],
+      "note": "These rates are modeled from page intent, asset acceptance, and CTA placement until per-asset GA4 event splits are available."
+    },
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "assetSlug": "comparison-worksheet",
+      "assetTitle": "AI Video Workflow comparison worksheet",
+      "measurementMode": "proxy_on_live_sessions",
+      "strongestPath": "workflow -> comparison-worksheet",
+      "modeledSubmitRate": 0.28,
+      "modeledDeliveryRate": 0.235,
+      "modeledDeeperActionRate": 0.099,
+      "pagePaths": [
+        {
+          "pageSlug": "workflow",
+          "pageType": "workflow",
+          "path": "workflow -> comparison-worksheet",
+          "modeledSubmitRate": 0.28,
+          "modeledDeliveryRate": 0.235,
+          "modeledDeeperActionRate": 0.099
+        }
+      ],
+      "note": "These rates are modeled from page intent, asset acceptance, and CTA placement until per-asset GA4 event splits are available."
+    }
+  ]
+}

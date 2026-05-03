@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-05-03T08:37:39.354Z",
+  "sites": [
+    {
+      "siteSlug": "ai-video-workflow-short-form-demo",
+      "previewUrl": "https://automiora.com/generated-sites/ai-video-workflow-short-form-demo/index.html",
+      "auditStatus": "pass",
+      "releaseMode": "release-ready",
+      "publishGateStatus": "pass",
+      "bundlePath": "/Users/max/code/trend-site-mvp/public/generated-sites/ai-video-workflow-short-form-demo",
+      "providers": [
+        {
+          "key": "local-preview",
+          "label": "Local preview",
+          "status": "live",
+          "url": "https://automiora.com/generated-sites/ai-video-workflow-short-form-demo/index.html",
+          "note": "Served through the Vite app for review and QA."
+        },
+        {
+          "key": "filesystem-export",
+          "label": "Filesystem export",
+          "status": "ready",
+          "url": "/Users/max/code/trend-site-mvp/public/generated-sites/ai-video-workflow-short-form-demo",
+          "note": "Static files are ready for any file-based deploy target."
+        },
+        {
+          "key": "vercel",
+          "label": "Vercel",
+          "status": "needs_credentials",
+          "note": "Set VERCEL_TOKEN and VERCEL_PROJECT_ID to automate production deploys."
+        },
+        {
+          "key": "cloudflare-pages",
+          "label": "Cloudflare Pages",
+          "status": "configured",
+          "note": "Environment variables detected for Cloudflare Pages."
+        },
+        {
+          "key": "automiora-release",
+          "label": "Automiora release adapter",
+          "status": "manual-trigger",
+          "note": "Use pnpm run release:prod or enable AUTO_RELEASE_ENABLED + AUTO_RELEASE_ON_GATE_PASS."
+        }
+      ]
+    }
+  ],
+  "autoRelease": {
+    "status": "disabled",
+    "reason": "AUTO_RELEASE_ENABLED or AUTO_RELEASE_ON_GATE_PASS is false."
+  }
+}

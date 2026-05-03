@@ -1,0 +1,24 @@
+name = "automiora-api"
+main = "src/index.ts"
+compatibility_date = "2026-05-03"
+preview_urls = false
+
+routes = [
+  { pattern = "api.automiora.com", custom_domain = true }
+]
+
+[vars]
+PUBLIC_SITE_BASE_URL = "https://automiora.com"
+TURNSTILE_REQUIRED = "false"
+ALLOWED_ORIGINS = "https://automiora.com,https://www.automiora.com,http://localhost:4173,http://localhost:5173"
+EMAIL_DELIVERY_PROVIDER = ""
+DELIVERY_TOKEN_TTL_HOURS = "168"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "automiora-site-prod"
+database_id = "d366e0fc-6274-4b69-91a6-4ff4845e08b0"
+
+[[r2_buckets]]
+binding = "ASSET_BUCKET"
+bucket_name = "automiora-site-assets-prod"

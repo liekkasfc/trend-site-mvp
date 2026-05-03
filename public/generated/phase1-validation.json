@@ -1,0 +1,75 @@
+{
+  "thesisKey": "video-creation",
+  "siteSlug": "ai-video-workflow-short-form-demo",
+  "status": "validated",
+  "summary": "The single-thesis revenue loop is structurally ready: strong pages, real asset delivery, and measurable events are in place.",
+  "checklist": [
+    {
+      "key": "single_thesis_scope",
+      "label": "Single-thesis scope remains intact",
+      "status": "pass",
+      "detail": "video-creation / ai-video-workflow-short-form-demo"
+    },
+    {
+      "key": "publish_gate",
+      "label": "Gate 2 is clear for live traffic",
+      "status": "pass",
+      "detail": "Gate 2 is currently pass and audit status is pass."
+    },
+    {
+      "key": "high_intent_pages",
+      "label": "10-12 high-intent pages are ready",
+      "status": "pass",
+      "detail": "10 pages generated for ai-video-workflow-short-form-demo."
+    },
+    {
+      "key": "wiki_backbone",
+      "label": "Hermes Wiki backbone is strong enough to drive reuse",
+      "status": "pass",
+      "detail": "24 core cards across claim, brief, and asset layers. Wiki summary asset count: 3."
+    },
+    {
+      "key": "asset_delivery",
+      "label": "Real asset delivery flow exists",
+      "status": "pass",
+      "detail": "3/3 assets have landing, thank-you, download, and delivery steps."
+    },
+    {
+      "key": "tracking",
+      "label": "Tracking is wired for CTA, submit, and delivery events",
+      "status": "pass",
+      "detail": "GA4 measurement G-0YDYHQCDQC is present."
+    },
+    {
+      "key": "commercial_path",
+      "label": "At least one real commercial path exists",
+      "status": "pass",
+      "detail": "3 conversion assets and 8 pages with commercial modules."
+    }
+  ],
+  "acceptance": [
+    {
+      "label": "Every strong page routes to an asset landing page",
+      "status": "pass",
+      "detail": "All page CTAs now point to asset landing flows instead of other content pages."
+    },
+    {
+      "label": "Every asset has a form, thank-you page, and downloadable file",
+      "status": "pass",
+      "detail": "3/3 assets are fully deliverable."
+    },
+    {
+      "label": "GA4 event chain exists for click -> submit -> delivery",
+      "status": "pass",
+      "detail": "asset_cta_click, asset_form_submit, conversion event, and asset_delivery are emitted in the static flow."
+    },
+    {
+      "label": "Gate 3 can read real GSC/GA4 signals when configured",
+      "status": "pass",
+      "detail": "gsc/ga4 currently back the expansion gate."
+    }
+  ],
+  "nextMoves": [
+    "Drive real traffic into the strongest pages and compare which asset delivers the first commercial signal."
+  ]
+}

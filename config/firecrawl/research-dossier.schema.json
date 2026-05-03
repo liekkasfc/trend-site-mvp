@@ -1,0 +1,81 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "pricingSummary": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string" },
+          "detail": { "type": "string" },
+          "sourceUrl": { "type": "string" }
+        },
+        "required": ["label", "detail"]
+      }
+    },
+    "changelogSignals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string" },
+          "detail": { "type": "string" },
+          "sourceUrl": { "type": "string" }
+        },
+        "required": ["title", "detail"]
+      }
+    },
+    "communityPainSignals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string" },
+          "detail": { "type": "string" },
+          "sourceUrl": { "type": "string" }
+        },
+        "required": ["title", "detail"]
+      }
+    },
+    "useCases": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "failureModes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "competitorPositioning": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "bestFor": { "type": "string" },
+          "watchout": { "type": "string" },
+          "sourceUrl": { "type": "string" }
+        },
+        "required": ["name", "bestFor"]
+      }
+    },
+    "assetIdeas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string" },
+          "audience": { "type": "string" },
+          "whyNow": { "type": "string" },
+          "sourceUrl": { "type": "string" }
+        },
+        "required": ["title", "whyNow"]
+      }
+    }
+  }
+}

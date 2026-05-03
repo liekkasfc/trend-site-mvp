@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-05-03T08:37:39.354Z",
+  "rows": [
+    {
+      "thesis": "AI video workflow for short-form product and demo content",
+      "trendScore": 77.6,
+      "commercialIntent": 95.5,
+      "supportPages": 24,
+      "gate1": "pass",
+      "publishPages": 10,
+      "averageQualityScore": 100,
+      "gate2": "pass",
+      "day30Impressions": 0,
+      "gate3": "optimize",
+      "conclusion": "maintain"
+    }
+  ]
+}

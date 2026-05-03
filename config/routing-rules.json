@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "appendThreshold": 5,
+  "candidateThreshold": 3,
+  "minimumTopicOverlapRatio": 0.34,
+  "minimumBrandOverlapRatio": 0.18,
+  "minimumSupportMatches": 2,
+  "minimumContentAssetMatches": 1,
+  "supportIdeaOverlapRatio": 0.25,
+  "requireThemeMatchForAppend": true,
+  "tokenIgnoreList": [
+    "a",
+    "an",
+    "and",
+    "are",
+    "for",
+    "from",
+    "how",
+    "is",
+    "of",
+    "the",
+    "to",
+    "vs",
+    "what",
+    "why",
+    "with"
+  ],
+  "hardBlockThemes": {
+    "video-creation": [
+      "agent-infrastructure",
+      "productivity-ai",
+      "revenue-automation"
+    ]
+  }
+}
