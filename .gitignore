@@ -17,6 +17,13 @@ dist-ssr
 !.env.example
 *.local
 storage/release-runs/
+public/generated/
+public/*.txt
+!public/llms.txt
+!public/robots.txt
+storage/*.json
+storage/*.md
+!storage/review-overrides.template.json
 
 # Editor directories and files
 .vscode/*

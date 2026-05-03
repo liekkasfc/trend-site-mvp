@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@10.30.2",
   "scripts": {
     "ingest": "node scripts/run-pipeline.mjs",
     "pipeline": "node scripts/run-pipeline.mjs",
@@ -26,7 +27,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "validate": "pnpm lint && pnpm build && node --check scripts/run-pipeline.mjs && node --check scripts/release-prod.mjs && node --check scripts/check-ga4-realtime.mjs && node --check scripts/release-lib.mjs && node --check scripts/seo-submit.mjs && node --check scripts/worker-d1-migrate.mjs && node --check scripts/commercial-ops.mjs"
   },
   "dependencies": {
     "react": "^19.2.5",

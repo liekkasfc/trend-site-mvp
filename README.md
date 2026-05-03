@@ -55,6 +55,28 @@
 - candidate thesis: `AI agent infrastructure`
 - active domain: `automiora.com`
 
+## 仓库边界
+
+这个仓库现在按“源码层”和“运行产物层”分开维护：
+
+- 长期进版本库：
+  - `config/`
+  - `scripts/`
+  - `src/`
+  - `workers/`
+  - `docs/`
+  - `wiki/`
+  - `public/generated-sites/`
+- 本地生成、不长期提交：
+  - `public/generated/*`
+  - `storage/*.json`
+  - `storage/*.md`
+  - `storage/release-runs/*`
+  - `.wrangler/`
+  - `dist/`
+
+详细说明见 [docs/REPO-LAYOUT.md](/Users/max/code/trend-site-mvp/docs/REPO-LAYOUT.md)。
+
 ## 常用命令
 
 ```bash
@@ -73,6 +95,7 @@ pnpm run release:health
 pnpm run seo:diagnostics
 pnpm run seo:submit
 pnpm run commercial:ops
+pnpm run validate
 pnpm run release:prod
 ```
 
@@ -86,6 +109,8 @@ pnpm run release:ga4 -- --site-slug ai-video-workflow-short-form-demo --asset-sl
 ```
 
 ## 关键输出
+
+下面这些输出仍然会在本地生成，但其中 `public/generated/*`、`storage/*` 这类运行快照默认不再长期进版本库。
 
 - `public/generated/pipeline-report.json`
   - 前端控制台主数据源
