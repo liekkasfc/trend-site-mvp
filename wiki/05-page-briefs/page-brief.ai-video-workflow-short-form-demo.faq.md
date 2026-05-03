@@ -7,7 +7,7 @@ page_type: "faq"
 target_intent: "answer_to_next_step"
 target_asset: "AI Video Workflow prompt pack"
 primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.definition.6bfd358e","claim.ai-video-workflow-short-form-demo.pricing.4a485d25"]
-secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.b15a946e"]
+secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e"]
 required_sections: ["FAQ","One next step","Asset CTA"]
 cta_strategy: "low_friction_asset"
 review_priority: "medium"
@@ -38,7 +38,7 @@ Get a quick answer without losing the next step.
 
 ## Required caveats
 
-- As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
+- Do not recommend a stack without naming the operational cost, review loop, and failure mode.
 
 ## CTA strategy
 

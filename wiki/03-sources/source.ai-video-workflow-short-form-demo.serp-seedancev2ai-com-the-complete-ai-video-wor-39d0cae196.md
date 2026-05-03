@@ -1,12 +1,12 @@
 ---
-id: "source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
+id: "source.ai-video-workflow-short-form-demo.serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
 type: "source"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 source_kind: "serp"
-title: "The Best AI Video Workflow Guide & Tool Stack (2026)"
-url: "https://ltx.studio/blog/ai-video-workflow"
-domain: "ltx.studio"
+title: "The Complete AI Video Workflow for Content Creators in 2026"
+url: "https://www.seedancev2ai.com/en/blog/complete-ai-video-workflow-content-creators-2026"
+domain: "seedancev2ai.com"
 published_at: "2026-01-01"
 captured_at: "2026-05-03T11:41:12.595Z"
 freshness_score: 92
@@ -15,12 +15,12 @@ status: "active"
 ---
 ## Source summary
 
-An AI video workflow is a structured production process in which artificial intelligence handles the generation, iteration, and refinement of video content — replacing or accelerating the manual steps that traditionally...
+From concept to published video — here&#x27;s the end-to-end workflow that professional AI video creators use in 2026, combining Veo 3.1, Kling 3.0, Sora 2, and Seedance 2.0 for maximum output quality.
 
 ## Key facts extracted
 
-- The Best AI Video Workflow Guide & Tool Stack (2026)
-- Intent: comparison
+- The Complete AI Video Workflow for Content Creators in 2026
+- Intent: workflow
 - Category: serp
 
 ## Buyer pain signals

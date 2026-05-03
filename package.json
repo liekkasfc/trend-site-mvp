@@ -25,10 +25,10 @@
     "worker:d1:migrate": "node scripts/worker-d1-migrate.mjs",
     "worker:r2:sync": "node scripts/sync-r2-assets.mjs",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/postbuild-pages.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "validate": "pnpm lint && pnpm build && node --check scripts/run-pipeline.mjs && node --check scripts/release-prod.mjs && node --check scripts/check-ga4-realtime.mjs && node --check scripts/release-lib.mjs && node --check scripts/seo-submit.mjs && node --check scripts/worker-d1-migrate.mjs && node --check scripts/commercial-ops.mjs"
+    "validate": "pnpm lint && pnpm build && node --check scripts/run-pipeline.mjs && node --check scripts/release-prod.mjs && node --check scripts/check-ga4-realtime.mjs && node --check scripts/release-lib.mjs && node --check scripts/seo-submit.mjs && node --check scripts/worker-d1-migrate.mjs && node --check scripts/commercial-ops.mjs && node --check scripts/postbuild-pages.mjs"
   },
   "dependencies": {
     "react": "^19.2.5",

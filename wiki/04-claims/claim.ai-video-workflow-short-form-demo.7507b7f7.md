@@ -8,9 +8,9 @@ claim_kind: "comparison"
 decision_stage: "compare"
 confidence: 0.7
 quality_score: 100
-freshness: "current-run"
+freshness: "derived"
 reuse_priority: "high"
-lifecycle_decision: "active"
+lifecycle_decision: "watch"
 source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"]
 status: "active"
 ---
@@ -29,7 +29,7 @@ Comparison pages convert better when they collapse the field to one primary opti
 
 ## Counterpoint / limitation
 
-As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
+Do not recommend a stack without naming the operational cost, review loop, and failure mode.
 
 ## Best page types to use this in
 
@@ -52,7 +52,7 @@ Used in 4 page type(s), backed by 1 source anchor(s), confidence 0.7.
 
 ## Lifecycle decision
 
-active
+watch
 
 ## Refresh condition
 

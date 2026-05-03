@@ -6,7 +6,7 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "use-cases"
 target_intent: "job_to_be_done"
 target_asset: "AI Video Workflow prompt pack"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.use-case.4d724d31","claim.ai-video-workflow-short-form-demo.use-case.c8bb6abd","claim.ai-video-workflow-short-form-demo.use-case.2d45b02e"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.use-case.3c28df3f","claim.ai-video-workflow-short-form-demo.use-case.e0ff240d","claim.ai-video-workflow-short-form-demo.use-case.5d966843"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.comparison.a1ed5086","claim.ai-video-workflow-short-form-demo.caveat.a9652179","claim.ai-video-workflow-short-form-demo.definition.67d157ed"]
 required_sections: ["Use case map","Example scenario","Workflow next step","CTA asset"]
 cta_strategy: "lead_with_asset"
@@ -43,7 +43,7 @@ See whether this category fits my job, not a generic market segment.
 
 ## Required caveats
 
-- As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
+- Do not recommend a stack without naming the operational cost, review loop, and failure mode.
 
 ## CTA strategy
 

@@ -1,5 +1,5 @@
 ---
-id: "claim.ai-video-workflow-short-form-demo.workflow.b15a946e"
+id: "claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e"
 type: "claim"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
@@ -8,10 +8,10 @@ claim_kind: "workflow"
 decision_stage: "implement"
 confidence: 0.82
 quality_score: 100
-freshness: "current-run"
+freshness: "derived"
 reuse_priority: "high"
 lifecycle_decision: "active"
-source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","source.ai-video-workflow-short-form-demo.serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"]
+source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","source.ai-video-workflow-short-form-demo.serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"]
 status: "active"
 ---
 ## Claim
@@ -26,7 +26,7 @@ The first production-shaped test reveals where the real review loop and workflow
 
 - Start with one narrow use case tied to short-form product demo videos, not the whole category at once.
 - Define the input, output, owner, and quality bar before comparing tools or templates.
-- Use ltx.studio, vidworkflow.com, aistudio.google.com, reddit.com as a starting field, then cut the list by buyer fit.
+- Use ltx.studio, vidworkflow.com, aistudio.google.com, ariaflow.ai as a starting field, then cut the list by buyer fit.
 
 ## Counterpoint / limitation
 

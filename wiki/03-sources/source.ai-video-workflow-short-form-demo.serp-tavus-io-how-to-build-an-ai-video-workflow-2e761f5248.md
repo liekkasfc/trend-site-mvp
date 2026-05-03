@@ -8,14 +8,14 @@ title: "How to Build an AI Video Workflow [2025] - tavus.io"
 url: "https://www.tavus.io/post/ai-video-workflow"
 domain: "tavus.io"
 published_at: "2025-01-01"
-captured_at: "2026-05-03T08:37:39.354Z"
+captured_at: "2026-05-03T11:41:12.595Z"
 freshness_score: 80
 credibility_score: 70
 status: "active"
 ---
 ## Source summary
 
-Learn how to build an AI video workflow that optimizes production, automates repetitive tasks, personalizes content, and scales effortlessly with Tavus’ API.
+Learn how to build an AI video workflow that optimizes production, automates repetitive tasks, personalizes content, and scales effortlessly with Tavus&#x27; API.
 
 ## Key facts extracted
 

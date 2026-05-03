@@ -8,7 +8,7 @@ finding: "Rewrite titles, descriptions, and click-driving visuals"
 decision: "test"
 action: "CTR is 0%, so the page is being seen but not chosen often enough."
 owner: "pipeline"
-created_at: "2026-05-03T08:37:39.354Z"
+created_at: "2026-05-03T11:41:12.595Z"
 ---
 ## What happened
 

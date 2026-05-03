@@ -6,7 +6,7 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "workflow"
 target_intent: "implementation"
 target_asset: "AI Video Workflow comparison worksheet"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.b15a946e","claim.ai-video-workflow-short-form-demo.use-case.4d724d31","claim.ai-video-workflow-short-form-demo.use-case.c8bb6abd","claim.ai-video-workflow-short-form-demo.use-case.2d45b02e"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.use-case.3c28df3f","claim.ai-video-workflow-short-form-demo.use-case.e0ff240d","claim.ai-video-workflow-short-form-demo.use-case.5d966843"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.caveat.a9652179"]
 required_sections: ["Step cards","Prompt examples","Failure points","Reusable asset CTA"]
 cta_strategy: "implementation_asset"
@@ -41,8 +41,7 @@ Run one production-shaped test and avoid the first avoidable mistake.
 
 ## Required caveats
 
-- As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
-- Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.
+- Do not recommend a stack without naming the operational cost, review loop, and failure mode.
 
 ## CTA strategy
 
@@ -76,6 +75,6 @@ implementation_asset -> AI Video Workflow comparison worksheet
 - Make the first measurable pilot easier to run and harder to misunderstand.
 - page_brief:page-brief.ai-video-workflow-short-form-demo.workflow
 - conversion_asset:comparison-worksheet
-- claim:claim.ai-video-workflow-short-form-demo.workflow.b15a946e
-- claim:claim.ai-video-workflow-short-form-demo.use-case.4d724d31
+- claim:claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e
+- claim:claim.ai-video-workflow-short-form-demo.use-case.3c28df3f
 - claim:claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c

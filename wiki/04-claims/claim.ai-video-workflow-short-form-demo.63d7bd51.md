@@ -1,5 +1,5 @@
 ---
-id: "claim.ai-video-workflow-short-form-demo.failure-mode.9eb3ee95"
+id: "claim.ai-video-workflow-short-form-demo.failure-mode.63d7bd51"
 type: "claim"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
@@ -8,15 +8,15 @@ claim_kind: "failure_mode"
 decision_stage: "implement"
 confidence: 0.82
 quality_score: 100
-freshness: "current-run"
+freshness: "derived"
 reuse_priority: "high"
 lifecycle_decision: "active"
-source_ids: ["source.ai-video-workflow-short-form-demo.community-reddit-com-which-ai-video-generation-workf-ded74c1191","source.ai-video-workflow-short-form-demo.community-reddit-com-which-video-editing-ai-tool-is-c953fa0136"]
+source_ids: ["source.ai-video-workflow-short-form-demo.official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","source.ai-video-workflow-short-form-demo.official-aistudio-google-com-google-ai-studio-86e7d7fc8c"]
 status: "active"
 ---
 ## Claim
 
-As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
+Do not recommend a stack without naming the operational cost, review loop, and failure mode.
 
 ## Why it matters
 
@@ -24,8 +24,8 @@ Naming the first likely failure mode is what makes the page useful once visitors
 
 ## Evidence
 
-- As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
-- Here is the best AI video editor list and check out the insights from top global creators about 'Best AI Video Editing Software' and AI functionalities in their products.
+- 4 page type(s) currently reuse this claim.
+- 2 source anchor(s) back the current version.
 
 ## Counterpoint / limitation
 

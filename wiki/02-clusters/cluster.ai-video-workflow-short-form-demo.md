@@ -8,7 +8,7 @@ support_keywords: ["image to video workflow","AI product demo video","AI video p
 intent_mix: ["workflow","comparison","pricing","prompt"]
 opportunity_score: 85.7
 commercial_fit: 95.5
-source_readiness: 10
+source_readiness: 8
 site_slug: "ai-video-workflow-short-form-demo"
 target_pages: ["hub","alternatives","workflow","faq","best-tools","pricing","free-vs-paid","use-cases","template-kit","case-study"]
 ---
@@ -41,7 +41,6 @@ Audience: indie hackers, product marketers, and content operators shipping short
 
 - pricing gap in top SERP results
 - outdated results still present in top SERP
-- community questions show unresolved workflow pain
 
 ## Conversion path
 

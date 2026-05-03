@@ -8,7 +8,7 @@ title: "Synthesia: #1 AI Video Platform for Business"
 url: "https://www.synthesia.io/"
 domain: "synthesia.io"
 published_at: null
-captured_at: "2026-05-03T08:37:39.354Z"
+captured_at: "2026-05-03T11:41:12.595Z"
 freshness_score: 72
 credibility_score: 92
 status: "active"

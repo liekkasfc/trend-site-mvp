@@ -77,6 +77,16 @@ export async function runReleaseHealth(options = {}) {
     note: landing.bodyPreview.includes('Request the asset') ? 'Lead capture shell rendered.' : '',
   })
 
+  const ops = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}/ops/`)
+  checks.push({
+    label: 'Ops dashboard',
+    ...ops,
+    note:
+      ops.bodyPreview.includes('Trend Site Ops') || ops.bodyPreview.includes('Trend Site Pipeline')
+        ? 'Ops dashboard shell rendered.'
+        : '',
+  })
+
   const sitemap = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}/sitemap.xml`)
   checks.push({
     label: 'Sitemap',

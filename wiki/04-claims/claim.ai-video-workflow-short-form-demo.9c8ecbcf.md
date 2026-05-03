@@ -1,5 +1,5 @@
 ---
-id: "claim.ai-video-workflow-short-form-demo.caveat.a9652179"
+id: "claim.ai-video-workflow-short-form-demo.caveat.9c8ecbcf"
 type: "claim"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
@@ -8,10 +8,10 @@ claim_kind: "caveat"
 decision_stage: "compare"
 confidence: 0.82
 quality_score: 100
-freshness: "current-run"
+freshness: "derived"
 reuse_priority: "high"
 lifecycle_decision: "active"
-source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","source.ai-video-workflow-short-form-demo.community-reddit-com-which-ai-video-generation-workf-ded74c1191"]
+source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"]
 status: "active"
 ---
 ## Claim
@@ -48,7 +48,7 @@ high
 
 ## Performance note
 
-Used in 4 page type(s), backed by 2 source anchor(s), confidence 0.82.
+Used in 4 page type(s), backed by 1 source anchor(s), confidence 0.82.
 
 ## Lifecycle decision
 

@@ -8,7 +8,7 @@ claim_kind: "conversion"
 decision_stage: "buy"
 confidence: 0.7
 quality_score: 100
-freshness: "current-run"
+freshness: "derived"
 reuse_priority: "high"
 lifecycle_decision: "active"
 source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"]

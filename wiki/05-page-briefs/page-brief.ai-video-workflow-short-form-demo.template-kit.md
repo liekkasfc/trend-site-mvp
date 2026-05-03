@@ -6,7 +6,7 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "template-kit"
 target_intent: "asset_evaluation"
 target_asset: "AI Video Workflow prompt pack"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.recommendation.913017be","claim.ai-video-workflow-short-form-demo.workflow.b15a946e"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.recommendation.913017be","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.use-case.1625abf0","claim.ai-video-workflow-short-form-demo.use-case.dc351dec","claim.ai-video-workflow-short-form-demo.caveat.a9652179"]
 required_sections: ["Asset inventory","First-run example","Repeat-run example","Delivery CTA"]
 cta_strategy: "implementation_asset"
@@ -40,7 +40,7 @@ Understand what is included, who it is for, and why it reduces work now.
 
 ## Required caveats
 
-- As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
+- Do not recommend a stack without naming the operational cost, review loop, and failure mode.
 
 ## CTA strategy
 

@@ -41,7 +41,7 @@ See a ranked field with clearer fit signals than a generic listicle.
 
 ## Required caveats
 
-- As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
+- Do not recommend a stack without naming the operational cost, review loop, and failure mode.
 
 ## CTA strategy
 
