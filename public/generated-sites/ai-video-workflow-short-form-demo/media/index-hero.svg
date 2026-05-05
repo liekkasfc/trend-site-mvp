@@ -4,34 +4,34 @@
   <rect x="64" y="64" width="1408" height="896" rx="42" fill="#1f1f1f"/>
   <rect x="92" y="92" width="708" height="840" rx="28" fill="#242424"/>
   <rect x="830" y="92" width="614" height="840" rx="28" fill="#1b1b1b"/>
-  <rect x="92" y="92" width="708" height="16" rx="8" fill="#7cc6ff" fill-opacity="0.95"/>
-  <rect x="992" y="154" width="292" height="292" rx="32" fill="#7cc6ff" fill-opacity="0.18"/>
-  <rect x="1064" y="226" width="292" height="292" rx="32" fill="#d8efff" fill-opacity="0.16"/>
+  <rect x="92" y="92" width="708" height="16" rx="8" fill="#dcb45c" fill-opacity="0.95"/>
+  <rect x="992" y="154" width="292" height="292" rx="32" fill="#dcb45c" fill-opacity="0.18"/>
+  <rect x="1064" y="226" width="292" height="292" rx="32" fill="#efede7" fill-opacity="0.16"/>
   <rect x="896" y="560" width="456" height="280" rx="32" fill="#262626"/>
   <text x="144" y="184" fill="#8eb777" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="1.8">AI Video Workflow / Overview</text>
-  <text x="144" y="280" fill="#f5f1e8" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800">ai video workflow</text><text x="144" y="362" fill="#f5f1e8" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800">hub</text>
-  <text x="144" y="540" fill="#d8d0c1" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="400">Use this hub to decide whether ai video</text><text x="144" y="582" fill="#d8d0c1" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="400">workflow deserves a place in your stack,</text><text x="144" y="624" fill="#d8d0c1" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="400">which option to shortlist...</text>
+  <text x="144" y="280" fill="#f5f1e8" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800">Choose an AI video</text><text x="144" y="362" fill="#f5f1e8" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800">workflow your team</text><text x="144" y="444" fill="#f5f1e8" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800">can actually reuse</text>
+  <text x="144" y="540" fill="#d8d0c1" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="400">Decide whether ai video workflow belongs in</text><text x="144" y="582" fill="#d8d0c1" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="400">your stack, which of the 4 shortlist paths</text><text x="144" y="624" fill="#d8d0c1" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="400">to review first, and...</text>
   
         <rect x="144" y="676" width="520" height="54" rx="27" fill="#2a2a2a"/>
-        <circle cx="176" cy="702" r="8" fill="#7cc6ff"/>
+        <circle cx="176" cy="702" r="8" fill="#dcb45c"/>
         <text x="200" y="710" fill="#f2eee6" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600">short-form product demo videos</text>
       
         <rect x="144" y="748" width="520" height="54" rx="27" fill="#2a2a2a"/>
-        <circle cx="176" cy="774" r="8" fill="#7cc6ff"/>
+        <circle cx="176" cy="774" r="8" fill="#dcb45c"/>
         <text x="200" y="782" fill="#f2eee6" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600">launch and product update videos</text>
       
         <rect x="144" y="820" width="520" height="54" rx="27" fill="#2a2a2a"/>
-        <circle cx="176" cy="846" r="8" fill="#7cc6ff"/>
+        <circle cx="176" cy="846" r="8" fill="#dcb45c"/>
         <text x="200" y="854" fill="#f2eee6" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600">screenshot-to-video launch clips</text>
       
   <text x="896" y="160" fill="#f2eee6" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700">Workflow frame</text>
   
         <rect x="896" y="246" width="404" height="116" rx="24" fill="#242424"/>
-        <rect x="922" y="272" width="64" height="64" rx="18" fill="#7cc6ff" fill-opacity="0.88"/>
+        <rect x="922" y="272" width="64" height="64" rx="18" fill="#dcb45c" fill-opacity="0.88"/>
         <text x="944" y="314" fill="#171717" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">1</text>
         <text x="1010" y="298" fill="#f5f1e8" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700">First search visit</text>
       
-  <text x="896" y="620" fill="#d8efff" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="600">Generated visual fallback</text>
+  <text x="896" y="620" fill="#efede7" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="600">Generated visual fallback</text>
   <text x="896" y="668" fill="#d8d0c1" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500">The page can use this immediately,</text>
   <text x="896" y="712" fill="#d8d0c1" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500">then upgrade to an API-backed image when</text>
   <text x="896" y="756" fill="#d8d0c1" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500">an API key is available.</text>

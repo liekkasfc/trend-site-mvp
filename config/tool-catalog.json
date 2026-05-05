@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "tools": [
+    {
+      "id": "veo",
+      "name": "Veo",
+      "aliases": ["veo", "google veo", "veo 2", "veo 3", "veo 3.1"],
+      "official_domains": ["deepmind.google"],
+      "category": "video_generation_model",
+      "market_tier": "core",
+      "default_use_cases": ["cinematic text-to-video", "storyboard exploration", "high-fidelity generative clips"],
+      "editorial_prior": 0.98,
+      "status": "active"
+    },
+    {
+      "id": "runway",
+      "name": "Runway",
+      "aliases": ["runway", "runway ai", "runway gen-4", "runway gen-4.5", "runwayml"],
+      "official_domains": ["runwayml.com"],
+      "category": "video_generation_suite",
+      "market_tier": "core",
+      "default_use_cases": ["creative video workflows", "editing and generation", "team production pipelines"],
+      "editorial_prior": 0.97,
+      "status": "active"
+    },
+    {
+      "id": "pika",
+      "name": "Pika",
+      "aliases": ["pika", "pika labs", "pika art", "pika 1.5", "pikaformance"],
+      "official_domains": ["pika.art", "launch.pika.art"],
+      "category": "video_generation_model",
+      "market_tier": "core",
+      "default_use_cases": ["short-form video generation", "social-first clips", "image-to-video iteration"],
+      "editorial_prior": 0.93,
+      "status": "active"
+    },
+    {
+      "id": "seedance",
+      "name": "Seedance",
+      "aliases": ["seedance", "bytedance seedance", "seedance 1.5", "seedance 2.0"],
+      "official_domains": ["seed.bytedance.com"],
+      "category": "video_generation_model",
+      "market_tier": "core",
+      "default_use_cases": ["audio-video generation", "multi-shot storytelling", "high-control video creation"],
+      "editorial_prior": 0.95,
+      "status": "active"
+    },
+    {
+      "id": "sora",
+      "name": "Sora",
+      "aliases": ["sora", "openai sora", "sora 1", "sora 2"],
+      "official_domains": ["sora.chatgpt.com", "help.openai.com"],
+      "category": "video_generation_model",
+      "market_tier": "core",
+      "default_use_cases": ["text-to-video ideation", "storyboarding", "creative video prototyping"],
+      "editorial_prior": 0.88,
+      "status": "sunset"
+    },
+    {
+      "id": "kling",
+      "name": "Kling",
+      "aliases": ["kling", "kling ai", "kling video", "kling 3.0"],
+      "official_domains": ["kling.ai"],
+      "category": "video_generation_model",
+      "market_tier": "core",
+      "default_use_cases": ["image-to-video", "motion control", "native audio-video outputs"],
+      "editorial_prior": 0.94,
+      "status": "active"
+    },
+    {
+      "id": "luma",
+      "name": "Luma",
+      "aliases": ["luma", "luma ai", "dream machine", "luma dream machine", "ray3", "ray 3"],
+      "official_domains": ["lumalabs.ai"],
+      "category": "video_generation_suite",
+      "market_tier": "core",
+      "default_use_cases": ["cinematic video generation", "video-to-video edits", "creative production workflows"],
+      "editorial_prior": 0.92,
+      "status": "active"
+    },
+    {
+      "id": "tavus",
+      "name": "Tavus",
+      "aliases": ["tavus", "tavus ai"],
+      "official_domains": ["tavus.io"],
+      "category": "avatar_personalized_video",
+      "market_tier": "emerging",
+      "default_use_cases": ["personalized avatar video", "sales enablement video", "customer outreach video"],
+      "editorial_prior": 0.66,
+      "status": "active"
+    }
+  ]
+}

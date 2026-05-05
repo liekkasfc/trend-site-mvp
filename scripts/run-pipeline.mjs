@@ -34,10 +34,19 @@ const feedbackPath = path.join(storageDir, 'content-feedback.json')
 const contentPlaybookPath = path.join(storageDir, 'content-playbook.json')
 const experimentPath = path.join(projectRoot, 'config', 'experiment.json')
 const thesisRegistryPath = path.join(projectRoot, 'config', 'thesis-registry.json')
+const designProfilesPath = path.join(projectRoot, 'config', 'design-profiles.json')
 const routingRulesPath = path.join(projectRoot, 'config', 'routing-rules.json')
+const toolCatalogPath = path.join(projectRoot, 'config', 'tool-catalog.json')
 const experiment = JSON.parse(await readFile(experimentPath, 'utf8'))
 const thesisRegistryConfig = JSON.parse(await readFile(thesisRegistryPath, 'utf8'))
+const designProfilesConfig = existsSync(designProfilesPath)
+  ? JSON.parse(await readFile(designProfilesPath, 'utf8'))
+  : { version: 1, globalProfile: {}, profiles: [] }
 const routingRules = JSON.parse(await readFile(routingRulesPath, 'utf8'))
+const toolCatalogConfig = existsSync(toolCatalogPath)
+  ? JSON.parse(await readFile(toolCatalogPath, 'utf8'))
+  : { version: 1, tools: [] }
+let designProfileRegistry = null
 const execFileAsync = promisify(execFile)
 
 const config = {
@@ -49,6 +58,7 @@ const config = {
   maxDiscoveredTopics: 12,
   maxSitesPerRun: experiment.maxSitesPerRun ?? 1,
   monitoringMode: process.env.MONITORING_MODE ?? 'auto',
+  preserveGeneratedOutputs: parseBooleanFlag(process.env.PIPELINE_PRESERVE_GENERATED_OUTPUTS, false),
   thesisKey: experiment.thesisKey,
   autoReleaseEnabled: parseBooleanFlag(process.env.AUTO_RELEASE_ENABLED, false),
   autoReleaseOnGatePass: parseBooleanFlag(process.env.AUTO_RELEASE_ON_GATE_PASS, false),
@@ -89,6 +99,8 @@ const contentConfig = {
   aiEndpoint: (process.env.CONTENT_AI_ENDPOINT ?? '').trim(),
   aiApiKey: (process.env.CONTENT_AI_API_KEY ?? process.env.OPENAI_API_KEY ?? '').trim(),
   aiModel: (process.env.CONTENT_AI_MODEL ?? '').trim(),
+  networkTimeoutMs: parsePositiveInt(process.env.CONTENT_NETWORK_TIMEOUT_MS, 15000),
+  aiTimeoutMs: parsePositiveInt(process.env.CONTENT_AI_TIMEOUT_MS, 30000),
   sourceResultLimit: parsePositiveInt(process.env.CONTENT_SOURCE_RESULT_LIMIT, 4),
   pageCountTarget: parsePositiveInt(process.env.CONTENT_PAGE_COUNT_TARGET, 10),
 }
@@ -221,6 +233,9 @@ const activeTheses = thesisRegistry.filter((entry) => entry.status === 'active')
 const routableTheses = thesisRegistry.filter((entry) =>
   ['active', 'candidate'].includes(entry.status),
 )
+const toolCatalog = normalizeToolCatalog(toolCatalogConfig)
+const toolCatalogById = new Map(toolCatalog.map((tool) => [tool.id, tool]))
+const toolCatalogIndex = buildToolCatalogIndex(toolCatalog)
 
 const themePresets = {
   'agent-infrastructure': {
@@ -293,12 +308,12 @@ const contentRulePresets = {
     ctaStrategy: 'lead_with_asset',
   },
   alternatives: {
-    targets: { facts: 5, verdicts: 4, examples: 2, refs: 5 },
+    targets: { facts: 6, verdicts: 5, examples: 3, refs: 6 },
     introStrategy: 'decision_first',
     ctaStrategy: 'comparison_to_asset',
   },
   workflow: {
-    targets: { facts: 5, verdicts: 3, examples: 4, refs: 5 },
+    targets: { facts: 6, verdicts: 4, examples: 5, refs: 6 },
     introStrategy: 'specific_context',
     ctaStrategy: 'implementation_asset',
   },
@@ -313,7 +328,7 @@ const contentRulePresets = {
     ctaStrategy: 'comparison_to_asset',
   },
   pricing: {
-    targets: { facts: 5, verdicts: 4, examples: 3, refs: 5 },
+    targets: { facts: 6, verdicts: 5, examples: 4, refs: 6 },
     introStrategy: 'decision_first',
     ctaStrategy: 'comparison_to_asset',
   },
@@ -328,7 +343,7 @@ const contentRulePresets = {
     ctaStrategy: 'lead_with_asset',
   },
   'template-kit': {
-    targets: { facts: 5, verdicts: 3, examples: 4, refs: 5 },
+    targets: { facts: 6, verdicts: 4, examples: 5, refs: 6 },
     introStrategy: 'specific_context',
     ctaStrategy: 'implementation_asset',
   },
@@ -364,6 +379,13 @@ function slugify(value) {
 
 function titleCase(value) {
   return value.replace(/\b\w/g, (match) => match.toUpperCase())
+}
+
+function indefiniteArticleFor(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (!normalized) return 'a'
+  if (/^(ai|api|sdk|seo|mvp)\b/.test(normalized)) return 'an'
+  return /^[aeiou]/.test(normalized) ? 'an' : 'a'
 }
 
 function escapeHtml(value) {
@@ -414,6 +436,29 @@ function trimTrailingSlash(value) {
   return String(value ?? '').trim().replace(/\/+$/, '')
 }
 
+function buildTimeoutSignal(timeoutMs, signal = null) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return signal ?? undefined
+  const timeoutSignal = AbortSignal.timeout(timeoutMs)
+  if (!signal) return timeoutSignal
+  return typeof AbortSignal.any === 'function'
+    ? AbortSignal.any([signal, timeoutSignal])
+    : timeoutSignal
+}
+
+function withTimeout(init = {}, timeoutMs = contentConfig.networkTimeoutMs) {
+  return {
+    ...init,
+    signal: buildTimeoutSignal(timeoutMs, init.signal),
+  }
+}
+
+function describeFetchError(error, url) {
+  if (error?.name === 'AbortError') {
+    return `Request timed out for ${url}`
+  }
+  return error instanceof Error ? error.message : String(error)
+}
+
 function toPercentString(value) {
   return `${round(value * 100, 1)}%`
 }
@@ -458,6 +503,227 @@ function preferMeaningfulText(...values) {
     if (normalized) return normalized
   }
   return ''
+}
+
+const publicCopyReplacementRules = [
+  {
+    pattern: /\bAi\b/g,
+    replacement: 'AI',
+  },
+  {
+    pattern: /\ban ai\b/gi,
+    replacement: 'an AI',
+  },
+  {
+    pattern: /\ban ai video workflow\b/gi,
+    replacement: 'an AI video workflow',
+  },
+  {
+    pattern: /\bai video workflow prompt pack\b/gi,
+    replacement: 'AI Video Workflow prompt pack',
+  },
+  {
+    pattern: /Find your best ai video workflow starting path/gi,
+    replacement: 'Find your best AI video workflow starting path',
+  },
+  {
+    pattern: /Request an AI video workflow audit/gi,
+    replacement: 'Request an AI Video Workflow audit',
+  },
+  {
+    pattern: /\bcommercial-style results\b/gi,
+    replacement: 'buyer-focused results',
+  },
+  {
+    pattern: /\bshaped this cluster\b/gi,
+    replacement: 'informed this guide',
+  },
+  {
+    pattern: /\bTop intents observed:\s*/gi,
+    replacement: 'Popular reader needs: ',
+  },
+  {
+    pattern: /\bSERP results\b/gi,
+    replacement: 'search results',
+  },
+  {
+    pattern: /\bworkflow refs\b/gi,
+    replacement: 'workflow examples',
+  },
+  {
+    pattern: /\bpipeline dashboard\b/gi,
+    replacement: 'site dashboard',
+  },
+  {
+    pattern: /\brelease-ready\b/gi,
+    replacement: 'live',
+  },
+  {
+    pattern: /\bdecision surface\b/gi,
+    replacement: 'decision guide',
+  },
+  {
+    pattern:
+      /As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft[\s\S]{0,220}?(?:best results so far\??|\.\.\.)/gi,
+    replacement:
+      'Teams still run into review loops, prompt drift, and inconsistent output quality on the first pass.',
+  },
+]
+
+const publicCopyAuditRules = {
+  internalJargon: [
+    /\bpipeline dashboard\b/gi,
+    /\brelease-ready\b/gi,
+    /\bcommercial-style results\b/gi,
+    /\bshaped this cluster\b/gi,
+    /\btop intents observed\b/gi,
+    /\bSERP results\b/gi,
+    /\bworkflow refs\b/gi,
+    /\bdecision surface\b/gi,
+    /\bnext-best decision surface\b/gi,
+  ],
+  dirtySource: [
+    /As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft[\s\S]{0,220}?(?:best results so far\??|\.\.\.)/gi,
+  ],
+}
+
+function collapseAdjacentDuplicateWords(value) {
+  let normalized = String(value ?? '')
+  let previous = ''
+
+  while (normalized !== previous) {
+    previous = normalized
+    normalized = normalized.replace(/\b([a-z0-9][a-z0-9-]{2,})\s+\1\b/gi, '$1')
+  }
+
+  return normalized
+}
+
+function normalizePublicCopySpacing(value) {
+  return String(value ?? '')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .replace(/([,.;:!?])([A-Za-z])/g, '$1 $2')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+function sanitizePublicMarkdown(value) {
+  return String(value ?? '')
+    .split('\n')
+    .map((line) => {
+      if (!line.trim()) return ''
+      let normalized = line
+      for (const rule of publicCopyReplacementRules) {
+        normalized = normalized.replace(rule.pattern, rule.replacement)
+      }
+      normalized = collapseAdjacentDuplicateWords(normalized)
+      normalized = normalized
+        .replace(/\s+([,.;:!?])/g, '$1')
+        .replace(/([,.;:!?])([A-Za-z])/g, '$1 $2')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trimEnd()
+      return normalized
+    })
+    .join('\n')
+}
+
+function sanitizePublicText(value) {
+  let normalized = String(value ?? '')
+
+  for (const rule of publicCopyReplacementRules) {
+    normalized = normalized.replace(rule.pattern, rule.replacement)
+  }
+
+  normalized = collapseAdjacentDuplicateWords(normalized)
+  normalized = normalizePublicCopySpacing(normalized)
+  return normalized
+}
+
+function isStructuralPublicKey(key) {
+  const normalized = String(key ?? '')
+  if (!normalized) return false
+  if (
+    /(?:^|_)(?:id|ids|slug|slugs|url|urls|uri|uris|path|paths|href|src|file|filename|filenames)$/i.test(
+      normalized,
+    )
+  ) {
+    return true
+  }
+
+  return new Set([
+    'canonicalUrl',
+    'fileName',
+    'landingFileName',
+    'thankYouFileName',
+    'downloadFileName',
+    'siteSlug',
+    'pageSlug',
+    'assetSlug',
+    'clusterId',
+    'thesisId',
+    'wikiId',
+    'sourceIds',
+    'claimIds',
+    'primaryClaimIds',
+    'generatedWebPath',
+    'fallbackWebPath',
+    'downloadPath',
+    'landingPath',
+    'targetPath',
+    'event',
+    'actionTier',
+    'schemaType',
+    'type',
+    'key',
+    'status',
+    'provider',
+  ]).has(normalized)
+}
+
+function sanitizePublicModel(value, key = '') {
+  if (typeof value === 'string') {
+    if (key === 'downloadMarkdown') return sanitizePublicMarkdown(value)
+    return isStructuralPublicKey(key) ? value : sanitizePublicText(value)
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizePublicModel(item, key))
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([entryKey, entryValue]) => [
+        entryKey,
+        sanitizePublicModel(entryValue, entryKey),
+      ]),
+    )
+  }
+  return value
+}
+
+function countRegexMatches(text, pattern) {
+  return (String(text ?? '').match(pattern) ?? []).length
+}
+
+function countAdjacentDuplicateWordHits(text) {
+  return (String(text ?? '').match(/\b([a-z0-9][a-z0-9-]{2,})\s+\1\b/gi) ?? []).length
+}
+
+function analyzePublicCopy(text) {
+  const normalized = stripHtml(String(text ?? '')).replace(/\s+/g, ' ').trim()
+  const internalJargonCount = publicCopyAuditRules.internalJargon.reduce(
+    (sum, pattern) => sum + countRegexMatches(normalized, pattern),
+    0,
+  )
+  const dirtySourceCount = publicCopyAuditRules.dirtySource.reduce(
+    (sum, pattern) => sum + countRegexMatches(normalized, pattern),
+    0,
+  )
+  const adjacentDuplicateWordCount = countAdjacentDuplicateWordHits(normalized)
+
+  return {
+    internalJargonCount,
+    dirtySourceCount,
+    adjacentDuplicateWordCount,
+  }
 }
 
 function preferMeaningfulList(...lists) {
@@ -1277,6 +1543,905 @@ function buildResearchUseCaseModels(
   })
 }
 
+function normalizeCatalogAlias(value) {
+  return compactText(String(value ?? '').toLowerCase().replace(/[._/:-]+/g, ' '), 120)
+}
+
+function normalizeCatalogDomain(value) {
+  if (!value) return ''
+  const candidate = String(value).trim()
+  if (!candidate) return ''
+
+  const hostname = safeUrlHostname(candidate.startsWith('http') ? candidate : `https://${candidate}`)
+  return hostname || candidate.replace(/^www\./i, '').toLowerCase()
+}
+
+function normalizeToolCatalog(config) {
+  return normalizeCollection(config?.tools)
+    .map((entry) => {
+      const id = slugify(entry.id || entry.name || '').trim()
+      if (!id) return null
+
+      return {
+        id,
+        name: compactText(entry.name || titleCase(id.replaceAll('-', ' ')), 80),
+        aliases: dedupe(
+          [
+            entry.id,
+            entry.name,
+            ...normalizeCollection(entry.aliases),
+          ]
+            .map((value) => normalizeCatalogAlias(value))
+            .filter(Boolean),
+        ),
+        officialDomains: dedupe(
+          normalizeCollection(entry.official_domains)
+            .map((value) => normalizeCatalogDomain(value))
+            .filter(Boolean),
+        ),
+        category: entry.category || 'video_generation_model',
+        marketTier: entry.market_tier || 'emerging',
+        defaultUseCases: compactLines(normalizeCollection(entry.default_use_cases), 6),
+        editorialPrior: clamp(Number(entry.editorial_prior ?? 0.5), 0, 1),
+        status: entry.status || 'active',
+      }
+    })
+    .filter(Boolean)
+}
+
+function buildToolCatalogIndex(catalog) {
+  const domainToToolId = new Map()
+  const aliasMatchers = []
+
+  for (const tool of catalog) {
+    for (const domain of tool.officialDomains) {
+      domainToToolId.set(domain, tool.id)
+    }
+
+    for (const alias of tool.aliases) {
+      const normalizedAlias = normalizeCatalogAlias(alias)
+      if (!normalizedAlias) continue
+      aliasMatchers.push({
+        toolId: tool.id,
+        alias: normalizedAlias,
+        regex: new RegExp(`\\b${escapeRegExp(normalizedAlias).replace(/\\ /g, '\\s+')}\\b`, 'i'),
+      })
+    }
+  }
+
+  aliasMatchers.sort((left, right) => right.alias.length - left.alias.length)
+
+  return { domainToToolId, aliasMatchers }
+}
+
+function detectToolIdsFromText(text, index = toolCatalogIndex) {
+  const haystack = compactText(String(text ?? ''), 1200)
+  if (!haystack) return []
+
+  return dedupe(
+    index.aliasMatchers
+      .filter((matcher) => matcher.regex.test(haystack))
+      .map((matcher) => matcher.toolId),
+  )
+}
+
+function detectToolIdsFromDomain(domain, index = toolCatalogIndex) {
+  const normalizedDomain = normalizeCatalogDomain(domain)
+  if (!normalizedDomain) return []
+
+  const direct = index.domainToToolId.get(normalizedDomain)
+  if (direct) return [direct]
+
+  return dedupe(
+    [...index.domainToToolId.entries()]
+      .filter(([catalogDomain]) => normalizedDomain === catalogDomain || normalizedDomain.endsWith(`.${catalogDomain}`))
+      .map(([, toolId]) => toolId),
+  )
+}
+
+function normalizeToolMentionsFromSource(source, index = toolCatalogIndex) {
+  if (!source) return []
+
+  const seededMatches = source.seededToolId ? [source.seededToolId] : []
+  const domainMatches = detectToolIdsFromDomain(source.domain || source.url, index)
+  const textMatches = detectToolIdsFromText(
+    [
+      source.title,
+      source.snippet,
+      source.url,
+      source.firecrawl?.summary,
+      source.firecrawl?.markdownExcerpt,
+    ]
+      .filter(Boolean)
+      .join(' '),
+    index,
+  )
+
+  const matchedToolIds = dedupe([...seededMatches, ...domainMatches, ...textMatches])
+  return matchedToolIds.map((toolId) => ({
+    toolId,
+    sourceId: source.id,
+    sourceDomain: source.domain,
+    matchedOnSeed: seededMatches.includes(toolId),
+    matchedOnDomain: domainMatches.includes(toolId),
+    matchedInText: textMatches.includes(toolId),
+  }))
+}
+
+function classifySourceKindForAuthority(item) {
+  if (item?.manualSource) return 'wiki_fact'
+  if (item?.category === 'official') return 'official_site'
+  if (item?.category === 'competitive') return 'comparison_editorial'
+  if (item?.category === 'community') return 'community_thread'
+  if (item?.category === 'workflow') return 'workflow_editorial'
+  if (item?.category === 'product') return 'marketplace_listing'
+  if (item?.category === 'video') return 'video_demo'
+  if (item?.category === 'deepResearch') return 'deep_research'
+  if (item?.category === 'serp') return 'generic_editorial'
+  return 'generic_editorial'
+}
+
+function classifySourceTrustTier(item, sourceKind, normalizedToolIds = []) {
+  const domain = normalizeCatalogDomain(item?.domain || item?.url)
+  if (normalizedToolIds.some((toolId) => toolCatalogById.get(toolId)?.officialDomains.includes(domain))) {
+    return 'official'
+  }
+  if (sourceKind === 'wiki_fact') return 'internal_wiki'
+  if (sourceKind === 'community_thread') return 'community'
+  if (sourceKind === 'marketplace_listing') return 'marketplace'
+  if (sourceKind === 'deep_research') return 'research_enriched'
+  if (sourceKind === 'comparison_editorial' || sourceKind === 'workflow_editorial' || sourceKind === 'video_demo') {
+    return 'editorial'
+  }
+  if (isResearchNoiseDomain(domain) || /\b(school|academy|course|bootcamp|newsletter|blog)\b/i.test(domain)) {
+    return 'content_site'
+  }
+  return 'generic'
+}
+
+function trustTierWeight(trustTier) {
+  const weights = {
+    official: 0.98,
+    research_enriched: 0.86,
+    marketplace: 0.74,
+    editorial: 0.68,
+    community: 0.56,
+    internal_wiki: 0.4,
+    generic: 0.42,
+    content_site: 0.18,
+  }
+  return weights[trustTier] ?? 0.42
+}
+
+function computeSourceAuthoritySnapshot(item, cluster, pageIntent = 'comparison') {
+  const normalizedToolIds = normalizeToolMentionsFromSource(item).map((mention) => mention.toolId)
+  const sourceKind = classifySourceKindForAuthority(item)
+  const trustTier = classifySourceTrustTier(item, sourceKind, normalizedToolIds)
+  const combinedText = [item?.title, item?.snippet, item?.url, item?.firecrawl?.summary]
+    .filter(Boolean)
+    .join(' ')
+  const matchStats = keywordMatchStats(combinedText, cluster.primaryKeyword)
+  const seededOfficialMatch =
+    Boolean(item?.seededToolId) &&
+    normalizedToolIds.includes(item.seededToolId) &&
+    trustTier === 'official'
+  const relevanceToThesis = round(
+    clamp(
+      matchStats.ratio * 0.64 +
+        Math.min(matchStats.matchedCount, 3) * 0.08 +
+        (normalizedToolIds.length > 0 ? 0.14 : 0) +
+        (seededOfficialMatch ? 0.18 : 0),
+      0,
+      1,
+    ),
+    2,
+  )
+
+  const pageIntentBoosts = {
+    comparison: /\b(compare|comparison|alternatives?|best|vs|pricing|review)\b/i.test(combinedText) ? 0.92 : 0.48,
+    pricing: /\b(price|pricing|plan|credit|subscription|cost)\b/i.test(combinedText) ? 0.94 : 0.42,
+    workflow: /\b(workflow|guide|tutorial|template|prompt|how to|use case)\b/i.test(combinedText) ? 0.9 : 0.44,
+  }
+  const seededIntentBoost =
+    item?.seededSourceType === 'pricing' && ['comparison', 'pricing'].includes(pageIntent)
+      ? 0.24
+      : item?.seededSourceType === 'docs' && pageIntent === 'workflow'
+        ? 0.24
+        : item?.seededSourceType === 'docs' && pageIntent === 'comparison'
+          ? 0.16
+          : item?.seededSourceType === 'changelog'
+            ? 0.12
+            : 0
+  const relevanceToPageIntent = round(
+    clamp((pageIntentBoosts[pageIntent] ?? 0.5) + (seededOfficialMatch ? seededIntentBoost : 0), 0, 1),
+    2,
+  )
+  const recencyScore = round(sourceFreshnessScore(item), 2)
+  const commercialIntent = round(
+    clamp(
+      (/\b(pricing|plan|subscription|enterprise|buy|customer|sales|demo|roi|compare|alternatives?)\b/i.test(combinedText) ? 0.72 : 0.28) +
+        (item?.category === 'competitive' || item?.category === 'product' ? 0.16 : 0),
+      0,
+      1,
+    ),
+    2,
+  )
+  const finalSourceScore = round(
+    clamp(
+      trustTierWeight(trustTier) * 0.34 +
+        relevanceToThesis * 0.22 +
+        relevanceToPageIntent * 0.18 +
+        recencyScore * 0.14 +
+        commercialIntent * 0.12 +
+        (seededOfficialMatch ? 0.06 : 0),
+      0,
+      1,
+    ),
+    2,
+  )
+
+  return {
+    source_kind: sourceKind,
+    trust_tier: trustTier,
+    relevance_to_thesis: relevanceToThesis,
+    relevance_to_page_intent: relevanceToPageIntent,
+    recency_score: recencyScore,
+    commercial_intent: commercialIntent,
+    final_source_score: finalSourceScore,
+    normalized_tool_ids: normalizedToolIds,
+  }
+}
+
+function inferToolCategoryFit(tool, cluster, pageIntent = 'comparison') {
+  const keyword = cluster.primaryKeyword.toLowerCase()
+  const wantsAvatar = /\b(avatar|personalized|sales video|ugc|outreach|localization)\b/.test(keyword)
+  if (tool.category === 'avatar_personalized_video') {
+    return wantsAvatar || pageIntent === 'workflow' ? 0.62 : 0.34
+  }
+  if (tool.category === 'video_generation_suite') return 0.92
+  if (tool.category === 'video_generation_model') return 0.95
+  return 0.58
+}
+
+function normalizeFactRecord(type, detail, sourceIds = [], toolIds = [], extras = {}) {
+  const normalizedDetail = compactText(String(detail ?? ''), 240)
+  if (!normalizedDetail) return null
+
+  return {
+    type,
+    detail: normalizedDetail,
+    source_ids: dedupe(normalizeCollection(sourceIds).filter(Boolean)),
+    tool_ids: dedupe(normalizeCollection(toolIds).filter(Boolean)),
+    ...extras,
+  }
+}
+
+function sourceSnippetSuggestsPricing(text = '', source = {}) {
+  if (source?.seededSourceType === 'official_root') return false
+  return (
+    source?.seededSourceType === 'pricing' ||
+    /\b(price|pricing|plan|plans|subscription|credit|credits|billing|cost|enterprise)\b/i.test(text)
+  )
+}
+
+function sourceSnippetSuggestsWorkflow(text = '', source = {}) {
+  return (
+    source?.seededSourceType === 'docs' ||
+    /\b(docs?|documentation|get started|guide|tutorial|workflow|template|api|integrat|example)\b/i.test(text)
+  )
+}
+
+function sourceSnippetSuggestsChangelog(text = '', source = {}) {
+  return (
+    source?.seededSourceType === 'changelog' ||
+    /\b(changelog|release notes?|what'?s new|announcement|updates?)\b/i.test(text)
+  )
+}
+
+function sourceSnippetSuggestsLimitation(text = '', source = {}) {
+  return (
+    /\b(limit|limits|limitation|usage cap|quota|credit cap|rate limit|restricted|waitlist|availability)\b/i.test(
+      text,
+    ) ||
+    (source?.seededSourceType === 'pricing' &&
+      /\b(credit|credits|usage|subscription|plan)\b/i.test(text))
+  )
+}
+
+function extractStructuredFacts({
+  cluster,
+  wikiSeed,
+  sourceReferences,
+  researchDossier,
+  pricingSignals,
+  caveats,
+  workflowSteps,
+  useCaseModels,
+  topCommunity,
+}) {
+  const toolsMentioned = new Map()
+  const pricingFacts = []
+  const featureFacts = []
+  const limitationFacts = []
+  const workflowFacts = []
+  const useCaseFacts = []
+  const communitySignals = []
+  const sourceIds = new Set()
+
+  function registerToolIds(toolIds, sourceId = '') {
+    for (const toolId of toolIds) {
+      if (!toolsMentioned.has(toolId)) {
+        const tool = toolCatalogById.get(toolId)
+        toolsMentioned.set(toolId, {
+          tool_id: toolId,
+          name: tool?.name ?? titleCase(toolId),
+          category: tool?.category ?? '',
+          market_tier: tool?.marketTier ?? '',
+        })
+      }
+    }
+    if (sourceId) sourceIds.add(sourceId)
+  }
+
+  for (const source of sourceReferences) {
+    const authority = source.authority ?? computeSourceAuthoritySnapshot(source, cluster)
+    const toolIds = authority.normalized_tool_ids ?? []
+    registerToolIds(toolIds, source.id)
+    const summaryText = compactText(
+      [source.title, source.snippet, source.url, source.firecrawl?.summary]
+        .filter(Boolean)
+        .join(' '),
+      240,
+    )
+
+    if (toolIds.length > 0 && summaryText) {
+      if (sourceSnippetSuggestsPricing(summaryText, source)) {
+        const fact = normalizeFactRecord('pricing', summaryText, [source.id], toolIds, {
+          origin: 'source_snippet',
+          selection_eligible: true,
+        })
+        if (fact) pricingFacts.push(fact)
+      }
+
+      if (sourceSnippetSuggestsWorkflow(summaryText, source)) {
+        const fact = normalizeFactRecord('workflow', summaryText, [source.id], toolIds, {
+          origin: 'source_snippet',
+          selection_eligible: true,
+        })
+        if (fact) workflowFacts.push(fact)
+      }
+
+      if (sourceSnippetSuggestsChangelog(summaryText, source)) {
+        const fact = normalizeFactRecord('feature', summaryText, [source.id], toolIds, {
+          origin: 'source_snippet',
+          selection_eligible: true,
+        })
+        if (fact) featureFacts.push(fact)
+      }
+
+      if (sourceSnippetSuggestsLimitation(summaryText, source)) {
+        const fact = normalizeFactRecord('limitation', summaryText, [source.id], toolIds, {
+          origin: 'source_snippet',
+          selection_eligible: true,
+        })
+        if (fact) limitationFacts.push(fact)
+      }
+    }
+
+    for (const detail of safeArray(source.firecrawl?.signals?.pricing)) {
+      const fact = normalizeFactRecord('pricing', detail, [source.id], toolIds, {
+        origin: 'source_pack',
+        selection_eligible: true,
+      })
+      if (fact) pricingFacts.push(fact)
+    }
+
+    for (const detail of safeArray(source.firecrawl?.signals?.comparison)) {
+      const fact = normalizeFactRecord('feature', detail, [source.id], toolIds, {
+        origin: 'source_pack',
+        selection_eligible: true,
+      })
+      if (fact) featureFacts.push(fact)
+    }
+
+    for (const detail of safeArray(source.firecrawl?.signals?.caveats)) {
+      const fact = normalizeFactRecord('limitation', detail, [source.id], toolIds, {
+        origin: 'source_pack',
+        selection_eligible: true,
+      })
+      if (fact) limitationFacts.push(fact)
+    }
+
+    for (const detail of safeArray(source.firecrawl?.signals?.workflow)) {
+      const fact = normalizeFactRecord('workflow', detail, [source.id], toolIds, {
+        origin: 'source_pack',
+        selection_eligible: true,
+      })
+      if (fact) workflowFacts.push(fact)
+    }
+
+    for (const detail of safeArray(source.firecrawl?.signals?.useCases)) {
+      const fact = normalizeFactRecord('use_case', detail, [source.id], toolIds, {
+        origin: 'source_pack',
+        selection_eligible: true,
+      })
+      if (fact) useCaseFacts.push(fact)
+    }
+  }
+
+  for (const item of safeArray(pricingSignals)) {
+    const toolIds = detectToolIdsFromText(`${item.label} ${item.value}`)
+    registerToolIds(toolIds, item.sourceIds?.[0] ?? '')
+    const fact = normalizeFactRecord('pricing', item.value, item.sourceIds, toolIds, {
+      origin: 'research_dossier',
+      selection_eligible: true,
+      label: item.label,
+    })
+    if (fact) pricingFacts.push(fact)
+  }
+
+  for (const item of safeArray(researchDossier?.pricingSummary)) {
+    const toolIds = detectToolIdsFromText(`${item.label} ${item.detail}`)
+    registerToolIds(toolIds, item.sourceIds?.[0] ?? '')
+    const fact = normalizeFactRecord('pricing', item.detail, item.sourceIds, toolIds, {
+      origin: 'research_dossier',
+      selection_eligible: true,
+      label: item.label,
+    })
+    if (fact) pricingFacts.push(fact)
+  }
+
+  for (const item of safeArray(researchDossier?.competitorPositioning)) {
+    const toolIds = detectToolIdsFromText(`${item.name} ${item.bestFor} ${item.watchout}`)
+    registerToolIds(toolIds, item.sourceIds?.[0] ?? '')
+    const bestForFact = normalizeFactRecord('feature', item.bestFor, item.sourceIds, toolIds, {
+      origin: 'research_dossier',
+      selection_eligible: true,
+      label: item.name,
+    })
+    const watchoutFact = normalizeFactRecord('limitation', item.watchout, item.sourceIds, toolIds, {
+      origin: 'research_dossier',
+      selection_eligible: true,
+      label: item.name,
+    })
+    if (bestForFact) featureFacts.push(bestForFact)
+    if (watchoutFact) limitationFacts.push(watchoutFact)
+  }
+
+  for (const item of safeArray(researchDossier?.communityPainSignals)) {
+    const toolIds = detectToolIdsFromText(`${item.title} ${item.detail}`)
+    registerToolIds(toolIds, item.sourceIds?.[0] ?? '')
+    const fact = normalizeFactRecord('community', item.detail, item.sourceIds, toolIds, {
+      origin: 'research_dossier',
+      selection_eligible: true,
+      label: item.title,
+    })
+    if (fact) communitySignals.push(fact)
+  }
+
+  for (const item of safeArray(topCommunity)) {
+    const toolIds = detectToolIdsFromText(`${item.title} ${item.snippet}`)
+    registerToolIds(toolIds, item.id)
+    const fact = normalizeFactRecord('community', item.snippet || item.title, [item.id], toolIds, {
+      origin: 'source_pack',
+      selection_eligible: true,
+      label: item.domain,
+    })
+    if (fact) communitySignals.push(fact)
+  }
+
+  for (const detail of caveats) {
+    const toolIds = detectToolIdsFromText(detail)
+    registerToolIds(toolIds)
+    const fact = normalizeFactRecord('limitation', detail, [], toolIds, {
+      origin: 'heuristic',
+      selection_eligible: false,
+    })
+    if (fact) limitationFacts.push(fact)
+  }
+
+  for (const step of workflowSteps) {
+    const toolIds = detectToolIdsFromText(`${step.title} ${step.detail}`)
+    registerToolIds(toolIds)
+    const fact = normalizeFactRecord('workflow', `${step.title}: ${step.detail}`, [], toolIds, {
+      origin: 'heuristic',
+      selection_eligible: false,
+    })
+    if (fact) workflowFacts.push(fact)
+  }
+
+  for (const model of useCaseModels) {
+    const toolIds = detectToolIdsFromText(`${model.label} ${model.workflow} ${model.outcome}`)
+    registerToolIds(toolIds)
+    const fact = normalizeFactRecord('use_case', `${model.label}: ${model.workflow}`, model.sourceIds, toolIds, {
+      origin: 'research_dossier',
+      selection_eligible: true,
+      audience: model.audience,
+    })
+    if (fact) useCaseFacts.push(fact)
+  }
+
+  for (const claim of safeArray(wikiSeed?.claims)) {
+    const wikiText = [claim.statement, claim.whyItMatters, claim.counterpoint, ...safeArray(claim.evidence)]
+      .filter(Boolean)
+      .join(' ')
+    const toolIds = detectToolIdsFromText(wikiText)
+    registerToolIds(toolIds)
+
+    if (claim.claimKind === 'pricing') {
+      const fact = normalizeFactRecord('pricing', claim.statement, claim.sourceIds, toolIds, {
+        origin: 'wiki',
+        selection_eligible: false,
+      })
+      if (fact) pricingFacts.push(fact)
+    }
+    if (['failure_mode', 'caveat'].includes(claim.claimKind)) {
+      const fact = normalizeFactRecord('limitation', claim.statement, claim.sourceIds, toolIds, {
+        origin: 'wiki',
+        selection_eligible: false,
+      })
+      if (fact) limitationFacts.push(fact)
+    }
+    if (claim.claimKind === 'workflow') {
+      const fact = normalizeFactRecord('workflow', claim.statement, claim.sourceIds, toolIds, {
+        origin: 'wiki',
+        selection_eligible: false,
+      })
+      if (fact) workflowFacts.push(fact)
+    }
+    if (claim.claimKind === 'use_case') {
+      const fact = normalizeFactRecord('use_case', claim.statement, claim.sourceIds, toolIds, {
+        origin: 'wiki',
+        selection_eligible: false,
+      })
+      if (fact) useCaseFacts.push(fact)
+    }
+  }
+
+  return {
+    tools_mentioned: [...toolsMentioned.values()],
+    pricing_facts: dedupeBy(pricingFacts.filter(Boolean), 'detail'),
+    feature_facts: dedupeBy(featureFacts.filter(Boolean), 'detail'),
+    limitation_facts: dedupeBy(limitationFacts.filter(Boolean), 'detail'),
+    workflow_facts: dedupeBy(workflowFacts.filter(Boolean), 'detail'),
+    use_case_facts: dedupeBy(useCaseFacts.filter(Boolean), 'detail'),
+    community_signals: dedupeBy(communitySignals.filter(Boolean), 'detail'),
+    source_ids: [...sourceIds],
+  }
+}
+
+function buildToolEvidenceSummary(tool, aggregate, sourceRefMap) {
+  const evidenceLines = dedupe(
+    [
+      ...safeArray(aggregate.pricingEvidence).map((item) => item.detail),
+      ...safeArray(aggregate.featureEvidence).map((item) => item.detail),
+      ...safeArray(aggregate.limitationEvidence).map((item) => item.detail),
+      ...safeArray(aggregate.communityEvidence).map((item) => item.detail),
+      ...safeArray(aggregate.workflowEvidence).map((item) => item.detail),
+    ]
+      .filter(Boolean)
+      .map((detail) => compactText(detail, 200)),
+  ).slice(0, 3)
+
+  const sourceNames = dedupe(
+    safeArray(aggregate.sourceIds)
+      .map((id) => sourceRefMap.get(id)?.domain || sourceRefMap.get(id)?.title)
+      .filter(Boolean),
+  ).slice(0, 3)
+
+  return evidenceLines.length > 0
+    ? evidenceLines
+    : [
+        `${tool.name} is tracked in ${sourceNames.length || aggregate.mentionCount} evidence source(s), but the current run still needs clearer pricing or limitation proof.`,
+      ]
+}
+
+function buildToolRankingLayer({
+  cluster,
+  pageIntent,
+  facts,
+  sourceReferences,
+}) {
+  const sourceRefMap = new Map(sourceReferences.map((item) => [item.id, item]))
+  const aggregates = new Map()
+
+  function ensureAggregate(toolId) {
+    if (!aggregates.has(toolId)) {
+      const tool = toolCatalogById.get(toolId)
+      aggregates.set(toolId, {
+        toolId,
+        tool,
+        mentionCount: 0,
+        trustedSourceMentions: 0,
+        officialSourceAvailable: false,
+        communityMentions: 0,
+        pricingEvidenceAvailable: false,
+        limitationEvidenceAvailable: false,
+        editorialPrior: tool?.editorialPrior ?? 0,
+        sourceIds: [],
+        sourceEvidence: [],
+        pricingEvidence: [],
+        featureEvidence: [],
+        limitationEvidence: [],
+        workflowEvidence: [],
+        useCaseEvidence: [],
+        communityEvidence: [],
+      })
+    }
+    return aggregates.get(toolId)
+  }
+
+  for (const source of sourceReferences) {
+    const authority = source.authority ?? computeSourceAuthoritySnapshot(source, cluster, pageIntent)
+    for (const toolId of authority.normalized_tool_ids ?? []) {
+      const aggregate = ensureAggregate(toolId)
+      aggregate.mentionCount += 1
+      aggregate.sourceIds.push(source.id)
+      aggregate.sourceEvidence.push({
+        sourceId: source.id,
+        domain: source.domain,
+        title: source.title,
+        finalSourceScore: authority.final_source_score,
+        trustTier: authority.trust_tier,
+      })
+      if (authority.final_source_score >= 0.62) aggregate.trustedSourceMentions += 1
+      if (authority.trust_tier === 'official') aggregate.officialSourceAvailable = true
+      if (authority.trust_tier === 'community') aggregate.communityMentions += 1
+    }
+  }
+
+  const factGroups = [
+    ['pricingEvidence', safeArray(facts.pricing_facts)],
+    ['featureEvidence', safeArray(facts.feature_facts)],
+    ['limitationEvidence', safeArray(facts.limitation_facts)],
+    ['workflowEvidence', safeArray(facts.workflow_facts)],
+    ['useCaseEvidence', safeArray(facts.use_case_facts)],
+    ['communityEvidence', safeArray(facts.community_signals)],
+  ]
+
+  for (const [bucket, entries] of factGroups) {
+    for (const entry of entries) {
+      if (entry.selection_eligible === false) continue
+      for (const toolId of safeArray(entry.tool_ids)) {
+        const aggregate = ensureAggregate(toolId)
+        aggregate[bucket].push(entry)
+        aggregate.sourceIds.push(...safeArray(entry.source_ids))
+        if (bucket === 'pricingEvidence') aggregate.pricingEvidenceAvailable = true
+        if (bucket === 'limitationEvidence') aggregate.limitationEvidenceAvailable = true
+        if (bucket === 'communityEvidence') aggregate.communityMentions += 1
+      }
+    }
+  }
+
+  const scoredToolEntries = [...aggregates.values()]
+    .filter((aggregate) => aggregate.tool && aggregate.tool.status !== 'inactive')
+    .map((aggregate) => {
+      aggregate.sourceIds = dedupe(aggregate.sourceIds.filter(Boolean))
+      const averageSourceScore = round(
+        aggregate.sourceEvidence.reduce((sum, item) => sum + (item.finalSourceScore ?? 0), 0) /
+          Math.max(aggregate.sourceEvidence.length, 1),
+        2,
+      )
+      const categoryFit = inferToolCategoryFit(aggregate.tool, cluster, pageIntent)
+      const evidenceGap = []
+      if (!aggregate.officialSourceAvailable) evidenceGap.push('missing_official_source')
+      if (!aggregate.pricingEvidenceAvailable) evidenceGap.push('missing_pricing_evidence')
+      if (!aggregate.limitationEvidenceAvailable) evidenceGap.push('missing_limitation_evidence')
+      if (aggregate.trustedSourceMentions < 1) evidenceGap.push('missing_trusted_third_party')
+
+      const finalToolScore = round(
+        clamp(
+          aggregate.editorialPrior * 0.22 +
+            Math.min(aggregate.mentionCount, 4) * 0.08 +
+            Math.min(aggregate.trustedSourceMentions, 3) * 0.12 +
+            (aggregate.officialSourceAvailable ? 0.12 : 0) +
+            (aggregate.pricingEvidenceAvailable ? 0.08 : 0) +
+            (aggregate.limitationEvidenceAvailable ? 0.08 : 0) +
+            Math.min(aggregate.communityMentions, 3) * 0.03 +
+            averageSourceScore * 0.12 +
+            categoryFit * 0.15 +
+            (aggregate.tool.marketTier === 'core' ? 0.04 : 0) -
+            evidenceGap.length * 0.025,
+          0,
+          1,
+        ),
+        2,
+      )
+
+      return {
+        tool_id: aggregate.toolId,
+        name: aggregate.tool.name,
+        category: aggregate.tool.category,
+        market_tier: aggregate.tool.marketTier,
+        status: aggregate.tool.status,
+        mention_count: aggregate.mentionCount,
+        trusted_source_mentions: aggregate.trustedSourceMentions,
+        official_source_available: aggregate.officialSourceAvailable,
+        community_mentions: aggregate.communityMentions,
+        pricing_evidence_available: aggregate.pricingEvidenceAvailable,
+        limitation_evidence_available: aggregate.limitationEvidenceAvailable,
+        editorial_prior: aggregate.editorialPrior,
+        final_tool_score: finalToolScore,
+        average_source_score: averageSourceScore,
+        category_fit: round(categoryFit, 2),
+        evidence_summary: buildToolEvidenceSummary(aggregate.tool, aggregate, sourceRefMap),
+        evidence_gap: evidenceGap,
+        default_use_cases: aggregate.tool.defaultUseCases,
+        source_ids: aggregate.sourceIds,
+        source_evidence: aggregate.sourceEvidence,
+        reason_for_inclusion: '',
+        reason_for_rejection: '',
+      }
+    })
+  const knownToolIds = new Set(scoredToolEntries.map((tool) => tool.tool_id))
+  const supplementalCatalogEntries = toolCatalog
+    .filter((tool) => !knownToolIds.has(tool.id) && tool.status !== 'inactive')
+    .map((tool) => {
+      const categoryFit = inferToolCategoryFit(tool, cluster, pageIntent)
+      const evidenceGap = [
+        'missing_official_source',
+        'missing_pricing_evidence',
+        'missing_limitation_evidence',
+        'missing_trusted_third_party',
+      ]
+      const finalToolScore = round(
+        clamp(tool.editorialPrior * 0.22 + categoryFit * 0.15 - evidenceGap.length * 0.025, 0, 1),
+        2,
+      )
+
+      return {
+        tool_id: tool.id,
+        name: tool.name,
+        category: tool.category,
+        market_tier: tool.marketTier,
+        status: tool.status,
+        mention_count: 0,
+        trusted_source_mentions: 0,
+        official_source_available: false,
+        community_mentions: 0,
+        pricing_evidence_available: false,
+        limitation_evidence_available: false,
+        editorial_prior: tool.editorialPrior,
+        final_tool_score: finalToolScore,
+        average_source_score: 0,
+        category_fit: round(categoryFit, 2),
+        evidence_summary: [
+          `${tool.name} is kept in the catalog prior because it is a market-relevant reference point, but the current run still needs better source evidence before it can be ranked confidently.`,
+        ],
+        evidence_gap: evidenceGap,
+        default_use_cases: tool.defaultUseCases,
+        source_ids: [],
+        source_evidence: [],
+        reason_for_inclusion: '',
+        reason_for_rejection: '',
+      }
+    })
+  const scoredTools = [...scoredToolEntries, ...supplementalCatalogEntries].sort(
+    (left, right) => right.final_tool_score - left.final_tool_score,
+  )
+
+  const selectedTools = []
+  const rejectedTools = []
+  const selectedIds = new Set()
+  const coreSelectionStrength = (tool) =>
+    (tool.official_source_available ? 2 : 0) +
+    (tool.pricing_evidence_available ? 2 : 0) +
+    (tool.limitation_evidence_available ? 1 : 0) +
+    (tool.trusted_source_mentions >= 1 ? 1.5 : 0) +
+    Math.min(tool.mention_count, 3) * 0.2
+
+  const rankedCoreTools = scoredTools.filter(
+    (tool) => tool.market_tier === 'core' && tool.category_fit >= 0.55 && tool.status !== 'sunset',
+  ).sort((left, right) => {
+    const strengthDelta = coreSelectionStrength(right) - coreSelectionStrength(left)
+    if (strengthDelta !== 0) return strengthDelta
+    return right.final_tool_score - left.final_tool_score
+  })
+  for (const tool of rankedCoreTools) {
+    if (selectedTools.length >= 2) break
+    selectedTools.push({
+      ...tool,
+      reason_for_inclusion: 'core coverage for an AI video workflow decision page',
+    })
+    selectedIds.add(tool.tool_id)
+  }
+
+  const rankedAdditionalTools = scoredTools.filter(
+    (tool) =>
+      !selectedIds.has(tool.tool_id) &&
+      tool.status !== 'sunset' &&
+      tool.final_tool_score >= 0.42 &&
+      tool.category_fit >= 0.34,
+  )
+  for (const tool of rankedAdditionalTools) {
+    if (selectedTools.length >= 4) break
+    selectedTools.push({
+      ...tool,
+      reason_for_inclusion:
+        tool.market_tier === 'core'
+          ? 'high evidence score after core coverage was satisfied'
+          : 'emerging or category-contrast option with enough evidence to keep in the shortlist',
+    })
+    selectedIds.add(tool.tool_id)
+  }
+
+  for (const tool of scoredTools) {
+    if (selectedIds.has(tool.tool_id)) continue
+    rejectedTools.push({
+      ...tool,
+      reason_for_rejection:
+        tool.status === 'sunset'
+          ? 'tool status is sunset, so it should not lead a current shortlist'
+          : tool.category_fit < 0.34
+            ? 'category fit is too weak for this thesis'
+            : tool.final_tool_score < 0.42
+              ? 'evidence and authority score stayed below the inclusion threshold'
+              : 'display constraints favored stronger or more core coverage first',
+    })
+  }
+
+  const rejectedDomains = dedupeBy(
+    sourceReferences
+      .filter((item) => safeArray(item.authority?.normalized_tool_ids).length === 0)
+      .map((item) => ({
+        domain: item.domain,
+        title: item.title,
+        source_kind: item.authority?.source_kind ?? classifySourceKindForAuthority(item),
+        trust_tier: item.authority?.trust_tier ?? 'generic',
+        reason_for_rejection:
+          'domain was not normalized into an allowed tool entity, so it cannot become a verdict-table row',
+      }))
+      .filter((item) => item.domain),
+    'domain',
+  )
+
+  const fullyBackedSelections = selectedTools.filter((tool) => tool.evidence_gap.length === 0)
+  const stronglyRankableCoreSelections = selectedTools.filter(
+    (tool) =>
+      tool.market_tier === 'core' &&
+      tool.official_source_available &&
+      tool.pricing_evidence_available &&
+      tool.trusted_source_mentions >= 1,
+  )
+  const rankingMode =
+    selectedTools.length === 0
+      ? 'recommended_starting_points'
+      : stronglyRankableCoreSelections.length >= 2 ||
+          fullyBackedSelections.length >= Math.min(selectedTools.length, 2)
+        ? 'ranked_shortlist'
+        : 'recommended_starting_points'
+
+  return {
+    selected_tools: selectedTools,
+    rejected_tools: rejectedTools,
+    rejected_entities: rejectedDomains.map((item) => item.domain),
+    rejected_domains: rejectedDomains,
+    tool_scores: scoredTools,
+    evidence_gaps: dedupe(selectedTools.flatMap((tool) => tool.evidence_gap)),
+    source_evidence: scoredTools.map((tool) => ({
+      tool_id: tool.tool_id,
+      name: tool.name,
+      sources: tool.source_evidence,
+    })),
+    ranking_mode: rankingMode,
+  }
+}
+
+function attachSourceAuthorityScores(sourcePack, cluster, pageIntent = 'comparison') {
+  return {
+    ...sourcePack,
+    categories: Object.fromEntries(
+      Object.entries(sourcePack.categories ?? {}).map(([key, items]) => [
+        key,
+        normalizeCollection(items).map((item) => ({
+          ...item,
+          authority: computeSourceAuthoritySnapshot(item, cluster, pageIntent),
+        })),
+      ]),
+    ),
+  }
+}
+
 function scoreSignalItem(item, keyword) {
   const haystack = `${item.title ?? ''} ${item.snippet ?? ''} ${item.url ?? ''}`
   const keywordLower = String(keyword ?? '').toLowerCase()
@@ -1307,6 +2472,7 @@ function rankSignalRichItems(items, keyword, { dropLowSignal = false } = {}) {
       __signalScore: scoreSignalItem(item, keyword),
     }))
     .filter((item) =>
+      item.seededToolId ||
       item.__signalScore >= 0.18 ||
       matchesKeywordTokens(
         `${item.title ?? ''} ${item.snippet ?? ''} ${item.url ?? ''}`,
@@ -1436,6 +2602,158 @@ function normalizeGa4PropertyId(value) {
   return value.replace(/^properties\//, '').trim()
 }
 
+function isPlainObject(value) {
+  return Object.prototype.toString.call(value) === '[object Object]'
+}
+
+function mergeProfileLayer(base, override) {
+  const next = isPlainObject(base) ? { ...base } : {}
+  if (!isPlainObject(override)) return next
+
+  for (const [key, value] of Object.entries(override)) {
+    if (value == null || value === '') continue
+    if (Array.isArray(value)) {
+      if (value.length > 0) next[key] = dedupe(value.filter(Boolean))
+      continue
+    }
+    if (isPlainObject(value)) {
+      next[key] = mergeProfileLayer(next[key], value)
+      continue
+    }
+    next[key] = value
+  }
+
+  return next
+}
+
+function mergeProfileLayers(...layers) {
+  return layers.reduce((merged, layer) => mergeProfileLayer(merged, layer), {})
+}
+
+function normalizeDesignProfileRegistry(payload) {
+  const profiles = Array.isArray(payload?.profiles) ? payload.profiles : []
+  const profileMap = new Map(
+    profiles
+      .filter((profile) => typeof profile?.key === 'string' && profile.key.trim())
+      .map((profile) => [profile.key.trim(), profile]),
+  )
+
+  return {
+    globalProfile: isPlainObject(payload?.globalProfile) ? payload.globalProfile : {},
+    profileMap,
+  }
+}
+
+function getDesignProfileRegistry() {
+  if (designProfileRegistry) return designProfileRegistry
+  designProfileRegistry = normalizeDesignProfileRegistry(designProfilesConfig)
+  return designProfileRegistry
+}
+
+function buildDefaultDesignProfile(entry, preset, assetCatalog) {
+  return {
+    key: entry.designProfileKey ?? entry.theme ?? entry.thesisKey,
+    brandTone: 'research-backed AI ops product',
+    brandPositioning: entry.brandBoundary || preset.offer,
+    tone: 'calm, operator-first, direct, evidence-backed',
+    audience: entry.audience || preset.audience,
+    primaryOutcome: preset.offer,
+    proofObjects: dedupe([
+      'workflow steps',
+      'comparison matrix',
+      assetCatalog.primaryAsset.title,
+      ...safeArray(entry.contentAssets).slice(0, 3),
+    ]).slice(0, 6),
+    primaryCtaType: 'download',
+    primaryCtaLabel: assetCatalog.primaryAsset.title,
+    secondaryCtaType: 'consult',
+    secondaryCtaLabel: `Request a ${entry.label ?? entry.thesisKey} audit`,
+    palette: {
+      background: '#171717',
+      surface: '#1f1f1f',
+      surfaceAlt: '#262626',
+      text: '#efede7',
+      mutedText: '#d3cec3',
+      accent: '#8eb777',
+      secondaryAccent: '#dcb45c',
+      warning: '#c98c66',
+    },
+    hero: {
+      showProofStrip: true,
+      showActionRow: true,
+      showAudienceSummary: true,
+      requireProofAboveFold: true,
+    },
+    visual: {
+      style: 'realistic editorial product scene',
+      lighting: 'warm neutral lighting',
+      composition: 'landscape',
+      pageTypes: ['hub', 'workflow', 'use-cases', 'template-kit', 'case-study'],
+      assetKinds: ['template_pack', 'checklist', 'worksheet'],
+      motifs: ['workflow board', 'comparison sheet', 'review notes'],
+      forbiddenMotifs: ['abstract AI brain', 'generic robot', 'neon circuit board', 'floating gradient orbs'],
+      pageScenes: {},
+      assetScenes: {},
+    },
+    review: {
+      highValuePageTypes: ['public-home', 'hub', 'alternatives', 'pricing', 'free-vs-paid', 'workflow', 'template-kit', 'case-study'],
+      requiresSecondaryCtaOn: ['public-home', 'hub', 'alternatives', 'pricing', 'workflow', 'template-kit', 'case-study'],
+      maxGenericParagraphs: 1,
+      maxRepeatedSentencePatterns: 1,
+      requireNonFallbackHeroOn: ['hub', 'workflow', 'template-kit', 'case-study'],
+    },
+  }
+}
+
+function resolveThesisDesignProfile(entry, preset, assetCatalog) {
+  const registry = getDesignProfileRegistry()
+  const designProfileKey = entry.designProfileKey ?? entry.theme ?? entry.thesisKey
+  const specificProfile =
+    registry.profileMap.get(designProfileKey) ??
+    registry.profileMap.get(entry.theme) ??
+    registry.profileMap.get(entry.thesisKey) ??
+    {}
+
+  const merged = mergeProfileLayers(
+    buildDefaultDesignProfile(entry, preset, assetCatalog),
+    registry.globalProfile,
+    specificProfile,
+    entry.designProfile ?? {},
+  )
+
+  merged.key = designProfileKey
+  merged.brandPositioning = merged.brandPositioning || entry.brandBoundary || preset.offer
+  merged.audience = merged.audience || entry.audience || preset.audience
+  merged.primaryOutcome = merged.primaryOutcome || preset.offer
+  merged.primaryCtaLabel = merged.primaryCtaLabel || assetCatalog.primaryAsset.title
+  merged.secondaryCtaLabel =
+    merged.secondaryCtaLabel || `Request a ${entry.label ?? entry.thesisKey} audit`
+  merged.proofObjects = dedupe(
+    safeArray(merged.proofObjects).length > 0
+      ? merged.proofObjects
+      : buildDefaultDesignProfile(entry, preset, assetCatalog).proofObjects,
+  ).slice(0, 8)
+
+  merged.visual = mergeProfileLayers(
+    buildDefaultDesignProfile(entry, preset, assetCatalog).visual,
+    merged.visual ?? {},
+  )
+  merged.hero = mergeProfileLayers(
+    buildDefaultDesignProfile(entry, preset, assetCatalog).hero,
+    merged.hero ?? {},
+  )
+  merged.review = mergeProfileLayers(
+    buildDefaultDesignProfile(entry, preset, assetCatalog).review,
+    merged.review ?? {},
+  )
+  merged.palette = mergeProfileLayers(
+    buildDefaultDesignProfile(entry, preset, assetCatalog).palette,
+    merged.palette ?? {},
+  )
+
+  return merged
+}
+
 function buildFallbackActiveThesisFromExperiment(currentExperiment) {
   const fallbackSeedKeywords = currentExperiment.seedTopics.map((topic) => topic.keyword)
   const fallbackTopicKeywords = currentExperiment.seedTopics.flatMap((topic) => topic.supportPageIdeas ?? [])
@@ -1454,6 +2772,7 @@ function buildFallbackActiveThesisFromExperiment(currentExperiment) {
     topicKeywords: fallbackTopicKeywords,
     contentAssets: [currentExperiment.leadMagnet, currentExperiment.conversionAsset],
     brandBoundary: currentExperiment.siteDefinition,
+    designProfileKey: currentExperiment.designProfileKey ?? currentExperiment.thesisKey,
     primaryKeywordStrategy: 'pinned',
     pinnedPrimaryKeyword: fallbackSeedKeywords[0] ?? currentExperiment.thesisLabel,
     keywordBoundary: dedupe([...fallbackSeedKeywords, ...fallbackTopicKeywords]),
@@ -1481,6 +2800,8 @@ function normalizeThesisRegistry(configPayload, currentExperiment) {
       topicKeywords: entry.topicKeywords ?? [],
       contentAssets: entry.contentAssets ?? [],
       brandBoundary: entry.brandBoundary ?? '',
+      designProfileKey: entry.designProfileKey ?? entry.theme ?? entry.thesisKey,
+      designProfile: isPlainObject(entry.designProfile) ? entry.designProfile : null,
       primaryKeywordStrategy:
         entry.primaryKeywordStrategy ??
         ((entry.status ?? 'candidate') === 'active' ? 'pinned' : 'dynamic'),
@@ -1634,6 +2955,7 @@ function buildThemeAssetCatalog(theme, thesisLabel) {
 function buildThesisRuntime(entry) {
   const preset = themePresets[entry.theme] ?? themePresets['general-explainers']
   const assetCatalog = buildThemeAssetCatalog(entry.theme, entry.label ?? entry.thesisKey)
+  const designProfile = resolveThesisDesignProfile(entry, preset, assetCatalog)
   const defaultPageTemplates = [
     'hub',
     'alternatives',
@@ -1675,6 +2997,8 @@ function buildThesisRuntime(entry) {
       ].filter(Boolean),
     ),
     conversionAssetSystem: assetCatalog,
+    designProfileKey: designProfile.key,
+    designProfile,
     pageTemplates: defaultPageTemplates.slice(0, contentConfig.pageCountTarget),
   }
 }
@@ -1704,6 +3028,7 @@ async function fetchJson(url, init = {}, retries = 2) {
   try {
     const response = await fetch(url, {
       ...init,
+      ...withTimeout(init),
       headers: {
         Accept: 'application/json',
         'User-Agent': 'TrendSitePipeline/1.0',
@@ -1718,7 +3043,7 @@ async function fetchJson(url, init = {}, retries = 2) {
     return response.json()
   } catch (error) {
     if (retries <= 0) {
-      throw error
+      throw new Error(describeFetchError(error, url))
     }
 
     await new Promise((resolve) => setTimeout(resolve, 350))
@@ -1730,6 +3055,7 @@ async function fetchText(url, init = {}, retries = 2) {
   try {
     const response = await fetch(url, {
       ...init,
+      ...withTimeout(init),
       headers: {
         'User-Agent': 'TrendSitePipeline/1.0',
         ...(init.headers ?? {}),
@@ -1743,7 +3069,7 @@ async function fetchText(url, init = {}, retries = 2) {
     return response.text()
   } catch (error) {
     if (retries <= 0) {
-      throw error
+      throw new Error(describeFetchError(error, url))
     }
 
     await new Promise((resolve) => setTimeout(resolve, 350))
@@ -2439,6 +3765,7 @@ async function getGoogleAccessToken(scopes) {
   for (const tokenUrl of googleConfig.oauthTokenUrls) {
     try {
       const response = await fetch(tokenUrl, {
+        ...withTimeout({}, contentConfig.networkTimeoutMs),
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -4015,6 +5342,8 @@ function clusterApprovedOpportunities(opportunities) {
         siteDefinition: runtime.siteDefinition,
         conversionAsset: runtime.conversionAssetSystem.primaryAsset.title,
         conversionAssetSystem: runtime.conversionAssetSystem,
+        designProfileKey: runtime.designProfileKey,
+        designProfile: runtime.designProfile,
         pageTemplates: runtime.pageTemplates,
       }
     })
@@ -4027,7 +5356,62 @@ function clusterApprovedOpportunities(opportunities) {
   return clusters.slice(0, clusterLimit)
 }
 
+function normalizeFaqQuestionText(cluster, rawQuestion = '', source = '') {
+  const original = String(rawQuestion || '').trim()
+  if (!original) return ''
+
+  let question = original
+    .replace(/\s+/g, ' ')
+    .replace(/\s*[-|]\s*(reddit|quora|youtube|twitter|x|linkedin|forum|community)\s*$/i, '')
+    .replace(/\.\.\.+/g, '')
+    .replace(/[“”]/g, '"')
+    .trim()
+
+  if (/which ai video generation workflow has given you the best/i.test(question)) {
+    return 'Which AI video workflow is best for repeatable short-form product videos?'
+  }
+
+  if (/^what\b/i.test(question) && /\banswer first\b/i.test(question)) {
+    return 'What should an AI video workflow homepage help me decide first?'
+  }
+
+  if (/^why is\b/i.test(question) && /\bworth a dedicated page\b/i.test(question)) {
+    return `Why does ${cluster.primaryKeyword} need a decision page instead of another generic explainer?`
+  }
+
+  if (/^what should a strong\b/i.test(question) && /\bsite answer first\b/i.test(question)) {
+    return `What should a strong ${cluster.label.toLowerCase()} homepage answer first?`
+  }
+
+  if (/^how do teams use\b/i.test(question)) {
+    if (/\bshort-form product demo videos\b/i.test(question)) {
+      return 'How do you start an AI video workflow for short-form product demo videos?'
+    }
+    if (new RegExp(`\\b${escapeRegExp(cluster.primaryKeyword)}\\b`, 'i').test(question)) {
+      return `How do you start ${indefiniteArticleFor(cluster.primaryKeyword)} ${cluster.primaryKeyword} without wasting the first pilot?`
+    }
+    return ''
+  }
+
+  if (/\b(topaz|comfy ui|flux ai|reddit|quora|forum|community)\b/i.test(`${question} ${source}`)) {
+    return ''
+  }
+
+  if (!/[?]$/.test(question) && /^(how|what|which|when|can|should|is|are|do|does)\b/i.test(question)) {
+    question = `${question}?`
+  }
+
+  const normalized = question
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+\?/g, '?')
+    .trim()
+
+  if (normalized.length < 18) return ''
+  return normalized
+}
+
 function buildFaqItems(cluster, research) {
+
   const seededAnswers = {
     workflow:
       'Start with a narrow demo workflow: choose the source asset, choose the model, set the visual goal, and define the output format before you test prompts.',
@@ -4041,11 +5425,18 @@ function buildFaqItems(cluster, research) {
       'Most visitors need a quick map of the category first, then they want concrete tools, prompts, and a recommended first workflow to try.',
   }
 
-  const fromQueries = research.faqCandidates.map((item) => ({
-    question: item.question,
-    answer: seededAnswers[classifyIntent(item.question)] ?? seededAnswers.overview,
-    source: item.source,
-  }))
+  const fromQueries = research.faqCandidates
+    .map((item) => {
+      const question = normalizeFaqQuestionText(cluster, item.question, item.source)
+      return question
+        ? {
+            question,
+            answer: seededAnswers[classifyIntent(question)] ?? seededAnswers.overview,
+            source: item.source,
+          }
+        : null
+    })
+    .filter(Boolean)
 
   const fallback = [
     {
@@ -4060,7 +5451,7 @@ function buildFaqItems(cluster, research) {
     },
   ]
 
-  return [...fromQueries, ...fallback].slice(0, 5)
+  return dedupeBy([...fromQueries, ...fallback].filter(Boolean), 'question').slice(0, 5)
 }
 
 function buildAlternativeRows(cluster, research) {
@@ -4168,6 +5559,9 @@ function normalizeSourcePackItems(results, category, query) {
       sourceQualityScore: sourceQualityScore(result, category),
       collectedAt: config.generatedAt,
       firecrawl: result.firecrawl ?? null,
+      seededToolId: result.seededToolId ?? '',
+      seededSourceType: result.seededSourceType ?? '',
+      seedPriority: preferFiniteNumber(result.seedPriority, 0),
     })),
     'url',
   )
@@ -4178,6 +5572,18 @@ function mergeSourcePackItems(primary, fallback, limit) {
     [...(primary ?? []), ...(fallback ?? [])].filter((item) => item?.url),
     'url',
   ).slice(0, limit)
+}
+
+function sortSeededOfficialItems(items = []) {
+  return [...items].sort((left, right) => {
+    const seedPriorityDelta =
+      preferFiniteNumber(right.seedPriority, 0) - preferFiniteNumber(left.seedPriority, 0)
+    if (seedPriorityDelta !== 0) return seedPriorityDelta
+    const qualityDelta =
+      preferFiniteNumber(right.sourceQualityScore, 0) - preferFiniteNumber(left.sourceQualityScore, 0)
+    if (qualityDelta !== 0) return qualityDelta
+    return preferFiniteNumber(right.credibilityScore, 0) - preferFiniteNumber(left.credibilityScore, 0)
+  })
 }
 
 function normalizeLiveSignalItems(results, category, query) {
@@ -4194,6 +5600,7 @@ function looksLikeCommunitySource(item) {
 }
 
 function looksLikeComparisonSource(item) {
+  if (item?.seededToolId) return false
   return (
     comparisonDomains.some((domain) => item.domain === domain || item.domain.endsWith(`.${domain}`)) ||
     /\b(alternative|alternatives|compare|comparison|best|pricing|review|vs)\b/i.test(
@@ -4248,6 +5655,7 @@ function looksLikeGenericEditorialResearchSource(item) {
 }
 
 function looksLikeOfficialSource(item) {
+  if (item?.seededToolId && item?.seededSourceType) return true
   return (
     Boolean(item.domain) &&
     !isResearchNoiseDomain(item.domain) &&
@@ -4309,6 +5717,273 @@ function buildSourcePackFallbackPool(cluster, research) {
     ),
     'url',
   )
+}
+
+function selectCoreToolEvidenceSeeds(cluster) {
+  const preferredIds = ['veo', 'runway', 'pika', 'seedance', 'kling']
+  const preferred = preferredIds
+    .map((id) => toolCatalogById.get(id))
+    .filter(
+      (tool) =>
+        tool &&
+        tool.status === 'active' &&
+        tool.marketTier === 'core' &&
+        inferToolCategoryFit(tool, cluster, 'comparison') >= 0.55,
+    )
+
+  const additional = toolCatalog
+    .filter(
+      (tool) =>
+        !preferredIds.includes(tool.id) &&
+        tool.status === 'active' &&
+        tool.marketTier === 'core' &&
+        tool.category !== 'avatar_personalized_video' &&
+        inferToolCategoryFit(tool, cluster, 'comparison') >= 0.55,
+    )
+    .sort((left, right) => right.editorialPrior - left.editorialPrior)
+    .slice(0, 2)
+
+  return dedupeBy([...preferred, ...additional], 'id')
+}
+
+function buildOfficialSeedFallbackCandidates(officialDomain, seededSourceType) {
+  const normalizedDomain = normalizeCatalogDomain(officialDomain)
+  if (!normalizedDomain) return []
+
+  const candidatesByType = {
+    pricing: [
+      `https://${normalizedDomain}/pricing`,
+      `https://${normalizedDomain}/plans`,
+    ],
+    docs: [
+      `https://docs.${normalizedDomain}`,
+      `https://${normalizedDomain}/docs`,
+      `https://${normalizedDomain}/documentation`,
+      `https://${normalizedDomain}/help`,
+    ],
+    changelog: [
+      `https://${normalizedDomain}/changelog`,
+      `https://${normalizedDomain}/release-notes`,
+      `https://${normalizedDomain}/updates`,
+      `https://${normalizedDomain}/blog`,
+    ],
+  }
+
+  return dedupe(candidatesByType[seededSourceType] ?? [])
+}
+
+function buildCuratedOfficialSeedEntries(tool) {
+  const curatedByToolId = {
+    veo: [
+      {
+        url: 'https://deepmind.google/models/veo/',
+        seededSourceType: 'docs',
+        title: 'Veo official docs',
+        snippet: 'Official Veo product page with model details, workflow guidance, and first-party capability context.',
+        seedPriority: 4.8,
+      },
+    ],
+    runway: [
+      {
+        url: 'https://runwayml.com/pricing',
+        seededSourceType: 'pricing',
+        title: 'Runway pricing',
+        snippet: 'Official Runway pricing page covering plans, credits, and subscription options.',
+        seedPriority: 5,
+      },
+      {
+        url: 'https://learn.runwayml.com/',
+        seededSourceType: 'docs',
+        title: 'Runway docs',
+        snippet: 'Official Runway learning and docs hub for workflows, guides, and product usage.',
+        seedPriority: 4.4,
+      },
+    ],
+    pika: [
+      {
+        url: 'https://pika.art/pricing',
+        seededSourceType: 'pricing',
+        title: 'Pika pricing',
+        snippet: 'Official Pika pricing page covering plans, credits, and subscription details.',
+        seedPriority: 5,
+      },
+    ],
+    seedance: [
+      {
+        url: 'https://seed.bytedance.com/zh/pricing',
+        seededSourceType: 'pricing',
+        title: 'Seedance pricing',
+        snippet: 'Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models.',
+        seedPriority: 5,
+      },
+      {
+        url: 'https://seed.bytedance.com/zh/docs',
+        seededSourceType: 'docs',
+        title: 'Seedance docs',
+        snippet: 'Official Seed docs hub with API and workflow documentation.',
+        seedPriority: 4.4,
+      },
+      {
+        url: 'https://seed.bytedance.com/en/seedance2_0',
+        seededSourceType: 'changelog',
+        title: 'Seedance 2.0',
+        snippet: 'Official Seedance release page with model updates and capability details.',
+        seedPriority: 3.8,
+      },
+    ],
+    kling: [
+      {
+        url: 'https://kling.ai/pricing',
+        seededSourceType: 'pricing',
+        title: 'Kling pricing',
+        snippet: 'Official Kling pricing page covering plans, credits, and subscription details.',
+        seedPriority: 5,
+      },
+      {
+        url: 'https://kling.ai/docs',
+        seededSourceType: 'docs',
+        title: 'Kling docs',
+        snippet: 'Official Kling docs hub for workflows, APIs, and usage guidance.',
+        seedPriority: 4.4,
+      },
+    ],
+  }
+
+  return (curatedByToolId[tool.id] ?? []).map((entry) => ({
+    ...entry,
+    domain: safeUrlHostname(entry.url),
+    intent:
+      entry.seededSourceType === 'pricing'
+        ? 'pricing'
+        : entry.seededSourceType === 'docs'
+          ? 'workflow'
+          : 'overview',
+    seededToolId: tool.id,
+  }))
+}
+
+async function resolveOfficialSeedFallback(tool, officialDomain, seededSourceType, seedPriority) {
+  const candidates = buildOfficialSeedFallbackCandidates(officialDomain, seededSourceType)
+
+  for (const candidateUrl of candidates) {
+    try {
+      const response = await fetch(candidateUrl, withTimeout({
+        method: 'HEAD',
+        redirect: 'follow',
+        headers: {
+          Accept: 'text/html,application/xhtml+xml',
+          'User-Agent': 'TrendSitePipeline/1.0',
+        },
+      }))
+      if (!response.ok) continue
+      const title = `${tool.name} official ${seededSourceType}`
+      const snippet =
+        `${tool.name} official ${seededSourceType} page seeded from a common first-party path fallback when search results missed it.`
+
+      return {
+        title,
+        url: candidateUrl,
+        domain: safeUrlHostname(candidateUrl),
+        snippet,
+        intent: seededSourceType === 'pricing' ? 'pricing' : seededSourceType === 'docs' ? 'workflow' : 'overview',
+        seededToolId: tool.id,
+        seededSourceType,
+        seedPriority,
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return null
+}
+
+async function fetchCoreToolOfficialSeedResults(cluster) {
+  const seeds = []
+  const tools = selectCoreToolEvidenceSeeds(cluster)
+
+  for (const tool of tools) {
+    seeds.push(...buildCuratedOfficialSeedEntries(tool))
+    const primaryDomain = tool.officialDomains[0]
+    if (!primaryDomain) continue
+
+    let matchedCount = 0
+    const officialDomains = dedupe(tool.officialDomains).slice(0, 2)
+    for (const officialDomain of officialDomains) {
+      const evidenceQueries = [
+        {
+          query: `site:${officialDomain} ${tool.name} pricing`,
+          keyword: tool.name,
+          seededSourceType: 'pricing',
+          seedPriority: 5,
+        },
+        {
+          query: `site:${officialDomain} ${tool.name} docs`,
+          keyword: tool.name,
+          seededSourceType: 'docs',
+          seedPriority: 4,
+        },
+        {
+          query: `site:${officialDomain} ${tool.name} changelog`,
+          keyword: tool.name,
+          seededSourceType: 'changelog',
+          seedPriority: 3,
+        },
+      ]
+
+      for (const evidenceQuery of evidenceQueries) {
+        const results = await fetchSearchResults(evidenceQuery.query, 2, evidenceQuery.keyword)
+        const officialResults = results
+          .filter((item) => {
+            const domain = normalizeCatalogDomain(item.domain || item.url)
+            return domain === officialDomain || domain.endsWith(`.${officialDomain}`)
+          })
+          .map((item, index) => ({
+            ...item,
+            intent:
+              evidenceQuery.seededSourceType === 'pricing'
+                ? 'pricing'
+                : evidenceQuery.seededSourceType === 'docs'
+                  ? 'workflow'
+                  : 'overview',
+            seededToolId: tool.id,
+            seededSourceType: evidenceQuery.seededSourceType,
+            seedPriority: evidenceQuery.seedPriority - index * 0.1,
+          }))
+
+        matchedCount += officialResults.length
+        seeds.push(...officialResults)
+        if (officialResults.length === 0) {
+          const fallbackResult = await resolveOfficialSeedFallback(
+            tool,
+            officialDomain,
+            evidenceQuery.seededSourceType,
+            evidenceQuery.seedPriority - 0.2,
+          )
+          if (fallbackResult) {
+            matchedCount += 1
+            seeds.push(fallbackResult)
+          }
+        }
+        await sleep(100)
+      }
+    }
+
+    if (matchedCount === 0) {
+      seeds.push({
+        title: `${tool.name} official site`,
+        url: `https://${primaryDomain}`,
+        domain: primaryDomain,
+        snippet: `Official ${tool.name} domain seeded so first-party evidence can still be discovered even when generic search results skew toward content sites.`,
+        intent: 'overview',
+        seededToolId: tool.id,
+        seededSourceType: 'official_root',
+        seedPriority: 2,
+      })
+    }
+  }
+
+  return dedupeBy(seeds, 'url')
 }
 
 function buildSourcePackLiveSignals(cluster) {
@@ -4686,9 +6361,16 @@ async function enrichSourcePackWithFirecrawl(cluster, sourcePack) {
   const categories = Object.fromEntries(
     Object.entries(sourcePack.categories).map(([key, items]) => [key, [...items]]),
   )
+  const prioritizedOfficialTargets = dedupeBy(
+    [
+      ...sortSeededOfficialItems(categories.official).filter((item) => item.seededToolId).slice(0, 6),
+      ...sortSeededOfficialItems(categories.official).slice(0, 3),
+    ],
+    'url',
+  )
   const itemsToEnrich = dedupeBy(
     [
-      ...categories.official.slice(0, 2),
+      ...prioritizedOfficialTargets,
       ...categories.competitive.slice(0, 2),
       ...categories.community.slice(0, 2),
       ...categories.workflow.slice(0, 2),
@@ -4719,7 +6401,7 @@ async function enrichSourcePackWithFirecrawl(cluster, sourcePack) {
 
   const agentUrls = dedupe(
     [
-      ...categories.official.slice(0, 2).map((item) => item.url),
+      ...prioritizedOfficialTargets.slice(0, 6).map((item) => item.url),
       ...categories.competitive.slice(0, 2).map((item) => item.url),
       ...categories.workflow.slice(0, 2).map((item) => item.url),
       ...safeArray(categories.product).slice(0, 1).map((item) => item.url),
@@ -4798,6 +6480,8 @@ async function buildSourcePack(cluster, research) {
   }
 
   const officialRaw = await fetchSearchResults(queries.official, limit + 2, keyword)
+  await sleep(150)
+  const seededOfficialRaw = await fetchCoreToolOfficialSeedResults(cluster)
   await sleep(250)
   const competitiveRaw = await fetchSearchResults(queries.competitive, limit + 2, keyword)
   await sleep(250)
@@ -4810,10 +6494,10 @@ async function buildSourcePack(cluster, research) {
   const videoRaw = await fetchSearchResults(queries.video, limit + 2, keyword)
 
   const fallbackPool = buildSourcePackFallbackPool(cluster, research)
-  const official = mergeSourcePackItems(
+  const seededOfficial = sortSeededOfficialItems(
     normalizeSourcePackItems(
       rankSignalRichItems(
-        officialRaw.filter(
+        seededOfficialRaw.filter(
           (item) =>
             !looksLikeComparisonSource(item) &&
             !looksLikeBlockedSearchResult(item, keyword, {
@@ -4822,19 +6506,44 @@ async function buildSourcePack(cluster, research) {
             }),
         ),
         keyword,
-      ).slice(0, limit),
+        { dropLowSignal: false },
+      ),
       'official',
-      queries.official,
+      `${queries.official} seeded`,
     ),
-    fallbackPool.filter(
-      (item) =>
-        looksLikeOfficialSource(item) &&
-        !looksLikeBlockedSearchResult(item, keyword, {
-          allowCommunity: false,
-          allowDeveloperSources,
-        }),
+  )
+  const organicOfficial = normalizeSourcePackItems(
+    rankSignalRichItems(
+      officialRaw.filter(
+        (item) =>
+          !looksLikeComparisonSource(item) &&
+          !looksLikeBlockedSearchResult(item, keyword, {
+            allowCommunity: false,
+            allowDeveloperSources,
+          }),
+      ),
+      keyword,
+    ).slice(0, Math.max(limit, 3)),
+    'official',
+    queries.official,
+  )
+  const officialLimit = Math.max(
+    limit + 2,
+    Math.min(seededOfficial.length + Math.max(limit, 2), 18),
+  )
+  const official = sortSeededOfficialItems(
+    mergeSourcePackItems(
+      [...seededOfficial, ...organicOfficial],
+      fallbackPool.filter(
+        (item) =>
+          looksLikeOfficialSource(item) &&
+          !looksLikeBlockedSearchResult(item, keyword, {
+            allowCommunity: false,
+            allowDeveloperSources,
+          }),
+      ),
+      officialLimit,
     ),
-    limit,
   )
   const competitive = mergeSourcePackItems(
     normalizeSourcePackItems(
@@ -4978,6 +6687,25 @@ async function buildSourcePack(cluster, research) {
       communityThreads: research.communityPainResults ?? [],
       videoSignals: research.videoSignals ?? [],
     },
+    coreToolSeedDebug: {
+      selectedTools: selectCoreToolEvidenceSeeds(cluster).map((tool) => tool.id),
+      rawResults: seededOfficialRaw.map((item) => ({
+        title: item.title,
+        url: item.url,
+        domain: item.domain,
+        seededToolId: item.seededToolId,
+        seededSourceType: item.seededSourceType,
+        seedPriority: item.seedPriority,
+      })),
+      normalizedResults: seededOfficial.map((item) => ({
+        title: item.title,
+        url: item.url,
+        domain: item.domain,
+        seededToolId: item.seededToolId,
+        seededSourceType: item.seededSourceType,
+        seedPriority: item.seedPriority,
+      })),
+    },
     sourceCounts: {
       official: official.length,
       competitive: competitive.length,
@@ -5087,6 +6815,7 @@ async function maybeGenerateAiPageDraft(page, sourcePack) {
 
   try {
     const response = await fetch(contentConfig.aiEndpoint, {
+      ...withTimeout({}, contentConfig.aiTimeoutMs),
       method: 'POST',
       headers: {
         Authorization: `Bearer ${contentConfig.aiApiKey}`,
@@ -5430,11 +7159,23 @@ function buildPlaybookExtraFacts(page, context) {
   }
 
   if (['alternatives', 'best-tools'].includes(page.type)) {
-    return context.shortlistRows.map((row) => ({
-      label: row.name,
-      value: `${row.bestFor}. ${row.verdict}.`,
-      sourceIds: row.sourceIds,
-    }))
+    return [
+      ...context.shortlistRows.map((row) => ({
+        label: row.name,
+        value: `${row.bestFor}. ${row.verdict}. Pricing note: ${row.pricingSignal}`,
+        sourceIds: row.sourceIds,
+      })),
+      {
+        label: 'Decision-path coverage',
+        value: `${Math.min(context.useCaseModels.length, 3)} buyer paths are mapped so the page can recommend a first choice, fallback, and watch-out instead of one generic winner.`,
+        sourceIds,
+      },
+      {
+        label: 'Comparison warning',
+        value: context.caveats[0] ?? 'Do not recommend an option without naming the review drag, hidden cost, and failure mode.',
+        sourceIds,
+      },
+    ]
   }
 
   if (page.type === 'workflow') {
@@ -5445,8 +7186,18 @@ function buildPlaybookExtraFacts(page, context) {
         sourceIds,
       },
       {
+        label: 'Workflow proof depth',
+        value: `${context.workflowSteps.length} named workflow checkpoints already specify owner, success metric, and failure point.`,
+        sourceIds,
+      },
+      {
         label: 'Prompt coverage',
         value: `${context.promptExamples.length} reusable prompt examples were attached to the workflow page.`,
+        sourceIds,
+      },
+      {
+        label: 'Likely breakdown point',
+        value: context.caveats.find((item) => /review|workflow|results|complaint|failure/i.test(item)) ?? 'The workflow page should name the first place the review loop usually breaks.',
         sourceIds,
       },
       ...context.signalFacts,
@@ -5477,6 +7228,11 @@ function buildPlaybookExtraFacts(page, context) {
         value: 'The right time to pay is when review overhead matters more than experimentation.',
         sourceIds,
       },
+      {
+        label: 'Hidden cost',
+        value: context.caveats.find((item) => /pricing|cost|limit|review|workflow/i.test(item)) ?? 'The page should name hidden review cost, approval drag, and what still breaks on the free path.',
+        sourceIds,
+      },
       ...context.signalFacts,
     ]
   }
@@ -5499,6 +7255,11 @@ function buildPlaybookExtraFacts(page, context) {
       {
         label: 'Delivery model',
         value: 'The kit should ship one first-run asset, one repeat-run checklist, and one comparison worksheet for future decisions.',
+        sourceIds,
+      },
+      {
+        label: 'Kit selection path',
+        value: `${Math.min(context.useCaseModels.length, 3)} use-case routes already map which asset the visitor should pick first.`,
         sourceIds,
       },
       ...context.assetSystem.secondaryAssets.map((asset) => ({
@@ -5542,18 +7303,30 @@ function buildPlaybookExtraVerdicts(page, context) {
   }
 
   if (['alternatives', 'best-tools'].includes(page.type)) {
-    return context.shortlistRows.map((row) => ({
-      title: row.name,
-      detail: `${row.verdict}. Best for ${row.bestFor.toLowerCase()}.`,
-      sourceIds: row.sourceIds,
-    }))
+    return [
+      ...context.shortlistRows.map((row) => ({
+        title: row.name,
+        detail: `${row.verdict}. Best for ${row.bestFor.toLowerCase()}. Watch out for ${row.notFor.toLowerCase()}.`,
+        sourceIds: row.sourceIds,
+      })),
+      {
+        title: 'Name the fallback path explicitly',
+        detail: `The second-choice path should name one asset, one missing proof point, and the condition that would move it ahead of ${context.shortlistRows[0]?.name ?? 'the first option'}.`,
+        sourceIds,
+      },
+    ]
   }
 
   if (page.type === 'workflow') {
     return [
       {
         title: 'Document the review loop inside the workflow',
-        detail: 'The page should show who reviews the first draft, what usually fails, and how the next run gets faster.',
+        detail: `Show who reviews step 3 of the ${context.workflowSteps.length}-step workflow, what fails first, and which checklist or prompt asset makes the second run faster.`,
+        sourceIds,
+      },
+      {
+        title: 'Use the workflow to surface the first failure mode',
+        detail: 'The first useful workflow page makes the likely review bottleneck explicit before the visitor runs the pilot.',
         sourceIds,
       },
     ]
@@ -5566,6 +7339,11 @@ function buildPlaybookExtraVerdicts(page, context) {
         detail: 'Plan names matter less than review overhead, setup time, and how quickly the output becomes reusable.',
         sourceIds,
       },
+      {
+        title: 'Tie the upgrade to a real team threshold',
+        detail: 'A pricing page should name the moment when weekly volume, extra reviewers, or localization pressure make the paid path rational.',
+        sourceIds,
+      },
     ]
   }
 
@@ -5574,7 +7352,7 @@ function buildPlaybookExtraVerdicts(page, context) {
       {
         title: 'Stay free for validation, pay for throughput',
         detail:
-          'The free workflow path is usually enough for rough validation; the paid workflow path matters once teams need speed, consistency, and reusable template assets.',
+          'The free workflow path is enough for rough validation; the paid workflow path matters once teams need speed, consistency, reusable template assets, and a shared review queue.',
         sourceIds,
       },
     ]
@@ -5584,7 +7362,7 @@ function buildPlaybookExtraVerdicts(page, context) {
     return [
       {
         title: 'Split the category by job, not by broad persona',
-        detail: `Different ${context.cluster.primaryKeyword} jobs deserve different workflows and CTA paths.`,
+        detail: `Different ${context.cluster.primaryKeyword} jobs deserve different workflows, CTA paths, and asset handoffs.`,
         sourceIds,
       },
     ]
@@ -5597,6 +7375,11 @@ function buildPlaybookExtraVerdicts(page, context) {
         detail: `If ${context.assetSystem.primaryAsset.title.toLowerCase()} does not help the first pilot happen faster, the page is not product-shaped enough.`,
         sourceIds,
       },
+      {
+        title: 'The kit should help the visitor choose the next asset fast',
+        detail: `A good kit page routes the visitor to the right prompt pack, checklist, or worksheet without making them decode three similar offers.`,
+        sourceIds,
+      },
     ]
   }
 
@@ -5604,7 +7387,7 @@ function buildPlaybookExtraVerdicts(page, context) {
     return [
       {
         title: 'Trust comes from the workflow change, not vague ROI language',
-        detail: 'The page should show what changed in the decision surface, what got documented, and what the team can now repeat.',
+        detail: 'The page should show what changed in the workflow, what got documented, and what the team can now repeat.',
         sourceIds,
       },
     ]
@@ -5620,11 +7403,11 @@ function buildPlaybookExtraExamples(page, context) {
     return [
       {
         title: 'First search visit',
-        body: `A visitor lands on the hub, understands which ${context.cluster.primaryKeyword} path fits, and grabs ${primaryAsset.toLowerCase()} instead of reopening five comparison tabs.`,
+        body: `A visitor lands on the hub, sees which ${context.cluster.primaryKeyword} path fits, and grabs ${primaryAsset.toLowerCase()} instead of reopening five comparison tabs and a separate workflow page.`,
       },
       {
         title: 'Team handoff',
-        body: `An operator forwards the hub and workflow pages to a teammate so the shortlist and next step stay aligned.`,
+        body: `An operator forwards the hub, workflow page, and comparison asset to a teammate so the shortlist, review bar, and next step stay aligned.`,
       },
     ]
   }
@@ -5633,7 +7416,14 @@ function buildPlaybookExtraExamples(page, context) {
     return [
       {
         title: 'Shortlist review',
-        body: `A buyer compares one primary option and one fallback, scores time-to-value and review overhead, then uses ${primaryAsset.toLowerCase()} to capture the decision.`,
+        body: `A buyer compares ${context.shortlistRows[0]?.name ?? 'one primary option'} and ${context.shortlistRows[1]?.name ?? 'one fallback'}, scores time-to-value and review overhead, then uses ${primaryAsset.toLowerCase()} to capture the decision.`,
+      },
+      {
+        title: 'Stakeholder-ready comparison',
+        body:
+          context.toolRanking?.ranking_mode === 'recommended_starting_points'
+            ? `A team lead uses the comparison worksheet to explain why ${context.shortlistRows[0]?.name ?? 'one option'} is worth testing early, why ${context.shortlistRows[1]?.name ?? 'another'} stays in view, and which pricing or review signal could still change the shortlist.`
+            : `A team lead uses the comparison worksheet to explain why ${context.shortlistRows[0]?.name ?? 'one option'} stays first, why ${context.shortlistRows[1]?.name ?? 'another'} remains fallback, and which pricing or review signal could still flip the ranking.`,
       },
     ]
   }
@@ -5643,6 +7433,10 @@ function buildPlaybookExtraExamples(page, context) {
       {
         title: 'Review loop example',
         body: `The first draft is generated from one source asset, reviewed by one owner, and then saved into ${primaryAsset.toLowerCase()} for the second run.`,
+      },
+      {
+        title: 'Failure-point example',
+        body: `The pilot looks fast until approvals start; the useful workflow page names that review drag inside the ${context.workflowSteps.length}-step sequence and tells the visitor what to lock before the second attempt.`,
       },
     ]
   }
@@ -5660,11 +7454,15 @@ function buildPlaybookExtraExamples(page, context) {
     return [
       {
         title: 'Solo operator',
-        body: 'The solo builder stays on the free path while validating demand, then upgrades once repeatable throughput matters.',
+        body: `The solo builder stays on the free path while validating one launch clip, then upgrades once repeatable throughput, reviewer time, and reusable assets matter.`,
       },
       {
         title: 'Small team',
-        body: 'A team pays once approvals, collaboration, and version control matter more than raw experimentation.',
+        body: 'A team pays once approvals, collaboration, shared workflow ownership, and version control matter more than raw experimentation.',
+      },
+      {
+        title: 'Budget owner review',
+        body: 'A budget owner uses the page to defend the spend only after the team can point to one real workflow, one reusable asset, and one visible bottleneck the paid plan removes.',
       },
     ]
   }
@@ -5672,7 +7470,7 @@ function buildPlaybookExtraExamples(page, context) {
   if (page.type === 'use-cases') {
     return context.useCases.map((item) => ({
       title: item,
-      body: `Use ${primaryAsset.toLowerCase()} to turn ${item} into a repeatable first test instead of another generic category read.`,
+      body: `Use ${primaryAsset.toLowerCase()} to turn ${item} into a repeatable first test with a workflow, owner, and asset handoff instead of another broad category detour.`,
     }))
   }
 
@@ -5681,6 +7479,10 @@ function buildPlaybookExtraExamples(page, context) {
       {
         title: 'Handoff pack',
         body: `The template kit gives the next teammate a checklist, prompt pack, and comparison worksheet so they can repeat the workflow without fresh research.`,
+      },
+      {
+        title: 'Choose-the-right-asset example',
+        body: `A visitor starts with the kit page, sees whether the prompt pack, workflow checklist, or comparison worksheet solves the current bottleneck fastest, and leaves with one committed download instead of collecting three low-commitment files.`,
       },
     ]
   }
@@ -5701,16 +7503,16 @@ function buildPlaybookIntro(page, context, introStrategy) {
   if (introStrategy !== 'pain_then_outcome') return page.intro
 
   const extraLineByType = {
-    hub: 'Visitors usually need one clear path from problem to shortlist, not a broad category recap.',
-    alternatives: 'The page should help a buyer decide the first click quickly, then explain the fallback path.',
-    workflow: 'The winning workflow is the one a team can review, reuse, and hand off after the first pass.',
+    hub: 'Most visitors need one shortlist, one workflow page, and one asset before they need broader category coverage.',
+    alternatives: 'The winning comparison names the first click, the fallback, and the missing proof that would change the ranking.',
+    workflow: 'The winning workflow is the one a team can review, reuse, and hand off after the first pass with a checklist or prompt asset.',
     faq: 'Most visitors here want one narrow answer and one obvious next step.',
     'best-tools': 'Ranking matters only when the visitor understands why the first option should be first.',
-    pricing: 'A strong pricing page explains where workflow cost appears long before a credit card gets entered.',
-    'free-vs-paid': 'The useful decision is not free versus paid in theory, but whether the workflow has become real enough to justify spend.',
-    'use-cases': 'The strongest examples map the category to a narrow production job and a measurable output.',
-    'template-kit': 'The asset should feel immediately usable, not like a vague lead magnet.',
-    'case-study': 'What matters is the workflow shift, the reusable asset, and the outcome the team can repeat.',
+    pricing: 'The useful pricing read names the visible floor price, the review drag, and the reuse threshold before a card ever gets entered.',
+    'free-vs-paid': 'The useful decision is not free versus paid in theory, but whether the workflow has become real enough to justify spend and shared review.',
+    'use-cases': 'The strongest examples map the category to a narrow production job, one workflow, and one measurable output.',
+    'template-kit': 'The asset should feel like a 3-part operating kit with prompt, checklist, and comparison coverage.',
+    'case-study': 'What matters is the workflow shift, the reusable asset, and the outcome the team can repeat on the next cycle.',
   }
   const extraLine = extraLineByType[page.type]
   if (!extraLine || page.intro.includes(extraLine)) return page.intro
@@ -5814,10 +7616,10 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     )
     return merged
   }
-  const assetSystem = {
+  const assetSystem = sanitizePublicModel({
     primaryAsset: applyWikiAssetOverride(cluster.conversionAssetSystem.primaryAsset),
     secondaryAssets: cluster.conversionAssetSystem.secondaryAssets.map(applyWikiAssetOverride),
-  }
+  })
   const deepResearchPages = safeArray(sourcePack.categories.deepResearch)
   const sourceReferences = [
     ...sourcePack.categories.official,
@@ -5829,6 +7631,16 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     ...sourcePack.categories.serp,
     ...deepResearchPages,
   ]
+    .filter(Boolean)
+    .reduce((items, item) => {
+      if (items.some((candidate) => candidate.id === item.id || candidate.url === item.url)) return items
+      items.push(item)
+      return items
+    }, [])
+    .map((item) => ({
+    ...item,
+    authority: computeSourceAuthoritySnapshot(item, cluster, 'comparison'),
+  }))
   const sourceRefMap = new Map(sourceReferences.map((item) => [item.id, item]))
   const sharedSourceIds = sourceReferences.slice(0, 2).map((item) => item.id)
   const firecrawlSignalPool = sourceReferences.filter((item) => item.firecrawl)
@@ -5867,13 +7679,6 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
   const topCommunity = rankSignalRichItems(sourcePack.categories.community, cluster.primaryKeyword, {
     dropLowSignal: true,
   }).slice(0, 3)
-  const topCompetitive = dedupeBy(
-    rankSignalRichItems(
-      [...sourcePack.categories.official, ...sourcePack.categories.competitive, ...deepResearchPages],
-      cluster.primaryKeyword,
-    ),
-    'domain',
-  ).slice(0, 4)
   const useCaseSignalEntries = collectFirecrawlSignalEntries('useCases', 12)
   const useCases = buildResearchUseCases(cluster, useCaseSignalEntries)
   const pricingSignals = dedupeBy(
@@ -5995,7 +7800,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     },
     {
       title: 'Shortlist the obvious options',
-      detail: `Use ${(topCompetitive.map((item) => item.domain).join(', ') || 'the strongest visible category leaders')} as a starting field, then cut the list by buyer fit.`,
+      detail: `Use the highest-signal tool entities from the ranking layer as a starting field, then cut the list by buyer fit.`,
       input: 'One shortlist field plus the highest-risk comparison criteria',
       output: 'A primary option, a fallback option, and one reason each survived the cut.',
       owner: 'The buyer, operator, or builder making the implementation decision',
@@ -6021,47 +7826,148 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       failurePoint: 'Leaving the learning inside a single person’s head instead of packaging it.',
     },
   ]
-  const shortlistRows = dedupeBy(
-    [
-      ...topCompetitive.map((item, index) => ({
-        name: item.domain,
-        bestFor: index === 0
-          ? 'Teams that want the fastest path from evaluation to execution'
+  const provisionalUseCaseModels = buildResearchUseCaseModels(
+    cluster,
+    useCases,
+    useCaseSignalEntries,
+    assetSystem,
+    idsFromRefs([...sourcePack.categories.workflow, ...sourcePack.categories.community], 2),
+  )
+  const provisionalFactsExtraction = extractStructuredFacts({
+    cluster,
+    wikiSeed,
+    sourceReferences,
+    researchDossier: {
+      pricingSummary: pricingSignals.map((item) => ({
+        label: item.label,
+        detail: item.value,
+        sourceIds: item.sourceIds,
+      })),
+      competitorPositioning: safeArray(sourcePack.firecrawlAgentDossier?.competitorPositioning).map((item) => ({
+        name: item.name,
+        bestFor: item.bestFor,
+        watchout: item.watchout,
+        sourceIds: [],
+      })),
+      communityPainSignals: safeArray(sourcePack.firecrawlAgentDossier?.communityPainSignals),
+    },
+    pricingSignals,
+    caveats,
+    workflowSteps: [],
+    useCaseModels: provisionalUseCaseModels,
+    topCommunity,
+  })
+  const provisionalToolRanking = buildToolRankingLayer({
+    cluster,
+    pageIntent: 'comparison',
+    facts: provisionalFactsExtraction,
+    sourceReferences,
+  })
+  const rankedToolNames = provisionalToolRanking.selected_tools.map((tool) => tool.name)
+  workflowSteps[2].detail = `Use ${(rankedToolNames.join(', ') || 'the strongest normalized tool entities')} as a starting field, then cut the list by buyer fit.`
+  const useCaseModels = provisionalUseCaseModels
+  const factsExtraction = extractStructuredFacts({
+    cluster,
+    wikiSeed,
+    sourceReferences,
+    researchDossier: {
+      pricingSummary: pricingSignals.map((item) => ({
+        label: item.label,
+        detail: item.value,
+        sourceIds: item.sourceIds,
+      })),
+      competitorPositioning: safeArray(sourcePack.firecrawlAgentDossier?.competitorPositioning).map((item) => ({
+        name: item.name,
+        bestFor: item.bestFor,
+        watchout: item.watchout,
+        sourceIds: [],
+      })),
+      communityPainSignals: safeArray(sourcePack.firecrawlAgentDossier?.communityPainSignals),
+    },
+    pricingSignals,
+    caveats,
+    workflowSteps,
+    useCaseModels,
+    topCommunity,
+  })
+  const toolRanking = buildToolRankingLayer({
+    cluster,
+    pageIntent: 'comparison',
+    facts: factsExtraction,
+    sourceReferences,
+  })
+  const shortlistRows = toolRanking.selected_tools.map((tool, index) => {
+    const catalogTool = toolCatalogById.get(tool.tool_id)
+    const primaryPricingFact = safeArray(factsExtraction.pricing_facts).find((fact) =>
+      safeArray(fact.tool_ids).includes(tool.tool_id),
+    )
+    const primaryLimitationFact = safeArray(factsExtraction.limitation_facts).find((fact) =>
+      safeArray(fact.tool_ids).includes(tool.tool_id),
+    )
+    const bestForText =
+      tool.default_use_cases?.[0] ??
+      (tool.category === 'avatar_personalized_video'
+        ? 'Avatar-led or personalized video workflows'
+        : 'General-purpose AI video generation workflows')
+    const notForText =
+      primaryLimitationFact?.detail ??
+      (tool.category === 'avatar_personalized_video'
+        ? 'Teams comparing broad text-to-video or image-to-video model stacks first'
+        : 'Visitors who only need category education and are not ready to compare tools')
+    const verdictLabel =
+      toolRanking.ranking_mode === 'ranked_shortlist'
+        ? index === 0
+          ? 'Recommended first shortlist review'
           : index === 1
-            ? 'Visitors who need clearer tradeoffs before they commit'
-            : 'Operators comparing fit against an already-shortlisted option',
-        notFor:
-          caveats[index] ??
-          'Not ideal if the buyer still needs category context before comparing tools.',
-        verdict:
-          index === 0
-            ? 'Recommended first shortlist review'
-            : index === 1
-              ? 'Good second opinion'
-              : 'Useful benchmark or fallback',
-        pricingSignal:
-          pricingSignals[index]?.value ??
-          'Public pricing clarity is limited; compare this option with a manual checklist.',
-        sourceIds: [item.id],
-      })),
-      ...buildAlternativeRows(cluster, research).map((row, index) => ({
-        name: row.name,
-        bestFor: row.strength,
-        notFor: row.drawback,
-        verdict:
-          index === 0
-            ? 'Recommended first shortlist review'
-            : index === 1
-              ? 'Strong supporting option'
-              : 'Useful benchmark or fallback',
-        pricingSignal:
-          pricingSignals[index]?.value ??
-          'Use a manual pricing and workflow worksheet before you commit.',
-        sourceIds: sharedSourceIds.length > 0 ? [sharedSourceIds[Math.min(index, sharedSourceIds.length - 1)]] : [],
-      })),
-    ],
-    'name',
-  ).slice(0, 4)
+            ? 'Good second option'
+            : 'Useful benchmark or fallback'
+        : index === 0
+          ? 'Recommended starting point'
+          : 'Evidence-backed starting point'
+
+    return {
+      name: tool.name,
+      toolId: tool.tool_id,
+      category: tool.category,
+      marketTier: tool.market_tier,
+      bestFor: bestForText,
+      notFor: notForText,
+      verdict: verdictLabel,
+      pricingSignal:
+        primaryPricingFact?.detail ??
+        'Pricing evidence is still thin in the current run, so compare with a manual checklist.',
+      sourceIds: safeArray(tool.source_ids).slice(0, 3),
+      officialUrl: catalogTool?.officialDomains?.[0]
+        ? `https://${catalogTool.officialDomains[0]}`
+        : '',
+      evidenceSummary: safeArray(tool.evidence_summary).slice(0, 3),
+      evidenceGap: safeArray(tool.evidence_gap),
+      finalToolScore: tool.final_tool_score,
+      officialSourceAvailable: tool.official_source_available,
+      reasonForInclusion: tool.reason_for_inclusion,
+    }
+  })
+  const comparisonDebugReport = {
+    selected_tools: toolRanking.selected_tools,
+    rejected_tools: toolRanking.rejected_tools,
+    rejected_entities: toolRanking.rejected_entities,
+    rejected_domains: toolRanking.rejected_domains,
+    tool_scores: toolRanking.tool_scores,
+    source_evidence: toolRanking.source_evidence,
+    reason_for_inclusion: toolRanking.selected_tools.map((tool) => ({
+      tool_id: tool.tool_id,
+      name: tool.name,
+      reason: tool.reason_for_inclusion,
+    })),
+    reason_for_rejection: toolRanking.rejected_tools.map((tool) => ({
+      tool_id: tool.tool_id,
+      name: tool.name,
+      reason: tool.reason_for_rejection,
+    })),
+    evidence_gaps: toolRanking.evidence_gaps,
+    ranking_mode: toolRanking.ranking_mode,
+  }
+  const softComparisonLanguage = toolRanking.ranking_mode === 'recommended_starting_points'
   const bestFor = [
     `Teams shipping ${cluster.primaryKeyword} content on a recurring basis`,
     `Operators who need ${cluster.offer} before they buy or build`,
@@ -6072,18 +7978,66 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     'Teams without a clear output format, owner, or review loop',
   ]
 
+  function buildOutcomeHeadline(pageType) {
+    switch (pageType) {
+      case 'hub':
+        return `Choose an ${cluster.primaryKeyword} workflow your team can actually reuse`
+      case 'alternatives':
+        return `Pick the ${cluster.primaryKeyword} path worth testing first`
+      case 'workflow':
+        return `Run one ${cluster.primaryKeyword} pilot that survives review`
+      case 'best-of':
+        return `Find the best ${cluster.primaryKeyword} tool for the job in front of you`
+      case 'pricing':
+        return `See what ${cluster.primaryKeyword} really costs once review starts`
+      case 'free-vs-paid':
+        return `Know when ${cluster.primaryKeyword} is still a cheap test and when it needs a paid workflow`
+      case 'use-case':
+        return `Match ${cluster.primaryKeyword} to the job you actually need to ship`
+      case 'template':
+        return `Turn the first ${cluster.primaryKeyword} pilot into a reusable handoff kit`
+      case 'case-study':
+        return `See how a scattered ${cluster.primaryKeyword} process becomes repeatable`
+      case 'faq':
+        return `Get the narrow ${cluster.primaryKeyword} answers that unblock the next move`
+      default:
+        return `${cluster.primaryKeyword} ${titleCase(pageType.replaceAll('-', ' '))}`
+    }
+  }
+
+  function buildOutcomeIntro(pageType, assetBinding) {
+    const primaryAssetTitle = assetBinding?.primary?.title ?? assetBinding?.title ?? assetSystem.primaryAsset.title
+
+    switch (pageType) {
+      case 'hub':
+        return `Decide whether ${cluster.primaryKeyword} belongs in your stack, which of the ${Math.max(shortlistRows.length, 2)} shortlist paths to review first, and when ${primaryAssetTitle.toLowerCase()} is the smarter next move than another round of tabs.`
+      case 'alternatives':
+        return `Collapse the field into one first click, one fallback, and one asset-backed decision record before ${Math.max(shortlistRows.length, 2)} visible options turn into another week of loose tabs.`
+      case 'workflow':
+        return `Run a ${workflowSteps.length}-step pilot that names the input, owner, review bar, and failure point before anyone argues about models or style.`
+      case 'best-of':
+        return `Use the shortlist to self-select fast by buyer fit and workflow maturity instead of giving every visible option the same review depth.`
+      case 'pricing':
+        return `Estimate the real operating cost of ${cluster.primaryKeyword} by separating the visible price floor from review drag, approvals, and reuse cost across the first ${workflowSteps.length}-step pilot.`
+      case 'free-vs-paid':
+        return `Name the upgrade boundary by asking when a one-person pilot becomes a shared ${workflowSteps.length}-step workflow with review load, reusable assets, and weekly throughput.`
+      case 'use-case':
+        return `Map ${Math.min(useCaseModels.length, 3)} concrete jobs like ${useCases.slice(0, 2).join(' and ')} to a trigger, workflow, and next asset before the category stays too abstract to buy or ship.`
+      case 'template':
+        return `See how ${assetSystem.primaryAsset.title}, ${assetSystem.secondaryAssets[0]?.title ?? 'the checklist'}, and ${assetSystem.secondaryAssets[1]?.title ?? 'the worksheet'} work together as a 3-part handoff kit instead of isolated downloads.`
+      case 'case-study':
+        return `See the before, the intervention, and the reusable asset system that makes the second cycle faster once one shortlist, one workflow, and one handoff asset replace ad hoc research.`
+      case 'faq':
+        return `Get the one pricing, workflow, or prompt answer that still stands between the visitor and the next concrete move.`
+      default:
+        return `Answer the next ${cluster.primaryKeyword} decision without losing the workflow thread.`
+    }
+  }
+
   function idsFromRefs(items, limit = 2) {
     const ids = items.filter(Boolean).slice(0, limit).map((item) => item.id)
     return ids.length > 0 ? ids : sharedSourceIds.slice(0, limit)
   }
-
-  const useCaseModels = buildResearchUseCaseModels(
-    cluster,
-    useCases,
-    useCaseSignalEntries,
-    assetSystem,
-    idsFromRefs([...sourcePack.categories.workflow, ...sourcePack.categories.community], 2),
-  )
 
   function buildUseCaseCards(models = useCaseModels.slice(0, 3)) {
     return models.map((model) => {
@@ -6549,10 +8503,18 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
   }
 
   function buildAssetUseCaseLabels(asset) {
-    return useCaseModels
+    const mappedLabels = useCaseModels
       .filter((model) => model.cta.assetSlug === asset.slug)
       .map((model) => model.label)
       .slice(0, 4)
+
+    if (mappedLabels.length > 0) return mappedLabels
+
+    if (asset.slug === 'workflow-checklist' || asset.slug === 'benchmark-checklist') {
+      return useCaseModels.slice(0, 3).map((model) => model.label)
+    }
+
+    return useCases.slice(0, 3)
   }
 
   function buildAssetDeliverySteps(asset) {
@@ -6725,6 +8687,166 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     return ['Carry the working note forward before the next run begins.']
   }
 
+  function buildAssetPrerequisites(asset) {
+    if (asset.slug === 'prompt-pack') {
+      return [
+        'Have one source asset, one target channel, and one conversion goal before you touch the first prompt block.',
+        'Name one reviewer and one publish-ready definition so the first pass is judged by a fixed bar.',
+        'Keep the first pilot narrow enough that the reuse notes can capture what changed in review.',
+      ]
+    }
+
+    if (asset.slug === 'workflow-checklist' || asset.slug === 'benchmark-checklist') {
+      return [
+        'Name the workflow owner, the reviewer, and the success metric before the checklist is filled.',
+        'Choose one narrow use case instead of trying to document the whole category at once.',
+        'Treat the first failure mode as required output, not as an embarrassing side effect.',
+      ]
+    }
+
+    if (asset.slug === 'comparison-worksheet' || asset.slug === 'evaluation-worksheet') {
+      return [
+        'Bring three to four real contenders, not a giant market map.',
+        'Use one production-shaped use case so the score reflects real workflow friction instead of feature hype.',
+        'Log visible pricing and hidden review cost before anyone defends a favorite option.',
+      ]
+    }
+
+    return [
+      'Start with one narrow use case and one owner.',
+      'Fix the output definition before you start the first pilot.',
+      'Write down the first failure mode so the second run starts smarter.',
+    ]
+  }
+
+  function buildAssetOperatingModes(asset) {
+    if (asset.slug === 'prompt-pack') {
+      return [
+        {
+          title: 'Solo use',
+          detail: 'One operator can copy the intake block, run one launch clip, and save the winning hook plus review delta for the second pass.',
+        },
+        {
+          title: 'Team use',
+          detail: 'Use the review rubric and reuse notes so product marketing, creative, and approvers judge the same structure instead of reinventing the bar in chat.',
+        },
+        {
+          title: 'Client work',
+          detail: 'Use the intake block and reviewer note to freeze the deliverable definition early, then save the revision pattern so the next client brief starts cleaner.',
+        },
+      ]
+    }
+
+    if (asset.slug === 'workflow-checklist' || asset.slug === 'benchmark-checklist') {
+      return [
+        {
+          title: 'Solo use',
+          detail: 'One operator can lock the owner, pass/fail bar, and first failure sign before tool testing drifts.',
+        },
+        {
+          title: 'Team use',
+          detail: 'Use the checklist as the shared operating document when more than one reviewer or approver touches the workflow.',
+        },
+        {
+          title: 'Client work',
+          detail: 'Use the checklist to define owner, review threshold, and delivery risk before the client interprets experimentation as a finished workflow.',
+        },
+      ]
+    }
+
+    if (asset.slug === 'comparison-worksheet' || asset.slug === 'evaluation-worksheet') {
+      return [
+        {
+          title: 'Solo use',
+          detail: 'One buyer can cut through vendor sprawl quickly by logging first choice, fallback, and reject reasons in one place.',
+        },
+        {
+          title: 'Team use',
+          detail: 'Use the weighted score and decision log so reviewers can disagree on one sheet instead of across scattered tabs.',
+        },
+        {
+          title: 'Client work',
+          detail: 'Use the commercial notes to document hidden cost, upgrade trigger, and unresolved risk before presenting a recommendation externally.',
+        },
+      ]
+    }
+
+    return [
+      {
+        title: 'Solo use',
+        detail: 'Use the asset on one narrow pilot before expanding the workflow.',
+      },
+      {
+        title: 'Team use',
+        detail: 'Share the asset with the next reviewer so the handoff stays stable.',
+      },
+      {
+        title: 'Client work',
+        detail: 'Use the asset to document the decision and reduce re-explaining in the next review loop.',
+      },
+    ]
+  }
+
+  function buildAssetBlankPreviewItems(asset) {
+    if (asset.slug === 'prompt-pack') {
+      return [
+        {
+          label: 'Blank intake fields',
+          detail: 'Source asset, target channel, conversion goal, reviewer, and publish-ready definition.',
+        },
+        {
+          label: 'Prompt variable slots',
+          detail: 'Hook angle, sequence beats, CTA frame, proof cue, and repair prompt slots left blank for the first live use case.',
+        },
+        {
+          label: 'Review note stub',
+          detail: 'A fill-in area for what changed after review, what still failed, and what the next teammate should preserve.',
+        },
+      ]
+    }
+
+    if (asset.slug === 'workflow-checklist' || asset.slug === 'benchmark-checklist') {
+      return [
+        {
+          label: 'Owner line',
+          detail: 'A blank owner field at every workflow step so responsibility is explicit before the pilot starts.',
+        },
+        {
+          label: 'Done definition',
+          detail: 'A blank pass/fail line for success metric and failure sign at each step.',
+        },
+        {
+          label: 'Handoff note',
+          detail: 'A blank note for what changed between the first pass and the repeat run.',
+        },
+      ]
+    }
+
+    if (asset.slug === 'comparison-worksheet' || asset.slug === 'evaluation-worksheet') {
+      return [
+        {
+          label: 'Contender columns',
+          detail: 'Blank rows for three to four real options plus one production-shaped use case.',
+        },
+        {
+          label: 'Weighted score fields',
+          detail: 'Blank scores for time-to-value, workflow friction, pricing clarity, review drag, and reuse potential.',
+        },
+        {
+          label: 'Decision log shell',
+          detail: 'Blank fields for first choice, fallback, reject reasons, hidden cost, and upgrade trigger.',
+        },
+      ]
+    }
+
+    return [
+      {
+        label: 'Blank template preview',
+        detail: 'A production-shaped shell the user can fill on the first live workflow.',
+      },
+    ]
+  }
+
   function buildAssetMarkdown(asset) {
     const lines = [
       `# ${asset.title}`,
@@ -6756,11 +8878,26 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         (item) => `${item.title}: ${item.detail}`,
       ),
       '',
+      '## Use before you start',
+      ...formatMarkdownBullets(buildAssetPrerequisites(asset)),
+      '',
       '## Input definition',
       ...formatMarkdownBullets(buildAssetInputDefinition(asset)),
       '',
       '## Output expected',
       ...formatMarkdownBullets(buildAssetOutputDefinition(asset)),
+      '',
+      '## Solo / team / client use',
+      ...formatMarkdownBullets(
+        buildAssetOperatingModes(asset),
+        (item) => `${item.title}: ${item.detail}`,
+      ),
+      '',
+      '## Blank template preview',
+      ...formatMarkdownBullets(
+        buildAssetBlankPreviewItems(asset),
+        (item) => `${item.label}: ${item.detail}`,
+      ),
       '',
       '## Workflow anchors',
       ...formatMarkdownBullets(
@@ -6954,6 +9091,20 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         rewriteInstruction: 'Add one worked example with concrete choices, outcomes, and what changed in review.',
       },
       {
+        key: 'blank_preview',
+        label: 'Blank preview visibility',
+        score:
+          hasHeading('Blank template preview') && assetRoute.blankPreviewItems.length >= 3
+            ? 10
+            : assetRoute.blankPreviewItems.length >= 2
+              ? 6
+              : 2,
+        threshold: 7,
+        critical: false,
+        failMessage: 'The asset still does not preview the blank working surface clearly enough.',
+        rewriteInstruction: 'Add a blank template preview that shows the exact fields or modules a first-time user will fill.',
+      },
+      {
         key: 'failure_visibility',
         label: 'Failure visibility',
         score:
@@ -6966,6 +9117,20 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         critical: false,
         failMessage: 'The failure modes are still too hidden.',
         rewriteInstruction: 'Expose the failure signs, watch-outs, and reject conditions in a dedicated section.',
+      },
+      {
+        key: 'operating_modes',
+        label: 'Operating mode clarity',
+        score:
+          hasHeading('Solo / team / client use') && assetRoute.operatingModes.length >= 3
+            ? 10
+            : assetRoute.operatingModes.length >= 2
+              ? 6
+              : 2,
+        threshold: 7,
+        critical: false,
+        failMessage: 'The asset does not clearly explain how solo, team, and client work differ.',
+        rewriteInstruction: 'Add solo, team, and client-work usage notes so the asset feels like a real deliverable, not just a generic download.',
       },
       {
         key: 'promise_match',
@@ -7087,9 +9252,12 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         landingFileName: `${fileStem}.html`,
         thankYouFileName: `${fileStem}-thank-you.html`,
         downloadFileName: `${asset.slug}.md`,
-        landingPath: `/generated-sites/${cluster.siteSlug}/${fileStem}.html`,
-        thankYouPath: `/generated-sites/${cluster.siteSlug}/${fileStem}-thank-you.html`,
-        downloadPath: `/generated-sites/${cluster.siteSlug}/downloads/${asset.slug}.md`,
+        previewLandingPath: `/generated-sites/${cluster.siteSlug}/${fileStem}.html`,
+        previewThankYouPath: `/generated-sites/${cluster.siteSlug}/${fileStem}-thank-you.html`,
+        previewDownloadPath: `/generated-sites/${cluster.siteSlug}/downloads/${asset.slug}.md`,
+        landingPath: `/${asset.slug}/`,
+        thankYouPath: `/${asset.slug}/ready/`,
+        downloadPath: `/downloads/${asset.slug}.md`,
         previewItems: buildAssetPreviewItems(asset),
         deliverables: buildAssetDeliverables(asset),
         deliverySteps: buildAssetDeliverySteps(asset),
@@ -7098,6 +9266,9 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         evidenceCards: buildAssetEvidenceCards(asset),
         scenarioCards: buildAssetScenarioCards(asset),
         firstActionCards: buildAssetFirstActionCards(asset),
+        prerequisites: buildAssetPrerequisites(asset),
+        operatingModes: buildAssetOperatingModes(asset),
+        blankPreviewItems: buildAssetBlankPreviewItems(asset),
         requestBullets: buildAssetRequestBullets(asset),
         followUpPageSlugs: buildAssetFollowUpPageSlugs(asset),
         acceptanceChecks: [
@@ -7126,14 +9297,14 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     })
   }
 
-  const assetDeliveryRecords = buildAssetDeliveryRecords()
+  const assetDeliveryRecords = sanitizePublicModel(buildAssetDeliveryRecords())
   const assetRouteMap = new Map(assetDeliveryRecords.map((asset) => [asset.slug, asset]))
 
   function buildSignalFacts(limit = 3) {
     const facts = [
       {
-        label: 'SERP coverage',
-        value: `${sourcePack.sourceCounts.serp} visible results and ${sourcePack.liveSignals.serpCommercialResults} commercial-style results shaped this cluster.`,
+        label: 'Search landscape',
+        value: `${sourcePack.sourceCounts.serp} visible search results and ${sourcePack.liveSignals.serpCommercialResults} buyer-focused pages informed this guide.`,
         sourceIds: idsFromRefs(sourceReferences, 2),
       },
       {
@@ -7143,7 +9314,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       },
       {
         label: 'Workflow depth',
-        value: `${sourcePack.sourceCounts.workflow} workflow refs, ${sourcePack.sourceCounts.deepResearch ?? 0} mapped deep-research pages, and ${useCases.length} concrete use cases were folded into the templates.`,
+        value: `${sourcePack.sourceCounts.workflow} workflow examples, ${sourcePack.sourceCounts.deepResearch ?? 0} mapped research pages, and ${useCases.length} concrete use cases shaped the recommendations and reusable templates.`,
         sourceIds: idsFromRefs(sourcePack.categories.workflow, 2),
       },
     ]
@@ -7151,17 +9322,20 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     return facts.slice(0, limit)
   }
 
-  function selectRefs(items, limit = 4) {
-    return items
-      .filter(Boolean)
+  function selectRefs(items, limit = 6) {
+    return dedupeBy(
+      items
+        .filter(Boolean)
+        .map((item) => ({
+          id: item.id,
+          label: item.title,
+          url: item.url,
+          domain: item.domain,
+          reason: item.snippet,
+        })),
+      'url',
+    )
       .slice(0, limit)
-      .map((item) => ({
-        id: item.id,
-        label: item.title,
-        url: item.url,
-        domain: item.domain,
-        reason: item.snippet,
-      }))
   }
 
   function buildFaqAnswer(question) {
@@ -7178,7 +9352,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     if (intent === 'prompt') {
       return `Tie prompts to a concrete input, output, and success metric. A prompt is only useful when it maps to a repeatable job-to-be-done.`
     }
-    return `Explain the category fast, name who it is for, and point the visitor to the next best decision surface: shortlist, workflow, or template.`
+    return `Explain the category quickly, name who it is for, and point the visitor to the next best page: shortlist, workflow, or template.`
   }
 
   function buildAssetBinding(pageType) {
@@ -7221,7 +9395,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     const normalizedPageType = normalizePageTemplateType(pageType)
     const shortlistLinks = shortlistRows.slice(0, 3).map((row) => ({
       label: row.name,
-      url: sourceRefMap.get(row.sourceIds[0])?.url ?? '#',
+      url: sourceRefMap.get(row.sourceIds[0])?.url ?? row.officialUrl ?? '#',
       note: row.verdict,
       event: 'affiliate_click',
       actionTier: 'high_intent_clickout',
@@ -7235,7 +9409,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     }))
     const consultUrl =
       process.env.CONTACT_CTA_URL?.trim() ||
-      `/generated-sites/${cluster.siteSlug}/audit-request.html`
+      '/audit/'
     const sponsoredUrl = process.env.SPONSORED_SLOT_URL?.trim() || ''
 
     const modules = []
@@ -7257,6 +9431,22 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
             label: 'Book an audit or consult',
             url: consultUrl,
             note: 'Higher-friction CTA for commercial-intent visitors',
+            event: 'consult_click',
+            actionTier: 'consult_interest',
+          },
+        ],
+      })
+    }
+    if (['alternatives', 'pricing', 'free-vs-paid', 'template-kit'].includes(normalizedPageType)) {
+      modules.push({
+        type: 'consult-cta',
+        title: 'Need a narrower recommendation?',
+        description: 'Offer a scoped audit when the visitor has buying pressure but still needs help choosing the first path.',
+        items: [
+          {
+            label: 'Request a scoped audit',
+            url: consultUrl,
+            note: 'Higher-intent CTA for visitors who need a recommendation, not just another download.',
             event: 'consult_click',
             actionTier: 'consult_interest',
           },
@@ -7423,13 +9613,13 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         claimKind: 'definition',
         decisionStage: 'discover',
         pageTypes: ['hub', 'faq', 'use-cases'],
-        statement: `${cluster.primaryKeyword} works best as a decision surface that combines tools, workflow guidance, and a reusable asset.`,
+        statement: `${cluster.primaryKeyword} works best as a practical guide that combines tool selection, workflow guidance, and a reusable asset.`,
         whyItMatters: 'Visitors searching this topic usually need a path to choose and act, not another category definition.',
         sourceIds: idsFromRefs([...sourcePack.categories.official, ...sourcePack.categories.serp], 2),
         counterpoint: 'If the visitor only wants a basic glossary answer, a full decision page can feel too heavy.',
         evidence: [
-          `${sourcePack.sourceCounts.serp} SERP results and ${sourcePack.sourceCounts.workflow} workflow refs shaped this cluster.`,
-          `Top intents observed: ${research.topIntents.join(', ') || 'overview'}.`,
+          `${sourcePack.sourceCounts.serp} search results and ${sourcePack.sourceCounts.workflow} workflow examples informed this guide.`,
+          `Popular reader needs: ${research.topIntents.join(', ') || 'overview'}.`,
         ],
       }),
       buildClaim({
@@ -7458,7 +9648,9 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         claimKind: 'comparison',
         decisionStage: 'compare',
         pageTypes: ['hub', 'alternatives', 'best-tools', 'pricing'],
-        statement: `${shortlistRows[0]?.name ?? cluster.primaryKeyword} is the recommended first shortlist review because it fits the highest-intent visitor best.`,
+        statement: softComparisonLanguage
+          ? `${shortlistRows[0]?.name ?? cluster.primaryKeyword} is a recommended starting point because it fits the highest-intent visitor shape in the current evidence set.`
+          : `${shortlistRows[0]?.name ?? cluster.primaryKeyword} is the recommended first shortlist review because it fits the highest-intent visitor best.`,
         whyItMatters: 'Comparison pages convert better when they collapse the field to one primary option and one fallback.',
         sourceIds: shortlistRows[0]?.sourceIds ?? sharedSourceIds,
         counterpoint: shortlistRows[0]?.notFor ?? caveats[0],
@@ -7497,7 +9689,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         counterpoint: 'If pricing becomes explicit later, the page should switch from caveat-heavy to benchmark-heavy.',
         evidence: [
           pricingSignals[0]?.value ?? caveats[0],
-          `Detected ${research.gapSummary.outdatedResultCount} outdated SERP results.`,
+          `Detected ${research.gapSummary.outdatedResultCount} outdated search results.`,
         ],
       }),
       ...useCaseModels.slice(0, 3).map((useCaseModel, index) =>
@@ -7696,71 +9888,76 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     useCaseModels,
     failureModes: caveats,
     competitorPositioning: shortlistRows.map((row) => ({
+      toolId: row.toolId,
       name: row.name,
       bestFor: row.bestFor,
       watchout: row.notFor,
+      evidenceSummary: row.evidenceSummary,
+      evidenceGap: row.evidenceGap,
       sourceIds: row.sourceIds,
     })),
     sourceIds: dedupe(sourceReferences.map((item) => item.id)).slice(0, 12),
     claimIds: claimLibrary.map((claim) => claim.id),
   }
-  const researchDossier = sourcePack.firecrawlAgentDossier
-    ? {
-        ...heuristicResearchDossier,
-        pricingSummary: mergeResearchDossierSignals(
-          heuristicResearchDossier.pricingSummary,
-          safeArray(sourcePack.firecrawlAgentDossier.pricingSummary),
-          sourceIdResolver,
-        ).slice(0, 6),
-        changelogSignals: mergeResearchDossierSignals(
-          heuristicResearchDossier.changelogSignals,
-          safeArray(sourcePack.firecrawlAgentDossier.changelogSignals),
-          sourceIdResolver,
-          'title',
-        ).slice(0, 6),
-        communityPainSignals: mergeResearchDossierSignals(
-          heuristicResearchDossier.communityPainSignals,
-          safeArray(sourcePack.firecrawlAgentDossier.communityPainSignals),
-          sourceIdResolver,
-          'detail',
-        ).slice(0, 6),
-        useCases: dedupe([
-          ...heuristicResearchDossier.useCases,
-          ...safeArray(sourcePack.firecrawlAgentDossier.useCases),
-        ]).slice(0, 8),
-        useCaseModels: heuristicResearchDossier.useCaseModels,
-        failureModes: dedupe([
-          ...heuristicResearchDossier.failureModes,
-          ...safeArray(sourcePack.firecrawlAgentDossier.failureModes),
-        ]).slice(0, 8),
-        competitorPositioning: dedupeBy(
-          [
-            ...heuristicResearchDossier.competitorPositioning,
-            ...safeArray(sourcePack.firecrawlAgentDossier.competitorPositioning).map((item) => ({
-              name: item.name,
-              bestFor: item.bestFor,
-              watchout: item.watchout,
-              sourceIds: sourceIdResolver(item.sourceUrl ?? item.url),
-            })),
-          ].filter((item) => item?.name),
-          'name',
-        ).slice(0, 6),
-        assetIdeas: safeArray(sourcePack.firecrawlAgentDossier.assetIdeas).slice(0, 6),
-        extractionSources: {
-          heuristic: true,
-          firecrawlAgent: true,
-          deepResearchPages: deepResearchPages.length,
+  const researchDossier = sanitizePublicModel(
+    sourcePack.firecrawlAgentDossier
+      ? {
+          ...heuristicResearchDossier,
+          pricingSummary: mergeResearchDossierSignals(
+            heuristicResearchDossier.pricingSummary,
+            safeArray(sourcePack.firecrawlAgentDossier.pricingSummary),
+            sourceIdResolver,
+          ).slice(0, 6),
+          changelogSignals: mergeResearchDossierSignals(
+            heuristicResearchDossier.changelogSignals,
+            safeArray(sourcePack.firecrawlAgentDossier.changelogSignals),
+            sourceIdResolver,
+            'title',
+          ).slice(0, 6),
+          communityPainSignals: mergeResearchDossierSignals(
+            heuristicResearchDossier.communityPainSignals,
+            safeArray(sourcePack.firecrawlAgentDossier.communityPainSignals),
+            sourceIdResolver,
+            'detail',
+          ).slice(0, 6),
+          useCases: dedupe([
+            ...heuristicResearchDossier.useCases,
+            ...safeArray(sourcePack.firecrawlAgentDossier.useCases),
+          ]).slice(0, 8),
+          useCaseModels: heuristicResearchDossier.useCaseModels,
+          failureModes: dedupe([
+            ...heuristicResearchDossier.failureModes,
+            ...safeArray(sourcePack.firecrawlAgentDossier.failureModes),
+          ]).slice(0, 8),
+          competitorPositioning: dedupeBy(
+            [
+              ...heuristicResearchDossier.competitorPositioning,
+              ...safeArray(sourcePack.firecrawlAgentDossier.competitorPositioning).map((item) => ({
+                name: item.name,
+                bestFor: item.bestFor,
+                watchout: item.watchout,
+                sourceIds: sourceIdResolver(item.sourceUrl ?? item.url),
+              })),
+            ].filter((item) => item?.name),
+            'name',
+          ).slice(0, 6),
+          assetIdeas: safeArray(sourcePack.firecrawlAgentDossier.assetIdeas).slice(0, 6),
+          extractionSources: {
+            heuristic: true,
+            firecrawlAgent: true,
+            deepResearchPages: deepResearchPages.length,
+          },
+        }
+      : {
+          ...heuristicResearchDossier,
+          assetIdeas: [],
+          extractionSources: {
+            heuristic: true,
+            firecrawlAgent: false,
+            deepResearchPages: deepResearchPages.length,
+          },
         },
-      }
-    : {
-        ...heuristicResearchDossier,
-        assetIdeas: [],
-        extractionSources: {
-          heuristic: true,
-          firecrawlAgent: false,
-          deepResearchPages: deepResearchPages.length,
-        },
-      }
+  )
 
   const pageBriefProfiles = {
     hub: {
@@ -7987,44 +10184,68 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
   function buildPricingEvidenceCards() {
     const cards = []
 
-    if (pricingAnchor) {
-      cards.push({
-        label: 'Visible price anchor',
-        detail: pricingAnchorSnapshot.price
-          ? `${pricingAnchor.label} shows a public floor price of ${pricingAnchorSnapshot.price}${pricingAnchorSnapshot.duration ? ` for a ${pricingAnchorSnapshot.duration} horizontal-video workflow` : ''}${pricingAnchorSnapshot.oneTime ? ', billed one time' : ''}${pricingAnchorSnapshot.noSubscription ? ', with no subscription shown on the page' : ''}.`
-          : `${pricingAnchor.label} is one of the few pages in the set with a public price anchor instead of vague plan labels.`,
-        href: sourceRefMap.get(pricingAnchor.sourceIds?.[0])?.url ?? '',
-      })
-    }
+    cards.push(
+      pricingAnchor
+        ? {
+            label: 'Visible price anchor',
+            detail: pricingAnchorSnapshot.price
+              ? `${pricingAnchor.label} shows a public floor price of ${pricingAnchorSnapshot.price}${pricingAnchorSnapshot.duration ? ` for a ${pricingAnchorSnapshot.duration} horizontal-video workflow` : ''}${pricingAnchorSnapshot.oneTime ? ', billed one time' : ''}${pricingAnchorSnapshot.noSubscription ? ', with no subscription shown on the page' : ''}.`
+              : `${pricingAnchor.label} is one of the few pages in the set with a public price anchor instead of vague plan labels.`,
+            href: sourceRefMap.get(pricingAnchor.sourceIds?.[0])?.url ?? '',
+          }
+        : {
+            label: 'Price-visibility gap',
+            detail: `${Math.max(shortlistRows.length, 2)} visible options are in play, but public pricing is still thin. That is why the comparison worksheet has to log hidden review cost and reuse drag before a purchase.`,
+            href: assetRouteMap.get(assetSystem.secondaryAssets[1]?.slug ?? assetSystem.primaryAsset.slug)?.landingPath ?? '',
+          },
+    )
 
-    if (workflowVolumeSignal) {
-      cards.push({
-        label: 'Batch-production signal',
-        detail:
-          'The community signal is a workflow-quality question, not a coupon question: operators are comparing which workflow still holds up as AI video quality changes, which usually appears once review consistency becomes the real cost.',
-        href: sourceRefMap.get(workflowVolumeSignal.sourceIds?.[0])?.url ?? '',
-      })
-    }
+    cards.push(
+      workflowVolumeSignal
+        ? {
+            label: 'Batch-production signal',
+            detail:
+              'The community signal is a workflow-quality question, not a coupon question: operators are comparing which workflow still holds up as AI video quality changes, which usually appears once review consistency becomes the real cost.',
+            href: sourceRefMap.get(workflowVolumeSignal.sourceIds?.[0])?.url ?? '',
+          }
+        : {
+            label: 'Review-load threshold',
+            detail: `${workflowSteps.length} workflow steps already name owner, success metric, and failure point. Once multiple reviewers touch those steps every week, the real cost shifts from generation to coordination.`,
+            href: assetRouteMap.get(assetSystem.primaryAsset.slug)?.landingPath ?? '',
+          },
+    )
 
-    if (automationScaleSource) {
-      cards.push({
-        label: 'Why teams pay',
-        detail:
-          `${automationScaleBrand} sells workflow controls like autopilot, scheduling, and a shared workspace. That is commercial evidence that buyers pay to remove coordination drag, not only to buy more generations.`,
-        href: automationScaleSource.url,
-      })
-    }
+    cards.push(
+      automationScaleSource
+        ? {
+            label: 'Why teams pay',
+            detail:
+              `${automationScaleBrand} sells workflow controls like autopilot, scheduling, and a shared workspace. That is commercial evidence that buyers pay to remove coordination drag, not only to buy more generations.`,
+            href: automationScaleSource.url,
+          }
+        : {
+            label: 'Why teams pay',
+            detail: `The paid decision usually arrives when ${useCaseModels[0]?.label ?? cluster.primaryKeyword} has a shared review queue, a reusable prompt pack, and more weekly output than one person can keep aligned by hand.`,
+            href: assetRouteMap.get(assetSystem.primaryAsset.slug)?.landingPath ?? '',
+          },
+    )
 
-    if (businessRoiSource) {
-      cards.push({
-        label: 'ROI-style proof',
-        detail:
-          `${businessRoiBrand} frames paid video around business output: studio-quality delivery, 160+ languages, and claims of up to 90% time-and-cost savings. That is the kind of ROI promise budget owners actually evaluate.`,
-        href: businessRoiSource.url,
-      })
-    }
+    cards.push(
+      businessRoiSource
+        ? {
+            label: 'ROI-style proof',
+            detail:
+              `${businessRoiBrand} frames paid video around business output: studio-quality delivery, 160+ languages, and claims of up to 90% time-and-cost savings. That is the kind of ROI promise budget owners actually evaluate.`,
+            href: businessRoiSource.url,
+          }
+        : {
+            label: 'Business-case threshold',
+            detail: `A believable paid recommendation should connect one repeatable use case, one owner, and one asset handoff to a business outcome before it asks for a larger workflow budget.`,
+            href: assetRouteMap.get(assetSystem.primaryAsset.slug)?.landingPath ?? '',
+          },
+    )
 
-    return cards.slice(0, 4)
+    return cards.filter(Boolean).slice(0, 4)
   }
 
   function buildAlternativesEvidenceCards() {
@@ -8033,7 +10254,9 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         shortlistRows[0]
           ? {
               label: 'Recommended first click',
-              detail: `${shortlistRows[0].name} stays first because it best fits ${shortlistRows[0].bestFor.toLowerCase()} and already carries a concrete watch-out: ${shortlistRows[0].notFor}.`,
+              detail: softComparisonLanguage
+                ? `${shortlistRows[0].name} is worth testing early because it fits ${shortlistRows[0].bestFor.toLowerCase()} and already carries a concrete workflow watch-out: ${shortlistRows[0].notFor}. The comparison worksheet should log where that first pilot could still fail before anyone treats the order as final.`
+                : `${shortlistRows[0].name} stays first because it best fits ${shortlistRows[0].bestFor.toLowerCase()} and already carries a concrete workflow watch-out: ${shortlistRows[0].notFor}. The comparison worksheet should log where that first pilot could still fail.`,
               href: sourceRefMap.get(shortlistRows[0].sourceIds?.[0])?.url ?? '',
             }
           : null,
@@ -8070,7 +10293,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       [
         {
           label: 'Step-level operating proof',
-          detail: `${workflowSteps.length} workflow checkpoints already name the input, output, owner, success metric, and failure point. That keeps this page grounded in an actual run sequence instead of generic advice.`,
+          detail: `${workflowSteps.length} workflow checkpoints already name the input, output, owner, success metric, and failure point. Together with the prompt pack and comparison worksheet, that keeps this page grounded in an actual run sequence instead of generic advice.`,
           href: '',
         },
         workflowVolumeSignal
@@ -8319,9 +10542,14 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       ...secondaryClaimIds,
     ])
     const claimCards = claimIds.map((id) => claimMap.get(id)).filter(Boolean)
+    const designHighValuePageTypes = safeArray(cluster.designProfile?.review?.highValuePageTypes)
+    const needsSpotCheck = designHighValuePageTypes.includes(pageType)
     const common = {
       keyword: cluster.primaryKeyword,
       thesisKey: cluster.thesisKey,
+      designProfileKey: cluster.designProfileKey,
+      designProfile: cluster.designProfile,
+      publicPath: resolvePublicPagePath({ type: pageType }),
       originalAnchors: originalAnchors.slice(0, 4),
       sourceReferences: pageSourceRefs,
       materialSlots: buildMaterialSlots(pageType, pageSourceRefs.map((ref) => sourceRefMap.get(ref.id))),
@@ -8337,14 +10565,19 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       primaryClaimIds,
       claimCards,
       researchDossier,
+      factsExtraction,
+      toolRanking,
+      comparisonDebugReport,
+      comparisonRankingMode: toolRanking.ranking_mode,
       useCaseModels,
       researchDossierId: researchDossier.id,
       reviewSignals: {
-        needsSpotCheck: ['hub', 'alternatives', 'workflow', 'template', 'case-study'].includes(pageType),
-        reasons:
-          ['hub', 'alternatives', 'workflow', 'template', 'case-study'].includes(pageType)
-            ? ['Contains recommendations, ordering, or CTA language that benefits from a quick spot-check.']
-            : [],
+        needsSpotCheck,
+        reasons: needsSpotCheck
+          ? [
+              `${titleCase(pageType.replaceAll('-', ' '))} is marked as a high-value page in the design profile and should get a quick operator spot-check.`,
+            ]
+          : [],
       },
     }
 
@@ -8356,20 +10589,20 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         type: 'hub',
         fileName: 'index.html',
         path: homePath,
-        title: `${cluster.primaryKeyword} hub: tools, workflow and pricing`,
+        title: `${cluster.primaryKeyword} guide: tools, workflow and pricing`,
         metaDescription: `A decision page for ${cluster.primaryKeyword} with verdicts, shortlist logic, workflow guidance, and the right next asset for buyers.`,
-        h1: `${cluster.primaryKeyword} hub`,
-        intro: `Use this hub to decide whether ${cluster.primaryKeyword} deserves a place in your stack, which option to shortlist first, and what workflow to test next.`,
+        h1: buildOutcomeHeadline('hub'),
+        intro: buildOutcomeIntro('hub', assetBinding),
         coveredIntents: ['overview', 'comparison', 'workflow', 'pricing'],
         verdicts: [
           {
-            title: 'Best for operators who need a decision surface, not another explainer',
+            title: 'Best for operators who need a practical decision guide, not another explainer',
             detail: `This cluster works when the buyer wants a shortlist, a workflow, and one asset that reduces execution friction.`,
             sourceIds: pageSourceRefs.slice(0, 2).map((item) => item.id),
           },
           {
             title: 'Weak pages lose visitors when they hide pricing clarity or rollout cost',
-            detail: caveats[0],
+            detail: `The strongest watch-out in the current source pack is still this: ${caveats[0] ?? 'buyers still lose time when pricing clarity and workflow failure points stay vague'}. That is why the hub has to show the pricing path, workflow path, and next asset before the scroll gets deep.`,
             sourceIds: pageSourceRefs.slice(0, 2).map((item) => item.id),
           },
         ],
@@ -8390,16 +10623,16 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
           {
             heading: 'Who this topic is for',
             paragraphs: [
-              `The best ${cluster.primaryKeyword} pages help ${cluster.audience} move from curiosity to a concrete next step.`,
-              `That means the page should tell the visitor who this category is for, who should skip it, and what to test first.`,
+              `${cluster.audience} usually land here because they need a shortlist built from ${Math.max(shortlistRows.length, 2)} visible options, a ${workflowSteps.length}-step rollout path, and one next asset they can act on without another research loop.`,
+              `The strongest hub makes fit, skip conditions, and the first test obvious before the visitor leaves the hero for the alternatives, workflow, or pricing page.`,
             ],
             bullets: [...bestFor, ...notFor.map((item) => `Not for: ${item}`)],
           },
           {
             heading: 'What the market still leaves unresolved',
             paragraphs: [
-              `Current search coverage still leaves these gaps: ${research.gapSummary.gapOpportunities.join('; ') || 'buyers need a clearer operator-ready recommendation'}.`,
-              `Use cases like ${useCases.slice(0, 3).join(', ')} should map to distinct decision paths rather than a single generic recommendation.`,
+              `Current search coverage still leaves these gaps across ${sourcePack.sourceCounts.workflow} workflow examples and ${sourcePack.sourceCounts.community} community signals: ${research.gapSummary.gapOpportunities.join('; ') || 'buyers need a clearer operator-ready recommendation'}.`,
+              `${Math.min(useCaseModels.length, 3)} use cases like ${useCases.slice(0, 3).join(', ')} should map to distinct decision paths and then route into the prompt pack, workflow checklist, or comparison worksheet.`,
             ],
             bullets: research.suggestions.slice(0, 6),
           },
@@ -8416,11 +10649,18 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         [
           ...research.faqCandidates,
           ...useCases.map((item) => ({ question: toQuestion(item), source: 'use-case' })),
-        ].map((item) => ({
-          question: item.question,
-          answer: buildFaqAnswer(item.question),
-          source: item.source,
-        })),
+        ]
+          .map((item) => {
+            const question = normalizeFaqQuestionText(cluster, item.question, item.source)
+            return question
+              ? {
+                  question,
+                  answer: buildFaqAnswer(question),
+                  source: item.source,
+                }
+              : null
+          })
+          .filter(Boolean),
         'question',
       ).slice(0, 6)
 
@@ -8433,8 +10673,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         path: `/generated-sites/${cluster.siteSlug}/faq.html`,
         title: `${cluster.primaryKeyword} FAQ: real questions, caveats, and next steps`,
         metaDescription: `Answer high-intent ${cluster.primaryKeyword} questions with grounded guidance on pricing, workflow, prompts, and rollout tradeoffs.`,
-        h1: `${cluster.primaryKeyword} FAQ`,
-        intro: `This FAQ page is for visitors who already have intent but still need one precise answer before they act.`,
+        h1: buildOutcomeHeadline('faq'),
+        intro: buildOutcomeIntro('faq', assetBinding),
         coveredIntents: ['overview', 'pricing', 'workflow', 'prompt'],
         faqItems,
         keyFacts: [
@@ -8458,7 +10698,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
           {
             heading: 'Questions worth answering early',
             paragraphs: [
-              'FAQ pages should resolve real questions quickly, then send the visitor to the right decision or implementation page.',
+              'Resolve the real question fast, then move the visitor into the comparison, workflow, or asset page that actually matches the next decision.',
             ],
             bullets: faqItems.map((item) => item.question),
           },
@@ -8480,19 +10720,19 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         path: `/generated-sites/${cluster.siteSlug}/alternatives.html`,
         title: `${cluster.primaryKeyword} alternatives: shortlist and tradeoffs`,
         metaDescription: `Compare ${cluster.primaryKeyword} alternatives with verdicts, best-for / not-for guidance, pricing clarity notes, and click-out next steps.`,
-        h1: `${cluster.primaryKeyword} alternatives`,
-        intro: `This page should help a buyer collapse a noisy field into a shortlist with one recommended first review and one fallback path.`,
+        h1: buildOutcomeHeadline('alternatives'),
+        intro: buildOutcomeIntro('alternatives', assetBinding),
         coveredIntents: ['comparison', 'pricing', 'overview'],
         verdicts: shortlistRows.slice(0, 2).map((row) => ({
           title: row.name,
-          detail: `${row.verdict}. Best for ${row.bestFor.toLowerCase()}.`,
+          detail: `${row.verdict}. Best for ${row.bestFor.toLowerCase()}. ${row.evidenceGap.length > 0 ? 'Evidence gaps remain, so treat this as a starting point, not a final ranking.' : row.evidenceSummary[0] ?? ''}`.trim(),
           sourceIds: row.sourceIds,
         })),
         decisionPaths: buildDecisionPaths(),
         evidenceCards: buildAlternativesEvidenceCards(),
         keyFacts: shortlistRows.slice(0, 3).map((row) => ({
           label: row.name,
-          value: `${row.bestFor}. Watch-out: ${row.notFor}`,
+          value: `${row.bestFor}. Watch-out: ${row.notFor}. Evidence: ${row.evidenceSummary[0] ?? 'Needs more pricing and limitation proof.'}`,
           sourceIds: row.sourceIds,
         })),
         comparisonRows: shortlistRows,
@@ -8500,8 +10740,12 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
           {
             heading: 'How to rank the shortlist',
             paragraphs: [
-              `Collapse ${cluster.primaryKeyword} into one first click, one fallback, and one asset path for each serious buyer job.`,
-              'Rank by buyer fit, implementation burden, and how quickly the visitor can turn the comparison into a repeatable decision record.',
+              toolRanking.ranking_mode === 'ranked_shortlist'
+                ? `Collapse ${cluster.primaryKeyword} into one first click, one fallback, and one asset path for each serious buyer job.`
+                : `Use these rows as recommended starting points while public evidence is still uneven; the point is to narrow the field without pretending the current run proves a perfect rank order.`,
+              softComparisonLanguage
+                ? `Use ${shortlistRows[0]?.name ?? 'the first option'}, ${shortlistRows[1]?.name ?? 'the fallback'}, and the remaining field as evidence-backed starting points, then let buyer fit, implementation burden, and missing proof decide the final order.`
+                : `Rank ${shortlistRows[0]?.name ?? 'the first option'}, ${shortlistRows[1]?.name ?? 'the fallback'}, and the remaining field by buyer fit, implementation burden, and how quickly the visitor can turn the comparison into a repeatable decision record.`,
             ],
             bullets: ['Time-to-value', 'Workflow friction', 'Pricing clarity', 'Reusable output quality'],
           },
@@ -8523,8 +10767,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         path: `/generated-sites/${cluster.siteSlug}/workflow.html`,
         title: `${cluster.primaryKeyword} workflow: steps, prompts and pitfalls`,
         metaDescription: `A practical ${cluster.primaryKeyword} workflow with steps, prompt examples, pitfalls, and the asset visitors can use after the first pilot.`,
-        h1: `${cluster.primaryKeyword} workflow`,
-        intro: `Implementation pages should remove ambiguity: what to input, what to output, what to measure, and what usually breaks first.`,
+        h1: buildOutcomeHeadline('workflow'),
+        intro: buildOutcomeIntro('workflow', assetBinding),
         coveredIntents: ['workflow', 'prompt', 'overview'],
         stepItems: workflowSteps,
         useCaseCards: buildUseCaseCards(),
@@ -8559,8 +10803,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
           {
             heading: 'What a real workflow page must cover',
             paragraphs: [
-              'A workflow page earns trust when it names the operating handoff, the review owner, and the failure point the team is likely to hit first.',
-              'The page should leave the reader with one believable pilot and one asset they can reuse on the second run.',
+              `Trust comes from naming the operating handoff, the review owner, and the first failure point inside a ${workflowSteps.length}-step workflow before the team argues about tools or style.`,
+              `By the end of the page, the reader should know the pilot to run, the failure sign to watch for, and whether ${assetBinding.primary.title.toLowerCase()} or ${assetBinding.secondary?.title?.toLowerCase() ?? 'the prompt pack'} makes the second run cleaner.`,
             ],
             bullets: workflowSteps.map((item) => item.title),
           },
@@ -8582,24 +10826,27 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         path: `/generated-sites/${cluster.siteSlug}/best-tools.html`,
         title: `Best ${cluster.primaryKeyword} tools: shortlist by buyer fit`,
         metaDescription: `A best-of page for ${cluster.primaryKeyword} that groups tools by buyer fit, workflow maturity, and commercial readiness.`,
-        h1: `Best ${cluster.primaryKeyword} tools`,
-        intro: `Best-of pages should group options by fit so visitors can self-select quickly.`,
+        h1: buildOutcomeHeadline('best-of'),
+        intro: buildOutcomeIntro('best-of', assetBinding),
         coveredIntents: ['comparison', 'overview'],
         verdicts: shortlistRows.map((row) => ({
           title: row.name,
-          detail: row.verdict,
+          detail: `${row.verdict}. ${row.evidenceSummary[0] ?? ''}`.trim(),
           sourceIds: row.sourceIds,
         })),
         keyFacts: shortlistRows.map((row) => ({
           label: row.name,
-          value: row.bestFor,
+          value: `${row.bestFor}. ${row.evidenceGap.length > 0 ? 'Evidence gap: ' + row.evidenceGap.join(', ') : row.evidenceSummary[0] ?? ''}`.trim(),
           sourceIds: row.sourceIds,
         })),
+        comparisonRows: shortlistRows,
         sections: [
           {
             heading: 'How to use this shortlist',
             paragraphs: [
-              'Use a best-of page to split the market by who should click first, not by who has the longest feature list.',
+              toolRanking.ranking_mode === 'ranked_shortlist'
+                ? 'Use a best-of page to split the market by who should click first, not by who has the longest feature list.'
+                : 'Use this page to choose the first tools worth testing, not to over-claim a final ordering the evidence cannot fully support yet.',
             ],
             bullets: shortlistRows.map((row) => `${row.name}: ${row.bestFor}`),
           },
@@ -8621,8 +10868,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         path: `/generated-sites/${cluster.siteSlug}/pricing.html`,
         title: `${cluster.primaryKeyword} pricing: hidden costs and fit`,
         metaDescription: `A pricing page for ${cluster.primaryKeyword} explaining cost clarity, hidden workflow cost, and what buyers should compare before they click out.`,
-        h1: `${cluster.primaryKeyword} pricing`,
-        intro: `Pricing content should help the buyer estimate operating cost even when exact public pricing is incomplete. Use the visible price anchors, the weekly-workflow signals, and the reuse story to decide what this workflow really costs after the first pilot.`,
+        h1: buildOutcomeHeadline('pricing'),
+        intro: buildOutcomeIntro('pricing', assetBinding),
         coveredIntents: ['pricing', 'comparison'],
         verdicts: [
           {
@@ -8722,7 +10969,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
             paragraphs: [
               automationScaleSource
                 ? `${automationScaleBrand} argues for the paid path with operational language such as autopilot, scheduling, and one workspace, while ROI claims like multilingual delivery or major time savings do the selling for ${businessRoiBrand || 'business-focused vendors'}. Both are selling workflow efficiency rather than a single render.`
-                : 'The paid path earns its keep when the workflow outcome matters more than the cheapest possible first pass.',
+                : `The paid path earns its keep once the ${workflowSteps.length}-step workflow has a named reviewer, repeat launches, and a reusable prompt pack or comparison worksheet.`,
               `For ${useCaseModels[0]?.label ?? cluster.primaryKeyword}, the practical paid unlock is a reusable prompt pack, a stable review rubric, and fewer approvals spread across chat, docs, and editors.`,
             ],
             bullets: ['Approval speed', 'Shared workspace', 'Repeatable prompt or template asset', 'Lower review drag'],
@@ -8745,15 +10992,15 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         path: `/generated-sites/${cluster.siteSlug}/free-vs-paid.html`,
         title: `${cluster.primaryKeyword} free vs paid: when the upgrade is worth it`,
         metaDescription: `Use this page to explain when free ${cluster.primaryKeyword} options break down and when a paid upgrade starts making sense.`,
-        h1: `${cluster.primaryKeyword} free vs paid`,
-        intro: `Free-vs-paid pages convert when they explain the upgrade trigger, not when they only repeat plan names. The useful comparison is whether a single launch clip has turned into a weekly workflow with a review queue and a reusable template asset.`,
+        h1: buildOutcomeHeadline('free-vs-paid'),
+        intro: buildOutcomeIntro('free-vs-paid', assetBinding),
         coveredIntents: ['pricing', 'comparison', 'workflow'],
         verdicts: [
           {
             title: 'Stay on the cheapest path while the job is still a one-off',
             detail: pricingAnchorSnapshot.price
               ? `Stay near-free while one person is validating one launch clip. A visible ${pricingAnchorSnapshot.price}${pricingAnchorSnapshot.duration ? ` benchmark for a ${pricingAnchorSnapshot.duration} output` : ' public benchmark'} is enough for that stage.`
-              : 'The free path works while the team is still validating whether the workflow matters at all.',
+              : 'The free path works while one owner is still validating whether the workflow matters at all, without a shared queue or reusable asset yet.',
             sourceIds: pricingAnchor?.sourceIds ?? idsFromRefs(pageSourceRefs, 1),
           },
           {
@@ -8767,7 +11014,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
             title: 'Paid earns its keep when reuse beats experimentation',
             detail: automationScaleSource
               ? 'The paid path becomes rational when scheduling, shared approvals, and reusable workflow assets matter more than shaving a little cost off the first draft.'
-              : 'Paid plans start making sense when the team has a repeatable use case, a clear owner, and a need for predictable output.',
+              : 'Paid plans start making sense when the team has a repeatable use case, a clear owner, a shared review queue, and a reusable prompt pack or checklist.',
             sourceIds: automationScaleSource ? [automationScaleSource.id] : idsFromRefs(pageSourceRefs, 1),
           },
           {
@@ -8841,7 +11088,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
             paragraphs: [
               automationScaleSource
                 ? `${automationScaleBrand} makes the paid workflow promise tangible with autopilot, scheduling, and one workspace, while ROI language such as multilingual delivery or major time savings makes the higher spend easier to defend for ${businessRoiBrand || 'business-focused tools'}.`
-                : 'Paid becomes rational when the team is paying more in coordination drag than it would in software spend.',
+                : 'Paid becomes rational when the team is paying more in coordination drag across approvals, checklist handoff, and review notes than it would in software spend.',
               `For ${useCaseModels[0]?.label ?? cluster.primaryKeyword}, the upgrade is justified only after there is a standing workflow, a review owner, and at least one prompt or template asset that will be reused on the next release.`,
             ],
             bullets: ['Shared approvals', 'Batch throughput', 'Reusable prompt or template system', 'Faster handoff to the next launch'],
@@ -8864,8 +11111,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         path: `/generated-sites/${cluster.siteSlug}/use-cases.html`,
         title: `${cluster.primaryKeyword} use cases: who should use it and how`,
         metaDescription: `A use-case page for ${cluster.primaryKeyword} that maps different buyer jobs to the right workflow, template, or shortlist path.`,
-        h1: `${cluster.primaryKeyword} use cases`,
-        intro: `Use-case pages make the category feel concrete by tying it to a job, a trigger, and a measurable outcome.`,
+        h1: buildOutcomeHeadline('use-case'),
+        intro: buildOutcomeIntro('use-case', assetBinding),
         coveredIntents: ['overview', 'workflow'],
         useCaseCards: buildUseCaseCards(useCaseModels),
         keyFacts: useCaseModels.slice(0, 3).map((item, index) => ({
@@ -8881,8 +11128,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
           {
             heading: 'Common production-shaped use cases',
             paragraphs: [
-              'Use-case pages should feel like a researcher already narrowed the category into real operator jobs, not like a glossary shuffled into bullet points.',
-              'Each card needs an audience, a trigger, a workflow, and a CTA path that makes the next move obvious.',
+              `${Math.min(useCaseModels.length, 3)} mapped operator jobs keep this page useful; otherwise it collapses into a glossary instead of a production plan.`,
+              `Each card should connect one audience, one trigger, one workflow, and one CTA path such as ${assetBinding.primary.title} or ${assetSystem.secondaryAssets[1]?.title ?? 'the comparison worksheet'}.`,
             ],
             bullets: useCases,
           },
@@ -8904,8 +11151,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         path: `/generated-sites/${cluster.siteSlug}/template-kit.html`,
         title: `${cluster.primaryKeyword} template kit: assets and prompts`,
         metaDescription: `A template and asset page for ${cluster.primaryKeyword} that explains what is included, who it is for, and how to use it after the first visit.`,
-        h1: `${cluster.primaryKeyword} template kit`,
-        intro: `The template kit bundles one first-run prompt pack, one repeat-run workflow checklist, and one comparison worksheet so a team can move from first pilot to reusable handoff without reopening search or rebuilding the brief.`,
+        h1: buildOutcomeHeadline('template'),
+        intro: buildOutcomeIntro('template', assetBinding),
         coveredIntents: ['prompt', 'workflow', 'overview'],
         verdicts: [
           {
@@ -8949,24 +11196,28 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
             detail: `${workflowSteps.length} workflow anchors already exist with owner, success metric, and failure point. The kit turns those workflow notes into something the next teammate can actually reuse.`,
             href: assetRouteMap.get(assetBinding.primary.slug)?.landingPath ?? '',
           },
-          ...(pricingAnchorSnapshot.price
-            ? [
-                {
-                  label: 'Visible pilot budget anchor',
-                  detail: `A visible public benchmark still starts at ${pricingAnchorSnapshot.price}${pricingAnchorSnapshot.duration ? ` for a ${pricingAnchorSnapshot.duration} workflow` : ''}${pricingAnchorSnapshot.oneTime ? ', one-time' : ''}. The kit should cut review waste and prompt thrash before it tries to justify a bigger workflow budget.`,
-                  href: sourceRefMap.get(pricingAnchor?.sourceIds?.[0])?.url ?? '',
-                },
-              ]
-            : []),
-          ...(automationScaleSource || businessRoiSource
-            ? [
-                {
-                  label: 'Commercial proof for reuse',
-                  detail: `${automationScaleBrand || 'Workflow-suite vendors'} sell scheduling, shared workspace, and autopilot, while the ROI case comes from ${businessRoiBrand || 'business video tools'} through language such as multilingual delivery or major time savings. The kit exists to make that paid workflow reusable.`,
-                  href: automationScaleSource?.url ?? businessRoiSource?.url ?? '',
-                },
-              ]
-            : []),
+          {
+            label: pricingAnchorSnapshot.price ? 'Visible pilot budget anchor' : 'Pilot budget boundary',
+            detail: pricingAnchorSnapshot.price
+              ? `A visible public benchmark still starts at ${pricingAnchorSnapshot.price}${pricingAnchorSnapshot.duration ? ` for a ${pricingAnchorSnapshot.duration} workflow` : ''}${pricingAnchorSnapshot.oneTime ? ', one-time' : ''}. The kit should cut review waste and prompt thrash before it tries to justify a bigger workflow budget.`
+              : `${assetDeliveryRecords.length} linked assets support the first pilot before the team expands spend. The kit should cut review waste and prompt thrash before it tries to justify a bigger workflow budget.`,
+            href:
+              sourceRefMap.get(pricingAnchor?.sourceIds?.[0])?.url ??
+              assetRouteMap.get(assetBinding.primary.slug)?.landingPath ??
+              '',
+          },
+          {
+            label: automationScaleSource || businessRoiSource ? 'Commercial proof for reuse' : 'Use-case routing proof',
+            detail:
+              automationScaleSource || businessRoiSource
+                ? `${automationScaleBrand || 'Workflow-suite vendors'} sell scheduling, shared workspace, and autopilot, while the ROI case comes from ${businessRoiBrand || 'business video tools'} through language such as multilingual delivery or major time savings. The kit exists to make that paid workflow reusable.`
+                : `${useCaseModels.length} mapped use-case routes already point to the prompt pack, checklist, or worksheet. That routing logic is the proof that the kit supports a real workflow instead of three disconnected downloads.`,
+            href:
+              automationScaleSource?.url ??
+              businessRoiSource?.url ??
+              assetRouteMap.get(assetBinding.primary.slug)?.landingPath ??
+              '',
+          },
         ].slice(0, 4),
         assetPreview: assetDeliveryRecords.map((asset) => ({
           label: asset.title,
@@ -9054,8 +11305,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
             paragraphs: [
               pricingAnchorSnapshot.price
                 ? `A public benchmark still starts around ${pricingAnchorSnapshot.price}${pricingAnchorSnapshot.duration ? ` for ${pricingAnchorSnapshot.duration}` : ''}, so the first pilot should stay cheap. The kit earns its keep by reducing prompt thrash, review waste, and handoff confusion around that pilot.`
-                : 'The first pilot should stay narrow and cheap. The kit earns its keep by reducing prompt thrash, review waste, and handoff confusion.',
-              'The real value appears on the second run, when another teammate has to reuse the workflow, defend the shortlist, or compare the next tool without reopening five tabs.',
+                : `The first pilot should stay narrow and cheap. The kit earns its keep by reducing prompt thrash, review waste, and handoff confusion across a ${workflowSteps.length}-step workflow.`,
+              `The real value appears on the second run, when another teammate has to reuse the 3-part kit, defend the shortlist in the comparison worksheet, or compare the next tool without reopening five tabs.`,
             ],
             bullets: [
               'One prompt pack for the first run',
@@ -9069,7 +11320,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
               `${assetSystem.primaryAsset.title}, ${assetSystem.secondaryAssets[0]?.title ?? 'the workflow checklist'}, and ${assetSystem.secondaryAssets[1]?.title ?? 'the comparison worksheet'} each remove a different kind of drag: drafting, reviewing, and deciding.`,
               automationScaleSource
                 ? `${automationScaleBrand} and ${businessRoiBrand || 'other ROI-led tools'} show why this matters: once the workflow is recurring, buyers pay for scheduling, shared workspace, multilingual delivery, and time savings. The kit needs to support that more serious workflow, not just hand out a download.`
-                : 'The kit needs to feel like real operating work turned into reusable assets, not a decorative CTA shell.',
+                : `The kit needs to feel like 3 concrete operating assets with prompt blocks, checklist thresholds, and comparison notes, not a decorative CTA shell.`,
             ],
             bullets: [
               'Concrete modules inside each asset',
@@ -9094,8 +11345,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       path: `/generated-sites/${cluster.siteSlug}/case-study.html`,
       title: `${cluster.primaryKeyword} case study: research to repeatable ops`,
       metaDescription: `A case-study style page showing how a team can move from scattered research into a reusable ${cluster.primaryKeyword} workflow and asset system.`,
-      h1: `${cluster.primaryKeyword} case study`,
-      intro: `Case-study pages earn trust by showing a believable before, a concrete intervention, and an outcome that maps back to the real workflow.`,
+      h1: buildOutcomeHeadline('case-study'),
+      intro: buildOutcomeIntro('case-study', assetBinding),
       coveredIntents: ['workflow', 'overview', 'comparison'],
       keyFacts: [
         {
@@ -9105,7 +11356,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         },
         {
           label: 'Intervention',
-          value: 'Reduce the decision surface to one shortlist, one workflow, and one asset.',
+          value: 'Reduce the path to one shortlist, one workflow, and one asset.',
           sourceIds: idsFromRefs(pageSourceRefs, 2),
         },
         {
@@ -9121,7 +11372,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         },
         {
           title: 'After',
-          body: `They reduced the decision surface to one shortlist, one workflow, and one asset that made the next cycle faster.`,
+          body: `They reduced the path to one shortlist, one workflow, and one asset that made the next cycle faster.`,
         },
       ],
       beforeAfter: [
@@ -9157,7 +11408,10 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     sourcePack,
     assetSystem,
     claimLibrary,
+    factsExtraction,
     researchDossier,
+    toolRanking,
+    comparisonDebugReport,
     useCases,
     useCaseModels,
     shortlistRows,
@@ -9175,6 +11429,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     const pageBrief = buildPageBrief(pageType, assetBinding)
     pageBriefs.push(pageBrief)
     let page = buildPageSpec(pageType, assetBinding, pageBrief)
+    page.publicPath = page.publicPath || resolvePublicPagePath(page)
     const aiDraft = await maybeGenerateAiPageDraft(page, sourcePack)
     if (aiDraft?.intro) page.intro = aiDraft.intro
     if (Array.isArray(aiDraft?.sectionNarratives)) {
@@ -9194,26 +11449,36 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
   }
 
   const pageLinks = pages.map((page) => ({
+    slug: page.slug,
+    type: page.type,
     label: page.navLabel,
     path: page.path,
     fileName: page.fileName,
+    publicPath: page.publicPath || '',
   }))
   const finalizedPages = pages.map((page) => {
-    const narrativeStats = analyzePageNarrative(page)
-    const workflowDetailCount = safeArray(page.stepItems).filter(
+    const sanitizedPage = sanitizePublicModel(page)
+    const narrativeStats = analyzePageNarrative(sanitizedPage)
+    const publicCopyStats = analyzePublicCopy(buildPageAuditSurface(sanitizedPage))
+    const comparisonRows = safeArray(sanitizedPage.comparisonRows)
+    const comparisonToolRows = comparisonRows.filter((row) => meaningfulText(row?.toolId))
+    const comparisonDomainRows = comparisonRows.filter(
+      (row) => !meaningfulText(row?.toolId) && /\b[a-z0-9-]+\.[a-z]{2,}\b/i.test(row?.name ?? ''),
+    )
+    const workflowDetailCount = safeArray(sanitizedPage.stepItems).filter(
       (item) => item.input && item.output && item.owner && item.successMetric && item.failurePoint,
     ).length
     const proofModuleCount = [
-      safeArray(page.decisionPaths).length > 0,
-      safeArray(page.useCaseCards).length > 0,
-      safeArray(page.evidenceCards).length > 0,
-      safeArray(page.assetPreview).length > 0,
-      safeArray(page.beforeAfter).length > 0,
-      safeArray(page.deliveryFlow).length > 0,
+      safeArray(sanitizedPage.decisionPaths).length > 0,
+      safeArray(sanitizedPage.useCaseCards).length > 0,
+      safeArray(sanitizedPage.evidenceCards).length > 0,
+      safeArray(sanitizedPage.assetPreview).length > 0,
+      safeArray(sanitizedPage.beforeAfter).length > 0,
+      safeArray(sanitizedPage.deliveryFlow).length > 0,
     ].filter(Boolean).length
 
     return {
-      ...page,
+      ...sanitizedPage,
       draftEngine:
         contentConfig.aiProvider === 'heuristic' ||
         !contentConfig.aiEndpoint ||
@@ -9221,62 +11486,80 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         !contentConfig.aiModel
           ? 'fact-synthesizer'
           : 'ai-provider',
-      internalLinks: pageLinks.filter((link) => link.path !== page.path),
-      ctaHref: assetRouteMap.get(page.assetBinding?.primary?.slug)?.landingPath ?? '',
+      internalLinks: pageLinks.filter((link) => link.path !== sanitizedPage.path),
+      ctaHref: assetRouteMap.get(sanitizedPage.assetBinding?.primary?.slug)?.landingPath ?? '',
       ctaEvent: 'asset_cta_click',
       contentStats: {
-        factCount: page.keyFacts?.length ?? 0,
-        verdictCount: page.verdicts?.length ?? 0,
-        exampleCount: page.examples?.length ?? 0,
+        factCount: sanitizedPage.keyFacts?.length ?? 0,
+        verdictCount: sanitizedPage.verdicts?.length ?? 0,
+        exampleCount: sanitizedPage.examples?.length ?? 0,
         caveatCount: caveats.length,
-        sourceRefCount: page.sourceReferences?.length ?? 0,
-        materialSlotCount: page.materialSlots?.length ?? 0,
-        commercialModuleCount: page.commercialModules?.length ?? 0,
-        claimCount: page.claimIds?.length ?? 0,
-        claimStatementCount: safeArray(page.claimCards).filter((claim) => meaningfulText(claim?.statement)).length,
-        claimEvidenceLineCount: safeArray(page.claimCards).reduce(
+        sourceRefCount: sanitizedPage.sourceReferences?.length ?? 0,
+        materialSlotCount: sanitizedPage.materialSlots?.length ?? 0,
+        commercialModuleCount: sanitizedPage.commercialModules?.length ?? 0,
+        claimCount: sanitizedPage.claimIds?.length ?? 0,
+        claimStatementCount: safeArray(sanitizedPage.claimCards).filter((claim) =>
+          meaningfulText(claim?.statement),
+        ).length,
+        claimEvidenceLineCount: safeArray(sanitizedPage.claimCards).reduce(
           (sum, claim) => sum + meaningfulList(claim?.evidence).length,
           0,
         ),
-        primaryClaimCount: page.primaryClaimIds?.length ?? 0,
-        briefSectionCount: page.pageBrief?.requiredSections?.length ?? 0,
-        briefQuestionCount: safeArray(page.pageBrief?.mustWinQuestions).length,
-        briefCompletenessScore: computePageBriefCompletenessScore(page.pageBrief),
-        signalRichSourceCount: safeArray(page.sourceReferences).filter(
+        primaryClaimCount: sanitizedPage.primaryClaimIds?.length ?? 0,
+        briefSectionCount: sanitizedPage.pageBrief?.requiredSections?.length ?? 0,
+        briefQuestionCount: safeArray(sanitizedPage.pageBrief?.mustWinQuestions).length,
+        briefCompletenessScore: computePageBriefCompletenessScore(sanitizedPage.pageBrief),
+        signalRichSourceCount: safeArray(sanitizedPage.sourceReferences).filter(
           (item) => !isLowSignalText(item.reason || item.label),
         ).length,
-        lowSignalSourceCount: safeArray(page.sourceReferences).filter((item) =>
+        lowSignalSourceCount: safeArray(sanitizedPage.sourceReferences).filter((item) =>
           isLowSignalText(item.reason || item.label),
         ).length,
-        specificityScore: computePageSpecificityScore(page),
+        specificityScore: computePageSpecificityScore(sanitizedPage),
         repeatedSentenceCount: repeatedSentenceCount(
           [
-            page.intro,
-            ...safeArray(page.sections).flatMap((section) => safeArray(section.paragraphs)),
-            ...safeArray(page.examples).map((item) => item.body),
+            sanitizedPage.intro,
+            ...safeArray(sanitizedPage.sections).flatMap((section) => safeArray(section.paragraphs)),
+            ...safeArray(sanitizedPage.examples).map((item) => item.body),
           ]
             .filter(Boolean)
             .join(' '),
         ),
         dossierSignalCount:
-          safeArray(page.researchDossier?.pricingSummary).length +
-          safeArray(page.researchDossier?.communityPainSignals).length +
-          safeArray(page.researchDossier?.changelogSignals).length,
+          safeArray(sanitizedPage.researchDossier?.pricingSummary).length +
+          safeArray(sanitizedPage.researchDossier?.communityPainSignals).length +
+          safeArray(sanitizedPage.researchDossier?.changelogSignals).length,
         paragraphCount: narrativeStats.paragraphCount,
         genericPhraseCount: narrativeStats.genericPhraseCount,
         aiFlavorPhraseCount: narrativeStats.aiFlavorPhraseCount,
         genericParagraphCount: narrativeStats.genericParagraphCount,
         aiFlavorParagraphCount: narrativeStats.aiFlavorParagraphCount,
         lowEvidenceParagraphCount: narrativeStats.lowEvidenceParagraphCount,
+        internalJargonCount: publicCopyStats.internalJargonCount,
+        dirtySourceCount: publicCopyStats.dirtySourceCount,
+        adjacentDuplicateWordCount: publicCopyStats.adjacentDuplicateWordCount,
         structuredUseCaseCount:
-          safeArray(page.useCaseCards).length + safeArray(page.decisionPaths).length,
-        decisionPathCount: safeArray(page.decisionPaths).length,
-        evidenceCardCount: safeArray(page.evidenceCards).length,
+          safeArray(sanitizedPage.useCaseCards).length + safeArray(sanitizedPage.decisionPaths).length,
+        decisionPathCount: safeArray(sanitizedPage.decisionPaths).length,
+        evidenceCardCount: safeArray(sanitizedPage.evidenceCards).length,
         workflowDetailCount,
-        assetPreviewCount: safeArray(page.assetPreview).length,
-        beforeAfterCount: safeArray(page.beforeAfter).length,
-        deliveryFlowCount: safeArray(page.deliveryFlow).length,
+        assetPreviewCount: safeArray(sanitizedPage.assetPreview).length,
+        beforeAfterCount: safeArray(sanitizedPage.beforeAfter).length,
+        deliveryFlowCount: safeArray(sanitizedPage.deliveryFlow).length,
         proofModuleCount,
+        comparisonRowCount: comparisonRows.length,
+        rankedToolRowCount: comparisonToolRows.length,
+        domainRowCount: comparisonDomainRows.length,
+        comparisonEvidenceSummaryCount: comparisonRows.filter(
+          (row) => safeArray(row?.evidenceSummary).length > 0,
+        ).length,
+        comparisonEvidenceGapCount: comparisonRows.filter(
+          (row) => safeArray(row?.evidenceGap).length > 0,
+        ).length,
+        coreToolRowCount: comparisonRows.filter((row) => row?.marketTier === 'core').length,
+        comparisonUsesRankedTools:
+          comparisonRows.length === 0 || comparisonToolRows.length === comparisonRows.length,
+        comparisonRankingMode: sanitizedPage.comparisonRankingMode ?? '',
       },
     }
   })
@@ -9355,11 +11638,171 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     }
   })
 
+  const publicHomeAsset = conversionAssets[0] ?? null
+  const hubPage = finalizedPages.find((page) => page.slug === 'index') ?? finalizedPages[0] ?? null
+  const alternativesPage =
+    finalizedPages.find((page) => page.type === 'alternatives') ?? hubPage ?? null
+  const workflowPage =
+    finalizedPages.find((page) => page.type === 'workflow') ?? hubPage ?? null
+  const faqPage = finalizedPages.find((page) => page.type === 'faq') ?? null
+  const pricingPage = finalizedPages.find((page) => page.type === 'pricing') ?? null
+  const freeVsPaidPage = finalizedPages.find((page) => page.type === 'free-vs-paid') ?? null
+  const templatePage = finalizedPages.find((page) => page.type === 'template-kit') ?? null
+  const publicHome = sanitizePublicModel({
+    slug: 'public-home',
+    navLabel: 'Home',
+    type: 'public-home',
+    fileName: 'index.html',
+    path: '/',
+    title: `${cluster.primaryKeyword} workflow: choose the right tool, prompt, and next step`,
+    metaDescription: `Find the best ${cluster.primaryKeyword} path with a clear comparison, rollout workflow, and one asset-backed next step for teams who need to ship instead of keep researching.`,
+    h1: `${cluster.label}: pick the right tool, prompt, and workflow before the research loop expands again`,
+    intro: `Use one public homepage to compare the shortlist, understand the rollout, and open the first asset-backed next step without bouncing between thin comparison posts and generic AI explainers.`,
+    heroEyebrow: `${cluster.label} guide`,
+    heroSummaryItems: [
+      {
+        label: 'Built for',
+        detail: cluster.audience,
+      },
+      {
+        label: 'Outcome',
+        detail: `One shortlist, one ${workflowSteps.length}-step workflow, and one next asset before the research loop expands again.`,
+      },
+      {
+        label: 'Best next move',
+        detail: `${publicHomeAsset?.title ?? assetSystem.primaryAsset.title} for low-friction implementation, or a consult request for a narrower audit.`,
+      },
+    ],
+    selectorTitle: `Find your best ${cluster.primaryKeyword} starting path`,
+    selectorIntro: 'Pick the bottleneck that matches this cycle, then open the page or asset that removes the most decision drag first.',
+    selectorCards: useCaseModels.slice(0, 4).map((model, index) => ({
+      title: model.label,
+      audience: model.audience,
+      priority:
+        index === 0
+          ? 'Start here first'
+          : index === 1
+            ? 'Best second path'
+            : 'Useful fallback',
+      detail: `${model.trigger} ${model.workflow}`,
+      href:
+        getPageHref(finalizedPages.find((page) => page.type === 'workflow')) ||
+        getPageHref(finalizedPages.find((page) => page.type === 'hub')) ||
+        '',
+      ctaLabel: index === 0 ? 'Start here' : 'Open path',
+    })),
+    keyFacts: [
+      {
+        label: 'Visible shortlist',
+        value: `${Math.max(shortlistRows.length, 2)} options already reduced into a first click, a fallback, and a reject path.`,
+      },
+      {
+        label: 'Workflow depth',
+        value: `${workflowSteps.length} named steps cover owner, input, output, success metric, and failure point.`,
+      },
+      {
+        label: 'Assets ready',
+        value: `${conversionAssets.length} downloadable assets back the homepage instead of a generic CTA shell.`,
+      },
+    ],
+    comparisonRows: safeArray(alternativesPage?.comparisonRows).slice(0, 4),
+    stepItems: safeArray(workflowPage?.stepItems).slice(0, 5),
+    assetPreview: safeArray(publicHomeAsset?.deliverables).slice(0, 4),
+    faqItems: safeArray(faqPage?.faqItems).slice(0, 5),
+    sections: [
+      {
+        heading: 'This homepage is a decision page first',
+        paragraphs: [
+          `The root page should help ${cluster.audience} decide whether to compare tools, price the workflow, or take the first implementation asset before the scroll gets lost in explanation.`,
+          `That means the homepage has to surface recommendation, proof, workflow shape, and next action earlier than a normal article hub would.`,
+        ],
+        bullets: [
+          'Recommendation before background',
+          'Proof before decorative copy',
+          'Asset or consult CTA before another research loop',
+        ],
+      },
+      {
+        heading: 'Use the supporting pages when the question gets narrower',
+        paragraphs: [
+          `The homepage handles the broad decision. The compare, workflow, pricing, free-vs-paid, and templates pages exist to answer the narrower question that shows up right after that.`,
+        ],
+        bullets: [
+          `Compare: ${(alternativesPage?.comparisonRows?.[0]?.name ?? shortlistRows[0]?.name ?? 'rank the shortlist')} first`,
+          `Workflow: ${workflowSteps[0]?.title ?? 'run the first pilot'}`,
+          `Pricing: ${pricingSignals[0]?.value ?? 'separate visible cost from review cost'}`,
+        ],
+      },
+    ],
+    nextPageCards: [
+      workflowPage
+        ? {
+            title: 'Open the workflow page',
+            detail: `Use the ${workflowSteps.length}-step rollout when the team already accepts the category and now needs the practical pilot path.`,
+            href: getPageHref(workflowPage),
+            ctaLabel: 'Open workflow',
+          }
+        : null,
+      alternativesPage
+        ? {
+            title: 'Open the comparison page',
+            detail: 'Use the shortlist view when the field is still too wide and the buyer needs a first recommendation and fallback.',
+            href: getPageHref(alternativesPage),
+            ctaLabel: 'Open comparison',
+          }
+        : null,
+      pricingPage
+        ? {
+            title: 'Open the pricing page',
+            detail: 'Use the pricing path when the team needs to separate visible plan cost from review drag and reuse cost.',
+            href: getPageHref(pricingPage),
+            ctaLabel: 'Open pricing',
+          }
+        : null,
+      freeVsPaidPage
+        ? {
+            title: 'Open free vs paid',
+            detail: 'Use this when the workflow is leaving solo experimentation and turning into a recurring team process.',
+            href: getPageHref(freeVsPaidPage),
+            ctaLabel: 'Open cost boundary',
+          }
+        : null,
+      templatePage
+        ? {
+            title: 'Open templates',
+            detail: 'Use the template page when the visitor is ready to turn one pilot into a reusable operating kit.',
+            href: getPageHref(templatePage),
+            ctaLabel: 'Open templates',
+          }
+        : null,
+    ].filter(Boolean),
+    ctaTitle: publicHomeAsset?.title ?? assetSystem.primaryAsset.title,
+    ctaCopy: `Start with ${publicHomeAsset?.title ?? assetSystem.primaryAsset.title} when the team needs a real first-run asset with prompts, checklist logic, and reusable handoff notes. Use the consult path when the workflow is already live and the decision now needs a narrower recommendation.`,
+    secondaryCtaTitle: `Request ${indefiniteArticleFor(cluster.label)} ${cluster.label} audit`,
+    secondaryCtaCopy:
+      'Use the higher-intent consult path when the team already has a live workflow question, a named owner, and a concrete outcome to resolve this cycle.',
+    ctaEvent: publicHomeAsset?.clickEvent ?? 'asset_cta_click',
+    ctaHref: publicHomeAsset?.landingPath ?? '',
+    assetBinding: {
+      primary: {
+        slug: publicHomeAsset?.slug ?? assetSystem.primaryAsset.slug,
+        title: publicHomeAsset?.title ?? assetSystem.primaryAsset.title,
+        landingPath: publicHomeAsset?.landingPath ?? '',
+      },
+    },
+    schemaType: 'WebPage',
+    footerNote: `Automiora gives buyers and operators one public homepage that routes into comparison, workflow, pricing, and reusable template assets without exposing internal pipeline structure.`,
+  })
+
   return {
     pages: finalizedPages,
+    publicHome,
     claims: claimLibrary,
     pageBriefs,
+    factsExtraction,
     researchDossier,
+    toolRanking,
+    comparisonDebugReport,
     conversionAssets,
   }
 }
@@ -9407,7 +11850,7 @@ function renderSchema(site, page, canonicalUrl) {
     return {
       '@context': 'https://schema.org',
       '@type': 'HowTo',
-      name: `${site.cluster.primaryKeyword} workflow`,
+      name: sanitizePublicText(`${site.cluster.primaryKeyword} workflow`),
       step: (page.stepItems?.length ? page.stepItems.map((item) => item.title) : [
         'Choose the first pilot use case',
         'Define the success metric',
@@ -9437,20 +11880,103 @@ function renderComparisonTable(rows) {
   const body = rows
     .map(
       (row) =>
-        `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.bestFor ?? row.strength ?? '')}</td><td>${escapeHtml(row.notFor ?? row.drawback ?? '')}</td><td>${escapeHtml(row.verdict ?? row.pricingSignal ?? '')}</td></tr>`,
+        `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.bestFor ?? row.strength ?? '')}</td><td>${escapeHtml(row.notFor ?? row.drawback ?? '')}</td><td>${escapeHtml(row.verdict ?? row.pricingSignal ?? '')}</td><td>${escapeHtml((row.evidenceSummary ?? []).join(' ') || (row.evidenceGap?.length ? `Evidence gap: ${row.evidenceGap.join(', ')}` : ''))}</td></tr>`,
     )
     .join('')
+  const recommendedMode = rows.some((row) => safeArray(row.evidenceGap).length > 0)
 
   return `
-    <section>
-      <h2>Verdict table</h2>
+    <section class="comparison-module">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Shortlist</p>
+          <h2>Compare the obvious options first</h2>
+        </div>
+        <p class="section-copy">${escapeHtml(recommendedMode ? 'Use this table as an evidence-backed starting point when the current run still has gaps. It is here to narrow the field before you spend another round on prompts, pricing tabs, or sample renders.' : 'Use this table to rule out the wrong tool shape before you spend another round on prompts, pricing tabs, or sample renders.')}</p>
+      </div>
+      <div class="comparison-table-shell">
       <table>
         <thead>
-          <tr><th>Option</th><th>Best for</th><th>Not for</th><th>Verdict</th></tr>
+          <tr><th>Option</th><th>Best for</th><th>Not for</th><th>Verdict</th><th>Evidence summary</th></tr>
         </thead>
         <tbody>${body}</tbody>
       </table>
+      </div>
     </section>
+  `
+}
+
+const publicRouteByPageType = {
+  alternatives: '/compare/',
+  workflow: '/workflow/',
+  pricing: '/pricing/',
+  'free-vs-paid': '/free-vs-paid/',
+  'template-kit': '/templates/',
+  'best-tools': '/best-tools/',
+  'use-cases': '/use-cases/',
+  'case-study': '/case-study/',
+  faq: '/faq/',
+}
+
+function resolvePublicPagePath(page) {
+  if (!page) return ''
+  return publicRouteByPageType[page.type] ?? ''
+}
+
+function getPageHref(page) {
+  if (page?.slug === 'index' || page?.type === 'hub') return '/'
+  return page?.publicPath || page?.path || ''
+}
+
+function renderPublicHomeSelector(page) {
+  if (!page.selectorCards?.length) return ''
+
+  return `
+    <aside class="selector-panel">
+      <div class="selector-shell">
+        <p class="selector-eyebrow">Decision helper</p>
+        <h2>${escapeHtml(page.selectorTitle ?? 'Pick the right next move')}</h2>
+        ${
+          meaningfulText(page.selectorIntro)
+            ? `<p class="selector-copy">${escapeHtml(page.selectorIntro)}</p>`
+            : ''
+        }
+        <div class="selector-grid">
+          ${page.selectorCards
+            .map(
+              (item, index) => `
+                <article class="selector-card${index === 0 ? ' selector-card--featured' : ''}">
+                  <div class="selector-card-head">
+                    <span class="selector-step">Path ${index + 1}</span>
+                    ${
+                      meaningfulText(item.priority)
+                        ? `<span class="selector-priority">${escapeHtml(item.priority)}</span>`
+                        : ''
+                    }
+                  </div>
+                  <strong>${escapeHtml(item.title)}</strong>
+                  ${
+                    meaningfulText(item.audience)
+                      ? `<p><span class="meta-label">Best for</span> ${escapeHtml(item.audience)}</p>`
+                      : ''
+                  }
+                  ${
+                    meaningfulText(item.detail)
+                      ? `<p>${escapeHtml(item.detail)}</p>`
+                      : ''
+                  }
+                  ${
+                    meaningfulText(item.href)
+                      ? `<p><a class="selector-link" href="${escapeHtml(item.href)}">${escapeHtml(item.ctaLabel ?? 'Open path')}</a></p>`
+                      : ''
+                  }
+                </article>
+              `,
+            )
+            .join('')}
+        </div>
+      </div>
+    </aside>
   `
 }
 
@@ -9466,6 +11992,533 @@ function renderVisualFigure(visualAsset, title, detail = '') {
       </figcaption>
     </figure>
   `
+}
+
+function getSiteDesignProfile(siteOrCluster) {
+  return siteOrCluster?.designProfile ?? siteOrCluster?.cluster?.designProfile ?? {}
+}
+
+function normalizeHexColor(value, fallback) {
+  const normalized = String(value ?? '').trim()
+  return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(normalized) ? normalized : fallback
+}
+
+function hexToRgb(hex) {
+  const normalized = normalizeHexColor(hex, '#000000').replace('#', '')
+  if (normalized.length === 3) {
+    return normalized
+      .split('')
+      .map((item) => Number.parseInt(`${item}${item}`, 16))
+  }
+  return [
+    Number.parseInt(normalized.slice(0, 2), 16),
+    Number.parseInt(normalized.slice(2, 4), 16),
+    Number.parseInt(normalized.slice(4, 6), 16),
+  ]
+}
+
+function alphaColor(hex, alpha, fallback) {
+  const [r, g, b] = hexToRgb(hex ?? fallback)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function buildThemeTokens(designProfile) {
+  const palette = designProfile?.palette ?? {}
+  const background = normalizeHexColor(palette.background, '#171717')
+  const surface = normalizeHexColor(palette.surface, '#1f1f1f')
+  const surfaceAlt = normalizeHexColor(palette.surfaceAlt, '#262626')
+  const text = normalizeHexColor(palette.text, '#efede7')
+  const mutedText = normalizeHexColor(palette.mutedText, '#d3cec3')
+  const accent = normalizeHexColor(palette.accent, '#8eb777')
+  const secondaryAccent = normalizeHexColor(palette.secondaryAccent, '#dcb45c')
+  const warning = normalizeHexColor(palette.warning, '#c98c66')
+
+  return {
+    background,
+    surface,
+    surfaceAlt,
+    text,
+    mutedText,
+    accent,
+    secondaryAccent,
+    warning,
+    borderSoft: alphaColor(text, 0.08, '#efede7'),
+    borderMuted: alphaColor(text, 0.12, '#efede7'),
+    accentSoft: alphaColor(accent, 0.12, '#8eb777'),
+    secondaryAccentSoft: alphaColor(secondaryAccent, 0.1, '#dcb45c'),
+    surfaceGlass: alphaColor(text, 0.03, '#efede7'),
+  }
+}
+
+function renderThemeCss(designProfile, options = {}) {
+  const tokens = buildThemeTokens(designProfile)
+  const contentWidth = options.contentWidth ?? '980px'
+  return `
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, sans-serif;
+        --page-bg: ${tokens.background};
+        --surface: ${tokens.surface};
+        --surface-alt: ${tokens.surfaceAlt};
+        --surface-glass: ${tokens.surfaceGlass};
+        --text-strong: ${tokens.text};
+        --text-muted: ${tokens.mutedText};
+        --accent: ${tokens.accent};
+        --accent-soft: ${tokens.accentSoft};
+        --accent-2: ${tokens.secondaryAccent};
+        --accent-2-soft: ${tokens.secondaryAccentSoft};
+        --warning: ${tokens.warning};
+        --border-soft: ${tokens.borderSoft};
+        --border-muted: ${tokens.borderMuted};
+        --content-width: ${contentWidth};
+      }
+    `
+}
+
+function buildHeroProofItems(page, designProfile) {
+  const prioritized = [
+    ...safeArray(page.keyFacts).map((item) => ({
+      label: item.label,
+      detail: item.value,
+    })),
+    ...safeArray(page.evidenceCards).map((item) => ({
+      label: item.label,
+      detail: item.detail,
+    })),
+    ...safeArray(page.assetPreview).map((item) => ({
+      label: item.label ?? item.title,
+      detail: item.detail ?? item.body,
+    })),
+  ]
+
+  const proofObjects = safeArray(designProfile?.proofObjects).map((item) => String(item).toLowerCase())
+  const sorted = prioritized.toSorted((left, right) => {
+    const leftScore = proofObjects.some((item) =>
+      `${left.label} ${left.detail}`.toLowerCase().includes(item),
+    )
+      ? 1
+      : 0
+    const rightScore = proofObjects.some((item) =>
+      `${right.label} ${right.detail}`.toLowerCase().includes(item),
+    )
+      ? 1
+      : 0
+    return rightScore - leftScore
+  })
+
+  return dedupeBy(sorted.filter((item) => item.label && item.detail), 'label').slice(0, 3)
+}
+
+function renderHeroProofStrip(page, designProfile) {
+  if (!designProfile?.hero?.showProofStrip) return ''
+  const items = buildHeroProofItems(page, designProfile)
+  if (items.length === 0) return ''
+
+  return `
+    <div class="hero-proof-strip">
+      ${items
+        .map(
+          (item) => `
+            <article class="hero-proof-item">
+              <span class="meta-label">${escapeHtml(item.label)}</span>
+              <p>${escapeHtml(item.detail)}</p>
+            </article>
+          `,
+        )
+        .join('')}
+    </div>
+  `
+}
+
+function isHighValuePageForProfile(pageType, designProfile) {
+  return safeArray(designProfile?.review?.highValuePageTypes).includes(pageType)
+}
+
+function firstMeaningfulText(...values) {
+  for (const value of values) {
+    if (meaningfulText(value)) return value
+  }
+  return ''
+}
+
+function buildPageFitLine(site, page, designProfile) {
+  return firstMeaningfulText(
+    safeArray(page.useCaseCards)[0]?.audience,
+    safeArray(page.decisionPaths)[0]?.audience,
+    safeArray(page.comparisonRows)[0]?.bestFor,
+    designProfile?.audience,
+    site.cluster.audience,
+  )
+}
+
+function buildPageSkipLine(site, page) {
+  const riskFact = safeArray(page.keyFacts).find((item) =>
+    /\b(risk|watch|not for|skip)\b/i.test(`${item.label} ${item.value}`),
+  )
+  const counterpoint = safeArray(page.claimCards).find((claim) => meaningfulText(claim?.counterpoint))
+
+  return firstMeaningfulText(
+    safeArray(page.decisionPaths)[0]?.watchOut,
+    safeArray(page.comparisonRows)[0]?.notFor,
+    riskFact?.value,
+    counterpoint?.counterpoint,
+    safeArray(page.verdicts)[1]?.detail,
+    safeArray(page.examples)[0]?.body,
+    'Skip the bigger rollout until the owner, review threshold, and first workflow outcome are all explicit.',
+  )
+}
+
+function buildPageRecommendationLine(page) {
+  return firstMeaningfulText(
+    safeArray(page.verdicts)[0]?.detail,
+    page.intro,
+    safeArray(page.sections)[0]?.paragraphs?.[0],
+    'Use the strongest recommendation on this page to narrow the next move before the workflow sprawls.',
+  )
+}
+
+function buildPageNextStepReason(site, page, designProfile) {
+  const primaryAssetTitle =
+    page.assetBinding?.primary?.title ??
+    page.ctaTitle ??
+    designProfile?.primaryCtaLabel ??
+    site.cluster.ctaLabel
+
+  switch (page.type) {
+    case 'hub':
+      return `${primaryAssetTitle} is the fastest way to move from category curiosity into one shortlist, one workflow, and one production-shaped first test.`
+    case 'alternatives':
+      return `${primaryAssetTitle} belongs here because the field is already narrow enough that the visitor should document the first choice, fallback, and reject reasons before reopening search.`
+    case 'workflow':
+      return `${primaryAssetTitle} is the right next move once the visitor accepts the workflow shape and now needs an owner, a pass/fail line, and a reusable handoff for the second run.`
+    case 'pricing':
+      return `${primaryAssetTitle} fits this page because the decision has moved from “what exists?” to “what really costs money once review drag, approvals, and reuse show up?”`
+    case 'free-vs-paid':
+      return `${primaryAssetTitle} helps the visitor log the real upgrade boundary before a budget conversation turns into guesswork.`
+    case 'template-kit':
+      return `${primaryAssetTitle} should feel like the product on this page, because the visitor is ready to turn one pilot into a reusable kit instead of taking another decorative download.`
+    case 'case-study':
+      return `${primaryAssetTitle} is the concrete bridge from the story on this page into the repeatable workflow the visitor wants to recreate.`
+    case 'use-cases':
+      return `${primaryAssetTitle} keeps the use case from staying theoretical by turning the chosen scenario into a first pilot.`
+    default:
+      return `${primaryAssetTitle} is the clearest next step once this page has answered the visitor's immediate question.`
+  }
+}
+
+function buildPageNextStepLine(site, page, designProfile) {
+  const primaryAssetTitle =
+    page.assetBinding?.primary?.title ??
+    page.ctaTitle ??
+    designProfile?.primaryCtaLabel ??
+    site.cluster.ctaLabel
+
+  return `${primaryAssetTitle}: ${buildPageNextStepReason(site, page, designProfile)}`
+}
+
+function renderHeroAudienceSummary(site, page, designProfile) {
+  if (!designProfile?.hero?.showAudienceSummary) return ''
+  const isHighValuePage = isHighValuePageForProfile(page.type, designProfile)
+  const summaryItems = isHighValuePage
+    ? [
+        {
+          label: 'Best for',
+          detail: buildPageFitLine(site, page, designProfile),
+        },
+        {
+          label: 'Skip if',
+          detail: buildPageSkipLine(site, page),
+        },
+        {
+          label: 'Next step',
+          detail: buildPageNextStepLine(site, page, designProfile),
+        },
+      ]
+    : [
+        {
+          label: 'Built for',
+          detail: designProfile?.audience ?? site.cluster.audience,
+        },
+        {
+          label: 'Outcome',
+          detail: designProfile?.primaryOutcome ?? site.cluster.offer,
+        },
+        {
+          label: 'Positioning',
+          detail: designProfile?.brandPositioning ?? site.cluster.siteDefinition,
+        },
+      ]
+
+  return `
+    <div class="hero-summary">
+      ${summaryItems
+        .filter((item) => meaningfulText(item?.detail))
+        .map(
+          (item) => `
+            <article class="hero-summary-item">
+              <span class="meta-label">${escapeHtml(item.label)}</span>
+              <p>${escapeHtml(item.detail)}</p>
+            </article>
+          `,
+        )
+        .join('')}
+    </div>
+  `
+}
+
+function renderHeroActionRow(site, page, designProfile) {
+  if (!designProfile?.hero?.showActionRow) return ''
+
+  const primaryHref = page.ctaHref
+  const primaryLabel =
+    page.assetBinding?.primary?.title ??
+    page.ctaTitle ??
+    designProfile?.primaryCtaLabel ??
+    site.cluster.ctaLabel
+  const requiresSecondary = safeArray(designProfile?.review?.requiresSecondaryCtaOn).includes(page.type)
+  const secondaryHref = site.commercialOffer?.landingPath ?? ''
+  const secondaryLabel =
+    designProfile?.secondaryCtaLabel ?? `Request a ${site.cluster.label} audit`
+
+  if (!primaryHref && !(requiresSecondary && secondaryHref)) return ''
+
+  return `
+    <div class="hero-actions">
+      ${
+        primaryHref
+          ? `<a
+              class="cta-button"
+              href="${escapeHtml(primaryHref)}"
+              data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}"
+              data-ga4-label="${escapeHtml(primaryLabel)}"
+            >
+              ${escapeHtml(primaryLabel)}
+            </a>`
+          : ''
+      }
+      ${
+        requiresSecondary && secondaryHref
+          ? `<a
+              class="secondary-cta"
+              href="${escapeHtml(secondaryHref)}"
+              data-ga4-event="consult_click"
+              data-ga4-label="${escapeHtml(secondaryLabel)}"
+            >
+              ${escapeHtml(secondaryLabel)}
+            </a>`
+          : ''
+      }
+    </div>
+  `
+}
+
+function pageNeedsSpotCheck(page) {
+  return Boolean(
+    page?.reviewSignals?.needsSpotCheck ||
+      page?.designReview?.needsSpotCheck ||
+      safeArray(page?.designReview?.issues).length > 0,
+  )
+}
+
+function buildDecisionSurfaceCards(site, page, designProfile) {
+  const primaryAssetTitle =
+    page.assetBinding?.primary?.title ??
+    page.ctaTitle ??
+    designProfile?.primaryCtaLabel ??
+    site.cluster.ctaLabel
+
+  return [
+    {
+      label: 'Recommendation',
+      detail: buildPageRecommendationLine(page),
+      className: 'decision-recommendation',
+    },
+    {
+      label: 'Best for',
+      detail: buildPageFitLine(site, page, designProfile),
+      className: 'decision-fit',
+    },
+    {
+      label: 'Watch-out',
+      detail: buildPageSkipLine(site, page),
+      className: 'decision-watchout',
+    },
+    {
+      label: 'Do this next',
+      detail: `${primaryAssetTitle}. ${buildPageNextStepReason(site, page, designProfile)}`,
+      className: 'decision-next-step',
+    },
+  ].filter((item) => meaningfulText(item.detail))
+}
+
+function renderDecisionSurface(site, page, designProfile) {
+  if (!isHighValuePageForProfile(page.type, designProfile)) return ''
+  const cards = buildDecisionSurfaceCards(site, page, designProfile)
+  if (cards.length === 0) return ''
+
+  return `
+    <section class="decision-surface" data-decision-surface="true">
+      <h2>What this page helps you decide</h2>
+      <div class="card-grid">
+        ${cards
+          .map(
+            (item) => `
+              <article class="mini-card ${escapeHtml(item.className)}">
+                <span class="meta-label">${escapeHtml(item.label)}</span>
+                <p>${escapeHtml(item.detail)}</p>
+              </article>
+            `,
+          )
+          .join('')}
+      </div>
+    </section>
+  `
+}
+
+function renderNextStepBridge(site, page, designProfile) {
+  if (!isHighValuePageForProfile(page.type, designProfile)) return ''
+
+  const primaryAssetTitle =
+    page.assetBinding?.primary?.title ??
+    page.ctaTitle ??
+    designProfile?.primaryCtaLabel ??
+    site.cluster.ctaLabel
+  const secondaryLabel =
+    designProfile?.secondaryCtaLabel ?? `Request a ${site.cluster.label} audit`
+  const secondaryHref = site.commercialOffer?.landingPath ?? ''
+
+  return `
+    <section class="next-step-bridge">
+      <h2>Why this next step makes sense now</h2>
+      <p>${escapeHtml(buildPageNextStepReason(site, page, designProfile))}</p>
+      <ul>
+        <li>${escapeHtml(`${primaryAssetTitle} turns this page into a concrete operating move instead of another tab left open for later.`)}</li>
+        <li>${escapeHtml(`If the visitor still needs a narrower commercial recommendation, ${secondaryLabel.toLowerCase()} keeps the higher-intent path separate from a lightweight download.`)}</li>
+      </ul>
+      ${
+        secondaryHref
+          ? `<p><a class="text-link" href="${escapeHtml(secondaryHref)}">${escapeHtml(secondaryLabel)}</a></p>`
+          : ''
+      }
+    </section>
+  `
+}
+
+function evaluatePageDesign(siteOrCluster, page, renderedHtml = '') {
+  const designProfile = getSiteDesignProfile(siteOrCluster)
+  const pageType = page?.type ?? ''
+  const issues = []
+  let score = 100
+  const highValuePageTypes = safeArray(designProfile?.review?.highValuePageTypes)
+  const requiresSecondaryCtaOn = safeArray(designProfile?.review?.requiresSecondaryCtaOn)
+  const requireNonFallbackHeroOn = safeArray(designProfile?.review?.requireNonFallbackHeroOn)
+  const heroRequiresProof = Boolean(designProfile?.hero?.requireProofAboveFold)
+  const heroNeedsAudienceSummary = Boolean(designProfile?.hero?.showAudienceSummary)
+  const heroNeedsActionRow = Boolean(designProfile?.hero?.showActionRow)
+  const isHighValuePage = highValuePageTypes.includes(pageType)
+  const requiresSecondaryCta = requiresSecondaryCtaOn.includes(pageType)
+  const requiresNonFallbackHero = requireNonFallbackHeroOn.includes(pageType)
+  const heroHasVisual = renderedHtml.includes('class="hero-visual"')
+  const heroHasProofStrip = renderedHtml.includes('class="hero-proof-strip"')
+  const heroHasAudienceSummary = renderedHtml.includes('class="hero-summary"')
+  const heroHasActionRow = renderedHtml.includes('class="hero-actions"')
+  const heroHasSecondaryCta = renderedHtml.includes('class="secondary-cta"')
+  const hasDecisionSurface = renderedHtml.includes('class="decision-surface"')
+  const hasNextStepBridge = renderedHtml.includes('class="next-step-bridge"')
+  const hasWatchout = renderedHtml.includes('decision-watchout')
+  const visualMode = page?.visualAsset?.mode ?? ''
+  const usesFallbackHero = visualMode === 'fallback' || renderedHtml.includes('data-visual-mode="fallback"')
+  const visualsCanGenerate = Boolean(siteOrCluster?.visualAssets?.canGenerate)
+
+  if (isHighValuePage && heroNeedsAudienceSummary && !heroHasAudienceSummary) {
+    issues.push({
+      severity: 'medium',
+      message: 'Hero is missing the audience and positioning summary that should frame the page above the fold.',
+    })
+    score -= 8
+  }
+
+  if (isHighValuePage && heroRequiresProof && !heroHasProofStrip) {
+    issues.push({
+      severity: 'high',
+      message: 'Hero is missing the proof strip, so the page does not surface enough evidence before the scroll.',
+    })
+    score -= 14
+  }
+
+  if (isHighValuePage && heroNeedsActionRow && !heroHasActionRow) {
+    issues.push({
+      severity: 'high',
+      message: 'Hero is missing the action row, so the next step is not obvious enough on first view.',
+    })
+    score -= 14
+  }
+
+  if (requiresSecondaryCta && !heroHasSecondaryCta) {
+    issues.push({
+      severity: 'high',
+      message: 'High-intent page is missing the secondary consult CTA required by the design profile.',
+    })
+    score -= 14
+  }
+
+  if (isHighValuePage && !hasDecisionSurface) {
+    issues.push({
+      severity: 'high',
+      message: 'High-intent page is missing the decision summary block that should surface fit, watch-out, and next step near the top.',
+    })
+    score -= 16
+  }
+
+  if (isHighValuePage && !hasWatchout) {
+    issues.push({
+      severity: 'medium',
+      message: 'High-intent page still hides the watch-out or failure mode instead of making it visible near the recommendation.',
+    })
+    score -= 8
+  }
+
+  if (isHighValuePage && !hasNextStepBridge) {
+    issues.push({
+      severity: 'medium',
+      message: 'High-intent page is missing the rationale that explains why the CTA is the right move now.',
+    })
+    score -= 8
+  }
+
+  if (requiresNonFallbackHero && !heroHasVisual) {
+    issues.push({
+      severity: 'high',
+      message: 'This page type should ship with a real hero visual, but none was rendered.',
+    })
+    score -= 16
+  }
+
+  if (requiresNonFallbackHero && heroHasVisual && usesFallbackHero) {
+    issues.push({
+      severity: visualsCanGenerate ? 'high' : 'medium',
+      message: visualsCanGenerate
+        ? 'This page still uses a fallback poster instead of an image generated from the design-aware visual prompt.'
+        : 'This page is using a fallback poster; replace it with an API-generated visual before release.',
+    })
+    score -= visualsCanGenerate ? 14 : 8
+  }
+
+  return {
+    profileKey: designProfile?.key ?? siteOrCluster?.designProfileKey ?? 'default',
+    pageType,
+    highValuePage: isHighValuePage,
+    needsSpotCheck: isHighValuePage || issues.length > 0,
+    score: clamp(score, 48, 100),
+    status:
+      issues.some((issue) => issue.severity === 'high')
+        ? 'attention'
+        : issues.length > 0
+          ? 'warning'
+          : 'pass',
+    issues,
+    reasons: issues.map((issue) => issue.message),
+  }
 }
 
 function renderFaq(page) {
@@ -9531,6 +12584,39 @@ function renderFactGrid(page) {
 
 function renderWorkflowSteps(page) {
   if (!page.stepItems?.length) return ''
+
+  if (page.type === 'public-home') {
+    return `
+      <section class="workflow-module">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">30-minute pilot</p>
+            <h2>The workflow you can actually run this week</h2>
+          </div>
+          <p class="section-copy">Each step names the input, owner, output, and failure point so the first pilot does not collapse into unowned experimentation.</p>
+        </div>
+        <div class="step-grid">
+          ${page.stepItems
+            .map(
+              (item, index) => `
+                <article class="step-item">
+                  <span class="step-badge">${index + 1}</span>
+                  <strong>${escapeHtml(item.title)}</strong>
+                  <p>${escapeHtml(item.detail)}</p>
+                  <dl class="step-meta">
+                    <div><dt>Input</dt><dd>${escapeHtml(item.input ?? 'Not defined')}</dd></div>
+                    <div><dt>Output</dt><dd>${escapeHtml(item.output ?? 'Not defined')}</dd></div>
+                    <div><dt>Owner</dt><dd>${escapeHtml(item.owner ?? 'Not defined')}</dd></div>
+                    <div><dt>Failure point</dt><dd>${escapeHtml(item.failurePoint ?? 'Not defined')}</dd></div>
+                  </dl>
+                </article>
+              `,
+            )
+            .join('')}
+        </div>
+      </section>
+    `
+  }
 
   return `
     <section>
@@ -9622,9 +12708,15 @@ function renderAssetPreview(page) {
   if (!page.assetPreview?.length) return ''
 
   return `
-    <section>
-      <h2>Asset preview</h2>
-      <div class="card-grid">
+    <section class="asset-preview-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Asset preview</p>
+          <h2>What you get instead of another vague download</h2>
+        </div>
+      </div>
+      <div class="asset-preview-layout">
+        <div class="card-grid">
         ${page.assetPreview
           .map(
             (item) => `
@@ -9640,6 +12732,28 @@ function renderAssetPreview(page) {
             `,
           )
           .join('')}
+        </div>
+        <aside class="offer-sidebar">
+          <div class="offer-card offer-card--primary">
+            <p class="offer-eyebrow">Primary asset</p>
+            <strong>${escapeHtml(page.ctaTitle ?? 'Download the implementation asset')}</strong>
+            <p>${escapeHtml(page.ctaCopy ?? 'Take the reusable asset that turns the recommendation into a first pilot.')}</p>
+            ${
+              meaningfulText(page.ctaHref)
+                ? `<p><a class="cta-button" href="${escapeHtml(page.ctaHref)}" data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}" data-ga4-label="${escapeHtml(page.ctaTitle ?? 'Primary asset')}">${escapeHtml(page.ctaTitle ?? 'Open asset')}</a></p>`
+                : ''
+            }
+          </div>
+          ${
+            meaningfulText(page.secondaryCtaTitle) || meaningfulText(page.secondaryCtaCopy)
+              ? `<div class="offer-card">
+                  <p class="offer-eyebrow">Need a narrower answer?</p>
+                  <strong>${escapeHtml(page.secondaryCtaTitle ?? 'Request an audit')}</strong>
+                  <p>${escapeHtml(page.secondaryCtaCopy ?? 'Use the audit path when the workflow question is already live and needs a tighter recommendation.')}</p>
+                </div>`
+              : ''
+          }
+        </aside>
       </div>
     </section>
   `
@@ -9860,7 +12974,7 @@ function renderResearchBrief(page) {
 
   return `
     <section>
-      <h2>What this page must answer</h2>
+      <h2>What to check before you decide</h2>
       ${goal ? `<p>${escapeHtml(goal)}</p>` : ''}
       ${visitorIntent ? `<p>${escapeHtml(visitorIntent)}</p>` : ''}
       ${
@@ -9891,7 +13005,7 @@ function renderClaimCards(page) {
 
   return `
     <section>
-      <h2>Research-backed claims</h2>
+      <h2>Proof behind the recommendation</h2>
       <div class="card-grid">
         ${claimCards
           .map(
@@ -9933,7 +13047,7 @@ function renderOriginalAnchors(page) {
 
   return `
     <section>
-      <h2>Original operator notes</h2>
+      <h2>Operator notes worth keeping</h2>
       <ul>${page.originalAnchors.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
     </section>
   `
@@ -9942,17 +13056,74 @@ function renderOriginalAnchors(page) {
 function renderInternalLinks(site, page) {
   const items = page.internalLinks
     .map(
-      (link) => `<li><a href="${escapeHtml(path.basename(link.path))}">${escapeHtml(link.label)}</a></li>`,
+      (link) => `<li><a href="${escapeHtml(getPageHref(link))}">${escapeHtml(link.label)}</a></li>`,
     )
     .join('')
 
   return `
     <section>
       <h2>Keep the visitor moving</h2>
-      <p>Every page in this cluster should send readers to the next-best decision surface instead of leaving them at a dead end.</p>
+      <p>Open the next page that matches the decision you still need to make instead of leaving the workflow half-resolved.</p>
       <ul>${items}</ul>
     </section>
   `
+}
+
+function renderPageModules(site, page, designProfile) {
+  const isHighValuePage = isHighValuePageForProfile(page.type, designProfile)
+
+  if (isHighValuePage) {
+    return [
+      renderDecisionSurface(site, page, designProfile),
+      renderVerdictCards(page),
+      renderFactGrid(page),
+      renderSections(page),
+      renderDecisionPaths(page),
+      renderUseCaseCards(page),
+      renderWorkflowSteps(page),
+      renderEvidenceCards(page),
+      renderComparisonTable(page.comparisonRows),
+      renderAssetPreview(page),
+      renderBeforeAfter(page),
+      renderDeliveryFlow(page),
+      renderExamples(page),
+      renderCommercialModules(page),
+      renderInternalLinks(site, page),
+      renderResearchBrief(page),
+      renderClaimCards(page),
+      renderOriginalAnchors(page),
+      renderMaterialSlots(page),
+      renderSourceReferences(page),
+      renderFaq(page),
+    ]
+      .filter(Boolean)
+      .join('')
+  }
+
+  return [
+    renderSections(page),
+    renderResearchBrief(page),
+    renderClaimCards(page),
+    renderVerdictCards(page),
+    renderFactGrid(page),
+    renderDecisionPaths(page),
+    renderUseCaseCards(page),
+    renderWorkflowSteps(page),
+    renderEvidenceCards(page),
+    renderAssetPreview(page),
+    renderBeforeAfter(page),
+    renderDeliveryFlow(page),
+    renderExamples(page),
+    renderOriginalAnchors(page),
+    renderFaq(page),
+    renderComparisonTable(page.comparisonRows),
+    renderMaterialSlots(page),
+    renderCommercialModules(page),
+    renderSourceReferences(page),
+    renderInternalLinks(site, page),
+  ]
+    .filter(Boolean)
+    .join('')
 }
 
 function renderGa4Snippet(page, options = {}) {
@@ -10245,7 +13416,7 @@ function renderAssetDeliverySnippet(asset) {
 
         var config = ${JSON.stringify({
           apiBaseUrl: deliveryConfig.apiBaseUrl,
-          fallbackHref: `downloads/${asset.downloadFileName}`,
+          fallbackHref: asset.downloadPath,
         })};
         var params = new URLSearchParams(window.location.search);
         var token = params.get('delivery_token');
@@ -10315,10 +13486,15 @@ function renderAssetDeliverySnippet(asset) {
 }
 
 function renderSiteHtml(site, page) {
-  const canonicalUrl = new URL(page.path, `${config.baseUrl}/`).toString()
+  const designProfile = getSiteDesignProfile(site)
+  const canonicalUrl = new URL(page.publicPath || page.path, `${config.baseUrl}/`).toString()
   const socialImage = page.visualAsset?.canonicalUrl ?? ''
   const schema = JSON.stringify(renderSchema(site, page, canonicalUrl))
-  const ga4Snippet = renderGa4Snippet(page)
+  const analyticsPage = {
+    ...page,
+    path: page.publicPath || page.path,
+  }
+  const ga4Snippet = renderGa4Snippet(analyticsPage)
   const heroVisual = renderVisualFigure(
     page.visualAsset,
     `${site.cluster.label} visual`,
@@ -10326,9 +13502,14 @@ function renderSiteHtml(site, page) {
       ? `Primary next step: ${page.assetBinding.primary.title}`
       : site.cluster.primaryKeyword,
   )
+  const heroProofStrip = renderHeroProofStrip(page, designProfile)
+  const heroAudienceSummary = renderHeroAudienceSummary(site, page, designProfile)
+  const heroActionRow = renderHeroActionRow(site, page, designProfile)
+  const nextStepBridge = renderNextStepBridge(site, page, designProfile)
+  const pageModules = renderPageModules(site, page, designProfile)
   const navigation = site.pages
     .map((item) => {
-      const href = item.slug === page.slug ? item.fileName : item.fileName
+      const href = getPageHref(item)
       const active = item.slug === page.slug ? ' class="active"' : ''
       const label = item.navLabel ?? titleCase(item.slug.replaceAll('-', ' '))
       return `<a${active} href="${escapeHtml(href)}">${escapeHtml(label)}</a>`
@@ -10355,18 +13536,15 @@ function renderSiteHtml(site, page) {
     <script type="application/ld+json">${schema}</script>
 ${ga4Snippet}
     <style>
-      :root {
-        color-scheme: dark;
-        font-family: Inter, system-ui, sans-serif;
-      }
+${renderThemeCss(designProfile)}
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        background: #171717;
-        color: #efede7;
+        background: var(--page-bg);
+        color: var(--text-strong);
       }
       header, main, footer {
-        width: min(980px, calc(100% - 32px));
+        width: min(var(--content-width), calc(100% - 32px));
         margin: 0 auto;
       }
       header {
@@ -10391,20 +13569,20 @@ ${ga4Snippet}
         margin-top: 18px;
       }
       nav a {
-        color: #f3f1ea;
+        color: var(--text-strong);
         text-decoration: none;
         padding: 6px 10px;
-        border: 1px solid rgba(146, 188, 129, 0.35);
+        border: 1px solid var(--accent-soft);
       }
       nav a.active {
-        background: rgba(146, 188, 129, 0.12);
+        background: var(--accent-soft);
       }
       main {
         padding-bottom: 40px;
       }
       section {
         padding: 22px 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        border-top: 1px solid var(--border-muted);
       }
       h1, h2, p, ul {
         margin: 0;
@@ -10419,7 +13597,7 @@ ${ga4Snippet}
         margin-bottom: 10px;
       }
       p, li, td, th, summary {
-        color: #d3cec3;
+        color: var(--text-muted);
         line-height: 1.7;
       }
       p + p {
@@ -10430,17 +13608,44 @@ ${ga4Snippet}
         padding-left: 20px;
       }
       .eyebrow {
-        color: #8eb777;
+        color: var(--accent);
         font-size: 0.82rem;
         text-transform: uppercase;
       }
       .lede {
         max-width: 64ch;
       }
+      .hero-summary,
+      .hero-proof-strip {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 16px;
+      }
+      .hero-summary-item,
+      .hero-proof-item {
+        border: 1px solid var(--border-soft);
+        background: var(--surface-glass);
+        padding: 14px;
+      }
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .secondary-cta {
+        display: inline-block;
+        padding: 11px 15px;
+        border: 1px solid var(--border-muted);
+        color: var(--text-strong);
+        text-decoration: none;
+        font-weight: 600;
+      }
       .hero-visual {
         margin: 0;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-soft);
+        background: var(--surface-glass);
         overflow: hidden;
       }
       .hero-visual img {
@@ -10448,47 +13653,47 @@ ${ga4Snippet}
         width: 100%;
         aspect-ratio: 3 / 2;
         object-fit: cover;
-        background: #111;
+        background: var(--surface);
       }
       .hero-visual figcaption {
         display: grid;
         gap: 6px;
         padding: 14px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.02);
+        border-top: 1px solid var(--border-soft);
+        background: var(--surface-glass);
       }
       .hero-visual figcaption strong {
-        color: #f3f1ea;
+        color: var(--text-strong);
       }
       .hero-visual figcaption span {
-        color: #cfc8ba;
+        color: var(--text-muted);
         font-size: 0.95rem;
         line-height: 1.6;
       }
       .cta {
         padding: 18px;
-        border: 1px solid rgba(220, 180, 92, 0.32);
-        background: rgba(220, 180, 92, 0.08);
+        border: 1px solid var(--accent-2-soft);
+        background: var(--accent-2-soft);
       }
       .cta strong {
         display: block;
         margin-bottom: 10px;
-        color: #f5e6b0;
+        color: var(--accent-2);
       }
       .cta-button {
         display: inline-block;
         margin-top: 14px;
         border: 0;
         padding: 12px 16px;
-        background: #dcb45c;
-        color: #171717;
+        background: var(--accent-2);
+        color: var(--page-bg);
         font: inherit;
         font-weight: 700;
         cursor: pointer;
         text-decoration: none;
       }
       .cta-button:hover {
-        background: #e7c36f;
+        filter: brightness(1.06);
       }
       .cluster-links {
         display: grid;
@@ -10506,14 +13711,14 @@ ${ga4Snippet}
       }
       .mini-card,
       .step-item {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border-soft);
+        background: var(--surface-glass);
         padding: 14px;
       }
       .mini-card strong,
       .step-item strong {
         display: block;
-        color: #f3f1ea;
+        color: var(--text-strong);
         margin-bottom: 8px;
       }
       .step-list {
@@ -10531,12 +13736,12 @@ ${ga4Snippet}
       }
       .step-meta dt,
       .meta-label {
-        color: #9ac37f;
+        color: var(--accent);
         font-size: 0.78rem;
         text-transform: uppercase;
       }
       .claim-meta {
-        color: #9ac37f;
+        color: var(--accent);
         font-size: 0.76rem;
         text-transform: uppercase;
         margin-bottom: 10px;
@@ -10550,12 +13755,28 @@ ${ga4Snippet}
       .step-meta dd {
         margin: 0;
       }
+      .decision-surface .mini-card,
+      .next-step-bridge {
+        border-color: var(--accent-soft);
+      }
+      .decision-surface .mini-card {
+        display: grid;
+        gap: 8px;
+      }
+      .decision-surface .meta-label {
+        color: var(--accent-2);
+      }
+      .next-step-bridge {
+        padding: 18px;
+        border: 1px solid var(--accent-soft);
+        background: var(--surface-glass);
+      }
       .text-link {
-        color: #f5e6b0;
+        color: var(--accent-2);
       }
       details {
         padding: 12px 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 1px solid var(--border-soft);
       }
       table {
         width: 100%;
@@ -10565,17 +13786,19 @@ ${ga4Snippet}
       th, td {
         text-align: left;
         padding: 10px 8px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid var(--border-soft);
       }
       footer {
         padding: 0 0 32px;
-        color: #b6b0a3;
+        color: var(--text-muted);
       }
       @media (max-width: 720px) {
         h1 { font-size: 2rem; }
         .hero-shell {
           grid-template-columns: 1fr;
         }
+        .hero-summary,
+        .hero-proof-strip,
         .card-grid,
         .fact-grid {
           grid-template-columns: 1fr;
@@ -10583,39 +13806,24 @@ ${ga4Snippet}
       }
     </style>
   </head>
-  <body>
+  <body data-design-profile="${escapeHtml(designProfile.key ?? site.designProfileKey ?? 'default')}">
     <header>
       <div class="hero-shell${heroVisual ? '' : ' hero-shell--single'}">
         <div class="hero-copy">
           <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
           <h1>${escapeHtml(page.h1)}</h1>
           <p class="lede">${escapeHtml(page.intro)}</p>
+          ${heroAudienceSummary}
+          ${heroProofStrip}
+          ${heroActionRow}
           <nav>${navigation}</nav>
         </div>
         ${heroVisual}
       </div>
     </header>
     <main>
-      ${renderSections(page)}
-      ${renderResearchBrief(page)}
-      ${renderClaimCards(page)}
-      ${renderVerdictCards(page)}
-      ${renderFactGrid(page)}
-      ${renderDecisionPaths(page)}
-      ${renderUseCaseCards(page)}
-      ${renderWorkflowSteps(page)}
-      ${renderEvidenceCards(page)}
-      ${renderAssetPreview(page)}
-      ${renderBeforeAfter(page)}
-      ${renderDeliveryFlow(page)}
-      ${renderExamples(page)}
-      ${renderOriginalAnchors(page)}
-      ${renderFaq(page)}
-      ${renderComparisonTable(page.comparisonRows)}
-      ${renderMaterialSlots(page)}
-      ${renderCommercialModules(page)}
-      ${renderSourceReferences(page)}
-      ${renderInternalLinks(site, page)}
+      ${pageModules}
+      ${nextStepBridge}
       <section class="cta">
         <strong>${escapeHtml(page.ctaTitle)}</strong>
         <p>${escapeHtml(page.ctaCopy)}</p>
@@ -10641,7 +13849,760 @@ ${ga4Snippet}
       </section>
     </main>
     <footer>
-      <p>Built from the ${escapeHtml(site.cluster.label)} cluster. Track this page through the pipeline dashboard for audit, SEO, and lifecycle decisions.</p>
+      <p>This guide helps teams compare ${escapeHtml(site.cluster.primaryKeyword)} options, workflow choices, and reusable templates.</p>
+    </footer>
+  </body>
+</html>`
+
+  return {
+    html,
+    canonicalUrl,
+    titleLength: page.title.length,
+    descriptionLength: page.metaDescription.length,
+    wordCount: wordCount(html),
+  }
+}
+
+function renderPublicHomeHtml(site, page) {
+  const designProfile = getSiteDesignProfile(site)
+  const canonicalUrl = new URL('/', `${config.baseUrl}/`).toString()
+  const socialImage =
+    page.visualAsset?.canonicalUrl ??
+    page.visualAsset?.url ??
+    site.pages.find((item) => item.slug === 'index')?.visualAsset?.canonicalUrl ??
+    ''
+  const schema = JSON.stringify(renderSchema(site, { ...page, schemaType: 'WebPage' }, canonicalUrl))
+  const ga4Snippet = renderGa4Snippet({
+    title: page.title,
+    path: '/',
+    ctaTitle: page.ctaTitle,
+  })
+  const heroProofStrip = renderHeroProofStrip(page, designProfile)
+  const heroVisual = renderVisualFigure(
+    page.visualAsset,
+    `${site.cluster.label} homepage preview`,
+    page.assetBinding?.primary?.title
+      ? `Primary asset: ${page.assetBinding.primary.title}`
+      : site.cluster.primaryKeyword,
+  )
+  const navItems = [
+    { label: 'Workflow', page: site.pages.find((item) => item.type === 'workflow') },
+    { label: 'Compare', page: site.pages.find((item) => item.type === 'alternatives') },
+    { label: 'Pricing', page: site.pages.find((item) => item.type === 'pricing') },
+    { label: 'Free vs Paid', page: site.pages.find((item) => item.type === 'free-vs-paid') },
+    { label: 'Templates', page: site.pages.find((item) => item.type === 'template-kit') },
+    { label: 'FAQ', page: site.pages.find((item) => item.type === 'faq') },
+  ].filter((item) => item.page?.path)
+  const primaryHref = page.ctaHref || page.assetBinding?.primary?.landingPath || ''
+  const secondaryHref = site.commercialOffer?.landingPath ?? ''
+  const secondaryLabel = designProfile?.secondaryCtaLabel ?? `Request a ${site.cluster.label} audit`
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${escapeHtml(page.title)}</title>
+    <meta name="description" content="${escapeHtml(page.metaDescription)}" />
+    <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
+    <meta property="og:title" content="${escapeHtml(page.title)}" />
+    <meta property="og:description" content="${escapeHtml(page.metaDescription)}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
+    ${socialImage ? `<meta property="og:image" content="${escapeHtml(socialImage)}" />` : ''}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(page.title)}" />
+    <meta name="twitter:description" content="${escapeHtml(page.metaDescription)}" />
+    ${socialImage ? `<meta name="twitter:image" content="${escapeHtml(socialImage)}" />` : ''}
+    <script type="application/ld+json">${schema}</script>
+${ga4Snippet}
+    <style>
+${renderThemeCss(designProfile, { contentWidth: '1080px' })}
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, var(--accent-soft), transparent 36%),
+          linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
+          var(--page-bg);
+        color: var(--text-strong);
+      }
+      header, main, footer {
+        width: min(var(--content-width), calc(100% - 32px));
+        margin: 0 auto;
+      }
+      header {
+        padding: 28px 0 18px;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 26px;
+        padding: 14px 18px;
+        border: 1px solid var(--border-soft);
+        background: rgba(7, 11, 22, 0.78);
+        backdrop-filter: blur(14px);
+      }
+      .brand-mark {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .brand-mark strong {
+        font-size: 1rem;
+        letter-spacing: 0.04em;
+      }
+      .brand-mark span {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+      }
+      .topbar nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .topbar nav a {
+        color: var(--text-strong);
+        text-decoration: none;
+        padding: 8px 12px;
+        border: 1px solid var(--border-soft);
+        background: rgba(255,255,255,0.03);
+        border-radius: 999px;
+      }
+      .hero-layout {
+        display: grid;
+        gap: 26px;
+        grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+        align-items: start;
+      }
+      .hero-copy {
+        min-width: 0;
+      }
+      .eyebrow {
+        color: var(--accent);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      h1, h2, h3, p, ul {
+        margin: 0;
+      }
+      h1 {
+        font-size: 3.25rem;
+        line-height: 0.98;
+        margin: 12px 0 14px;
+        max-width: 13ch;
+      }
+      .lede {
+        max-width: 62ch;
+        color: var(--text-muted);
+        line-height: 1.72;
+        font-size: 1.05rem;
+      }
+      .hero-summary {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 18px;
+      }
+      .hero-summary-item,
+      .hero-proof-item,
+      .selector-card,
+      .mini-card,
+      .step-item,
+      .cta-panel,
+      .hero-visual-card,
+      .sidebar-card {
+        border: 1px solid var(--border-soft);
+        background: var(--surface-glass);
+      }
+      .hero-summary-item,
+      .hero-proof-item,
+      .mini-card,
+      .step-item,
+      .cta-panel,
+      .sidebar-card {
+        padding: 16px;
+      }
+      .hero-proof-strip {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 14px;
+      }
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .cta-button,
+      .secondary-cta {
+        display: inline-block;
+        padding: 12px 16px;
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .cta-button {
+        background: linear-gradient(135deg, var(--accent-2), #f1c76f);
+        color: var(--page-bg);
+        border-radius: 12px;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      }
+      .secondary-cta {
+        border: 1px solid var(--border-muted);
+        color: var(--text-strong);
+        border-radius: 12px;
+        background: rgba(255,255,255,0.03);
+      }
+      .hero-visual-card {
+        overflow: hidden;
+        margin-top: 16px;
+        border-radius: 20px;
+      }
+      .hero-visual-card .hero-visual {
+        margin: 0;
+        border: 0;
+        background: transparent;
+      }
+      .selector-panel {
+        min-width: 0;
+      }
+      .selector-shell {
+        display: grid;
+        gap: 16px;
+        padding: 20px;
+        border: 1px solid var(--border-muted);
+        border-radius: 22px;
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)),
+          rgba(9, 13, 25, 0.88);
+        box-shadow: 0 18px 40px rgba(0,0,0,0.22);
+      }
+      .selector-eyebrow {
+        color: var(--accent-2);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .selector-copy {
+        color: var(--text-muted);
+        line-height: 1.7;
+      }
+      .selector-grid {
+        display: grid;
+        gap: 12px;
+      }
+      .selector-card {
+        padding: 14px;
+        display: grid;
+        gap: 8px;
+        border-radius: 16px;
+      }
+      .selector-card--featured {
+        border-color: var(--accent-2);
+        background: linear-gradient(180deg, rgba(220, 180, 92, 0.12), rgba(255,255,255,0.03));
+      }
+      .selector-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .selector-priority {
+        color: var(--text-strong);
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.06);
+      }
+      .selector-step,
+      .meta-label {
+        color: var(--accent);
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .selector-link {
+        color: var(--text-strong);
+        text-decoration: none;
+        font-weight: 700;
+      }
+      main {
+        padding-bottom: 40px;
+      }
+      section {
+        padding: 28px 0;
+        border-top: 1px solid var(--border-muted);
+      }
+      section h2 {
+        font-size: 1.32rem;
+        margin-bottom: 12px;
+      }
+      p, li, td, th, summary {
+        color: var(--text-muted);
+        line-height: 1.72;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      .surface-grid,
+      .card-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .fact-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .mini-card strong,
+      .step-item strong,
+      .selector-card strong,
+      .cta-panel strong {
+        display: block;
+        color: var(--text-strong);
+        margin-bottom: 8px;
+      }
+      .step-list {
+        display: grid;
+        gap: 12px;
+      }
+      .step-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .step-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        margin-bottom: 12px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--text-strong);
+        font-weight: 700;
+      }
+      .step-meta {
+        margin: 12px 0 0;
+        display: grid;
+        gap: 8px;
+      }
+      .step-meta div {
+        display: grid;
+        gap: 4px;
+      }
+      .step-meta dt {
+        color: var(--accent);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+      }
+      .step-meta dd {
+        margin: 0;
+      }
+      .cta-band {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        align-items: stretch;
+      }
+      .cta-panel {
+        display: grid;
+        gap: 10px;
+      }
+      .text-link {
+        color: var(--accent-2);
+      }
+      .section-heading {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 0.8fr);
+        align-items: end;
+        margin-bottom: 16px;
+      }
+      .section-kicker {
+        color: var(--accent);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 8px;
+      }
+      .section-copy {
+        color: var(--text-muted);
+      }
+      .comparison-table-shell {
+        overflow-x: auto;
+        border: 1px solid var(--border-soft);
+        border-radius: 18px;
+        background: rgba(255,255,255,0.025);
+        padding: 8px 14px 0;
+      }
+      .comparison-module th {
+        color: var(--text-strong);
+      }
+      .comparison-module td:first-child,
+      .comparison-module th:first-child {
+        white-space: nowrap;
+      }
+      .asset-preview-layout {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 0.7fr);
+      }
+      .offer-sidebar,
+      .sidebar-stack {
+        display: grid;
+        gap: 14px;
+      }
+      .offer-card {
+        padding: 18px;
+        border: 1px solid var(--border-soft);
+        border-radius: 18px;
+        background: rgba(255,255,255,0.03);
+      }
+      .offer-card--primary {
+        background: linear-gradient(180deg, rgba(220, 180, 92, 0.14), rgba(255,255,255,0.04));
+        border-color: var(--accent-2-soft);
+      }
+      .offer-eyebrow {
+        color: var(--accent);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 8px;
+      }
+      .offer-card .cta-button,
+      .sidebar-card .cta-button,
+      .sidebar-card .secondary-cta {
+        width: 100%;
+        text-align: center;
+      }
+      .home-main-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.34fr);
+      }
+      .home-primary,
+      .home-sidebar {
+        min-width: 0;
+      }
+      .home-sidebar {
+        padding-top: 28px;
+      }
+      .sidebar-card {
+        border-radius: 18px;
+      }
+      .sidebar-card strong {
+        display: block;
+        margin-bottom: 10px;
+        color: var(--text-strong);
+      }
+      .sidebar-list {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding-left: 18px;
+      }
+      .sidebar-links {
+        display: grid;
+        gap: 10px;
+      }
+      .sidebar-links a {
+        color: var(--text-strong);
+        text-decoration: none;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0;
+      }
+      th, td {
+        text-align: left;
+        padding: 14px 10px;
+        border-bottom: 1px solid var(--border-soft);
+      }
+      details {
+        padding: 16px 18px;
+        border: 1px solid var(--border-soft);
+        border-radius: 16px;
+        background: rgba(255,255,255,0.025);
+      }
+      summary {
+        color: var(--text-strong);
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .faq-stack {
+        display: grid;
+        gap: 12px;
+      }
+      footer {
+        padding: 0 0 32px;
+        color: var(--text-muted);
+      }
+      @media (max-width: 860px) {
+        h1 {
+          max-width: none;
+          font-size: 2.35rem;
+        }
+        .hero-layout,
+        .section-heading,
+        .asset-preview-layout,
+        .home-main-grid,
+        .cta-band,
+        .surface-grid,
+        .card-grid,
+        .fact-grid,
+        .step-grid,
+        .hero-summary,
+        .hero-proof-strip {
+          grid-template-columns: 1fr;
+        }
+        .topbar {
+          padding: 14px;
+        }
+        .topbar nav {
+          gap: 8px;
+        }
+        .home-sidebar {
+          padding-top: 0;
+        }
+      }
+    </style>
+  </head>
+  <body data-design-profile="${escapeHtml(designProfile.key ?? site.designProfileKey ?? 'default')}">
+    <header>
+      <div class="topbar">
+        <div class="brand-mark">
+          <strong>AUTOMIORA</strong>
+          <span>${escapeHtml(site.cluster.label)}</span>
+        </div>
+        <nav>
+          ${navItems
+            .map(
+              (item) =>
+                `<a href="${escapeHtml(getPageHref(item.page))}">${escapeHtml(item.label)}</a>`,
+            )
+            .join('')}
+        </nav>
+      </div>
+      <div class="hero-layout">
+        <div class="hero-copy">
+          <p class="eyebrow">${escapeHtml(page.heroEyebrow ?? site.cluster.label)}</p>
+          <h1>${escapeHtml(page.h1)}</h1>
+          <p class="lede">${escapeHtml(page.intro)}</p>
+          <div class="hero-summary">
+            ${safeArray(page.heroSummaryItems)
+              .map(
+                (item) => `
+                  <article class="hero-summary-item">
+                    <span class="meta-label">${escapeHtml(item.label)}</span>
+                    <p>${escapeHtml(item.detail)}</p>
+                  </article>
+                `,
+              )
+              .join('')}
+          </div>
+          ${heroProofStrip}
+          <div class="hero-actions">
+            ${
+              primaryHref
+                ? `<a
+                    class="cta-button"
+                    href="${escapeHtml(primaryHref)}"
+                    data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}"
+                    data-ga4-label="${escapeHtml(page.ctaTitle)}"
+                  >
+                    ${escapeHtml(page.ctaTitle)}
+                  </a>`
+                : ''
+            }
+            ${
+              secondaryHref
+                ? `<a
+                    class="secondary-cta"
+                    href="${escapeHtml(secondaryHref)}"
+                    data-ga4-event="consult_click"
+                    data-ga4-label="${escapeHtml(secondaryLabel)}"
+                  >
+                    ${escapeHtml(secondaryLabel)}
+                  </a>`
+                : ''
+            }
+          </div>
+          ${
+            heroVisual
+              ? `<div class="hero-visual-card">${heroVisual}</div>`
+              : ''
+          }
+        </div>
+        ${renderPublicHomeSelector(page)}
+      </div>
+    </header>
+    <main>
+      ${renderComparisonTable(page.comparisonRows)}
+      <div class="home-main-grid">
+        <div class="home-primary">
+          ${renderWorkflowSteps(page)}
+          ${renderAssetPreview(page)}
+          <section>
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Public routes</p>
+                <h2>What to open next</h2>
+              </div>
+              <p class="section-copy">Open the narrower page once you know whether the next question is comparison, workflow shape, pricing boundary, or reusable templates.</p>
+            </div>
+            <div class="card-grid">
+              ${safeArray(page.nextPageCards)
+                .map(
+                  (item) => `
+                    <article class="mini-card">
+                      <strong>${escapeHtml(item.title)}</strong>
+                      <p>${escapeHtml(item.detail)}</p>
+                      ${
+                        meaningfulText(item.href)
+                          ? `<p><a class="text-link" href="${escapeHtml(item.href)}">${escapeHtml(item.ctaLabel ?? 'Open page')}</a></p>`
+                          : ''
+                      }
+                    </article>
+                  `,
+                )
+                .join('')}
+            </div>
+          </section>
+          <section>
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Why this works</p>
+                <h2>Why this homepage exists</h2>
+              </div>
+            </div>
+            <div class="surface-grid">
+              ${safeArray(page.sections)
+                .map(
+                  (section) => `
+                    <article class="mini-card">
+                      <strong>${escapeHtml(section.heading)}</strong>
+                      ${safeArray(section.paragraphs)
+                        .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+                        .join('')}
+                      ${
+                        safeArray(section.bullets).length > 0
+                          ? `<ul>${safeArray(section.bullets)
+                              .map((item) => `<li>${escapeHtml(item)}</li>`)
+                              .join('')}</ul>`
+                          : ''
+                      }
+                    </article>
+                  `,
+                )
+                .join('')}
+            </div>
+          </section>
+          <section>
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">FAQ</p>
+                <h2>Frequently asked questions</h2>
+              </div>
+            </div>
+            <div class="faq-stack">
+              ${safeArray(page.faqItems)
+                .map(
+                  (item) => `
+                    <details>
+                      <summary>${escapeHtml(item.question)}</summary>
+                      <p>${escapeHtml(item.answer)}</p>
+                    </details>
+                  `,
+                )
+                .join('')}
+            </div>
+          </section>
+        </div>
+        <aside class="home-sidebar">
+          <div class="sidebar-stack">
+            <div class="sidebar-card">
+              <p class="offer-eyebrow">Start here</p>
+              <strong>${escapeHtml(page.ctaTitle)}</strong>
+              <p>${escapeHtml(page.ctaCopy)}</p>
+              ${
+                primaryHref
+                  ? `<p><a
+                      class="cta-button"
+                      href="${escapeHtml(primaryHref)}"
+                      data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}"
+                      data-ga4-label="${escapeHtml(page.ctaTitle)}"
+                    >${escapeHtml(page.ctaTitle)}</a></p>`
+                  : ''
+              }
+            </div>
+            <div class="sidebar-card">
+              <p class="offer-eyebrow">What you get</p>
+              <strong>Make the next move obvious</strong>
+              <ul class="sidebar-list">
+                ${safeArray(page.keyFacts)
+                  .map((item) => `<li>${escapeHtml(item.value)}</li>`)
+                  .join('')}
+              </ul>
+            </div>
+            <div class="sidebar-card">
+              <p class="offer-eyebrow">Need a narrower answer?</p>
+              <strong>${escapeHtml(page.secondaryCtaTitle ?? secondaryLabel)}</strong>
+              <p>${escapeHtml(page.secondaryCtaCopy ?? 'Use the consult path when the workflow is already live and the team needs a narrower implementation recommendation.')}</p>
+              ${
+                secondaryHref
+                  ? `<p><a
+                      class="secondary-cta"
+                      href="${escapeHtml(secondaryHref)}"
+                      data-ga4-event="consult_click"
+                      data-ga4-label="${escapeHtml(secondaryLabel)}"
+                    >${escapeHtml(secondaryLabel)}</a></p>`
+                  : ''
+              }
+            </div>
+          </div>
+        </aside>
+      </div>
+      <section class="cta-band">
+        <div class="cta-panel">
+          <strong>${escapeHtml(page.ctaTitle)}</strong>
+          <p>${escapeHtml(page.ctaCopy)}</p>
+          ${
+            primaryHref
+              ? `<p><a
+                  class="cta-button"
+                  href="${escapeHtml(primaryHref)}"
+                  data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}"
+                  data-ga4-label="${escapeHtml(page.ctaTitle)}"
+                >${escapeHtml(page.ctaTitle)}</a></p>`
+              : ''
+          }
+        </div>
+        <div class="cta-panel">
+          <strong>${escapeHtml(page.secondaryCtaTitle ?? secondaryLabel)}</strong>
+          <p>${escapeHtml(page.secondaryCtaCopy ?? 'Use the consult path when the workflow is already live and the team needs a narrower implementation recommendation.')}</p>
+          ${
+            secondaryHref
+              ? `<p><a
+                  class="secondary-cta"
+                  href="${escapeHtml(secondaryHref)}"
+                  data-ga4-event="consult_click"
+                  data-ga4-label="${escapeHtml(secondaryLabel)}"
+                >${escapeHtml(secondaryLabel)}</a></p>`
+              : ''
+          }
+        </div>
+      </section>
+    </main>
+    <footer>
+      <p>${escapeHtml(page.footerNote ?? `Automiora helps teams compare ${site.cluster.primaryKeyword} options, workflow choices, and reusable execution assets without reopening research every cycle.`)}</p>
     </footer>
   </body>
 </html>`
@@ -10656,6 +14617,7 @@ ${ga4Snippet}
 }
 
 function renderAssetLandingHtml(site, asset) {
+  const designProfile = getSiteDesignProfile(site)
   const canonicalUrl = new URL(asset.landingPath, `${config.baseUrl}/`).toString()
   const socialImage = asset.visualAsset?.canonicalUrl ?? ''
   const heroVisual = renderVisualFigure(
@@ -10692,6 +14654,9 @@ function renderAssetLandingHtml(site, asset) {
   const evidenceCards = safeArray(asset.evidenceCards)
   const scenarioCards = safeArray(asset.scenarioCards)
   const firstActionCards = safeArray(asset.firstActionCards)
+  const prerequisites = safeArray(asset.prerequisites)
+  const operatingModes = safeArray(asset.operatingModes)
+  const blankPreviewItems = safeArray(asset.blankPreviewItems)
   const requestBullets = safeArray(asset.requestBullets)
 
   const html = `<!DOCTYPE html>
@@ -10710,24 +14675,24 @@ function renderAssetLandingHtml(site, asset) {
 ${ga4Snippet}
 ${leadCaptureSnippet}
     <style>
-      :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+${renderThemeCss(designProfile, { contentWidth: '920px' })}
       * { box-sizing: border-box; }
-      body { margin: 0; background: #171717; color: #efede7; }
-      main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 48px; }
-      section { padding: 22px 0; border-top: 1px solid rgba(255,255,255,0.12); }
+      body { margin: 0; background: var(--page-bg); color: var(--text-strong); }
+      main { width: min(var(--content-width), calc(100% - 32px)); margin: 0 auto; padding: 36px 0 48px; }
+      section { padding: 22px 0; border-top: 1px solid var(--border-muted); }
       h1, h2, p, ul { margin: 0; }
       h1 { font-size: 2.4rem; line-height: 1.08; margin-bottom: 12px; }
       h2 { font-size: 1.08rem; margin-bottom: 10px; }
-      p, li, label, input, textarea { color: #d3cec3; line-height: 1.7; }
-      .eyebrow { color: #8eb777; font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
+      p, li, label, input, textarea { color: var(--text-muted); line-height: 1.7; }
+      .eyebrow { color: var(--accent); font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
       .hero-shell { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr); align-items: start; }
       .hero-shell--single { grid-template-columns: 1fr; }
       .lede { max-width: 64ch; }
-      .kicker { margin-top: 10px; color: #f5e6b0; max-width: 64ch; }
+      .kicker { margin-top: 10px; color: var(--accent-2); max-width: 64ch; }
       .hero-visual {
         margin: 0;
-        border: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border-soft);
+        background: var(--surface-glass);
         overflow: hidden;
       }
       .hero-visual img {
@@ -10735,39 +14700,39 @@ ${leadCaptureSnippet}
         width: 100%;
         aspect-ratio: 3 / 2;
         object-fit: cover;
-        background: #111;
+        background: var(--surface);
       }
       .hero-visual figcaption {
         display: grid;
         gap: 6px;
         padding: 14px;
-        border-top: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.02);
+        border-top: 1px solid var(--border-soft);
+        background: var(--surface-glass);
       }
-      .hero-visual figcaption strong { color: #f3f1ea; }
-      .hero-visual figcaption span { color: #d3cec3; font-size: 0.95rem; line-height: 1.6; }
+      .hero-visual figcaption strong { color: var(--text-strong); }
+      .hero-visual figcaption span { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
       .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .card { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); padding: 14px; }
-      .card strong { display: block; color: #f3f1ea; margin-bottom: 8px; }
+      .card { border: 1px solid var(--border-soft); background: var(--surface-glass); padding: 14px; }
+      .card strong { display: block; color: var(--text-strong); margin-bottom: 8px; }
       .form-shell {
         display: grid;
         gap: 18px;
-        border: 1px solid rgba(220,180,92,0.28);
-        background: rgba(220,180,92,0.06);
+        border: 1px solid var(--accent-2-soft);
+        background: var(--accent-2-soft);
         padding: 16px;
       }
       .turnstile-shell { min-height: 66px; }
       .form-status {
         font-size: 0.92rem;
-        color: #d3cec3;
+        color: var(--text-muted);
       }
-      .form-status[data-state="error"] { color: #f7b0a2; }
+      .form-status[data-state="error"] { color: var(--warning); }
       form { display: grid; gap: 12px; max-width: 560px; }
       input, textarea {
         width: 100%;
-        border: 1px solid rgba(255,255,255,0.16);
-        background: rgba(255,255,255,0.03);
-        color: #efede7;
+        border: 1px solid var(--border-muted);
+        background: var(--surface-glass);
+        color: var(--text-strong);
         padding: 12px;
         font: inherit;
       }
@@ -10775,14 +14740,14 @@ ${leadCaptureSnippet}
         display: inline-block;
         border: 0;
         padding: 12px 16px;
-        background: #dcb45c;
-        color: #171717;
+        background: var(--accent-2);
+        color: var(--page-bg);
         font: inherit;
         font-weight: 700;
         cursor: pointer;
         text-decoration: none;
       }
-      .text-link { color: #f5e6b0; }
+      .text-link { color: var(--accent-2); }
       .note-list { display: grid; gap: 8px; margin: 0; padding-left: 20px; }
       ul { padding-left: 20px; }
       @media (max-width: 720px) {
@@ -10792,14 +14757,14 @@ ${leadCaptureSnippet}
       }
     </style>
   </head>
-  <body>
+  <body data-design-profile="${escapeHtml(designProfile.key ?? site.designProfileKey ?? 'default')}">
     <main>
       <div class="hero-shell${heroVisual ? '' : ' hero-shell--single'}">
         <div>
           <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
           <h1>${escapeHtml(asset.title)}</h1>
           <p class="lede">${escapeHtml(asset.landingIntro ?? asset.summary)}</p>
-          <p class="kicker">${escapeHtml(`Best for ${asset.useCaseLabels.slice(0, 3).join(', ') || site.cluster.primaryKeyword}.`)}</p>
+          <p class="kicker">${escapeHtml(`Best for ${asset.useCaseLabels.slice(0, 3).join(', ') || site.cluster.primaryKeyword}. ${designProfile.primaryOutcome ?? site.cluster.offer}`)}</p>
         </div>
         ${heroVisual}
       </div>
@@ -10849,6 +14814,15 @@ ${leadCaptureSnippet}
           : ''
       }
 
+      ${
+        prerequisites.length > 0
+          ? `<section>
+        <h2>Use this before you start</h2>
+        <ul>${prerequisites.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+      </section>`
+          : ''
+      }
+
       <section>
         <h2>What gets unlocked</h2>
         <div class="grid">
@@ -10864,6 +14838,26 @@ ${leadCaptureSnippet}
             .join('')}
         </div>
       </section>
+
+      ${
+        blankPreviewItems.length > 0
+          ? `<section>
+        <h2>Blank template preview</h2>
+        <div class="grid">
+          ${blankPreviewItems
+            .map(
+              (item) => `
+                <article class="card">
+                  <strong>${escapeHtml(item.label)}</strong>
+                  <p>${escapeHtml(item.detail)}</p>
+                </article>
+              `,
+            )
+            .join('')}
+        </div>
+      </section>`
+          : ''
+      }
 
       <section>
         <h2>What you can inspect before opting in</h2>
@@ -10897,13 +14891,33 @@ ${leadCaptureSnippet}
         </div>
       </section>
 
+      ${
+        operatingModes.length > 0
+          ? `<section>
+        <h2>Solo / team / client use</h2>
+        <div class="grid">
+          ${operatingModes
+            .map(
+              (item) => `
+                <article class="card">
+                  <strong>${escapeHtml(item.title)}</strong>
+                  <p>${escapeHtml(item.detail)}</p>
+                </article>
+              `,
+            )
+            .join('')}
+        </div>
+      </section>`
+          : ''
+      }
+
       <section>
         <h2>Request the asset</h2>
         <div class="form-shell">
           <p>Unlock the markdown download, run one narrow pilot, and keep the workflow notes that make the second run faster than the first.</p>
           <form
             method="GET"
-            action="${escapeHtml(path.basename(asset.thankYouPath))}"
+            action="${escapeHtml(asset.thankYouPath)}"
             data-ga4-submit-event="${escapeHtml(asset.formEvent)}"
             data-ga4-label="${escapeHtml(asset.title)}"
             data-real-delivery-form="asset"
@@ -10944,7 +14958,7 @@ ${leadCaptureSnippet}
           ? `<section><h2>Best companion pages</h2><ul>${relatedPages
               .map(
                 (page) =>
-                  `<li><a class="text-link" href="${escapeHtml(path.basename(page.path))}">${escapeHtml(page.navLabel ?? page.slug)}</a></li>`,
+                  `<li><a class="text-link" href="${escapeHtml(getPageHref(page))}">${escapeHtml(page.navLabel ?? page.slug)}</a></li>`,
               )
               .join('')}</ul></section>`
           : ''
@@ -10957,6 +14971,7 @@ ${leadCaptureSnippet}
 }
 
 function renderAssetThankYouHtml(site, asset) {
+  const designProfile = getSiteDesignProfile(site)
   const canonicalUrl = new URL(asset.thankYouPath, `${config.baseUrl}/`).toString()
   const socialImage = asset.visualAsset?.canonicalUrl ?? ''
   const heroVisual = renderVisualFigure(
@@ -11015,6 +15030,8 @@ function renderAssetThankYouHtml(site, asset) {
     .filter(Boolean)
   const evidenceCards = safeArray(asset.evidenceCards)
   const firstActionCards = safeArray(asset.firstActionCards)
+  const operatingModes = safeArray(asset.operatingModes)
+  const blankPreviewItems = safeArray(asset.blankPreviewItems)
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -11033,23 +15050,23 @@ function renderAssetThankYouHtml(site, asset) {
 ${ga4Snippet}
 ${assetDeliverySnippet}
     <style>
-      :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+${renderThemeCss(designProfile, { contentWidth: '820px' })}
       * { box-sizing: border-box; }
-      body { margin: 0; background: #171717; color: #efede7; }
-      main { width: min(820px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 48px; }
-      section { padding: 22px 0; border-top: 1px solid rgba(255,255,255,0.12); }
+      body { margin: 0; background: var(--page-bg); color: var(--text-strong); }
+      main { width: min(var(--content-width), calc(100% - 32px)); margin: 0 auto; padding: 40px 0 48px; }
+      section { padding: 22px 0; border-top: 1px solid var(--border-muted); }
       h1, h2, p, ul { margin: 0; }
       h1 { font-size: 2.2rem; line-height: 1.08; margin-bottom: 12px; }
       h2 { font-size: 1.05rem; margin-bottom: 10px; }
-      p, li { color: #d3cec3; line-height: 1.7; }
-      .eyebrow { color: #8eb777; font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
+      p, li { color: var(--text-muted); line-height: 1.7; }
+      .eyebrow { color: var(--accent); font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
       .hero-shell { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr); align-items: start; }
       .hero-shell--single { grid-template-columns: 1fr; }
       .lede { max-width: 62ch; }
       .hero-visual {
         margin: 0;
-        border: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border-soft);
+        background: var(--surface-glass);
         overflow: hidden;
       }
       .hero-visual img {
@@ -11057,26 +15074,26 @@ ${assetDeliverySnippet}
         width: 100%;
         aspect-ratio: 3 / 2;
         object-fit: cover;
-        background: #111;
+        background: var(--surface);
       }
       .hero-visual figcaption {
         display: grid;
         gap: 6px;
         padding: 14px;
-        border-top: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.02);
+        border-top: 1px solid var(--border-soft);
+        background: var(--surface-glass);
       }
-      .hero-visual figcaption strong { color: #f3f1ea; }
-      .hero-visual figcaption span { color: #d3cec3; font-size: 0.95rem; line-height: 1.6; }
+      .hero-visual figcaption strong { color: var(--text-strong); }
+      .hero-visual figcaption span { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
       .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .card { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); padding: 14px; }
-      .card strong { display: block; color: #f3f1ea; margin-bottom: 8px; }
+      .card { border: 1px solid var(--border-soft); background: var(--surface-glass); padding: 14px; }
+      .card strong { display: block; color: var(--text-strong); margin-bottom: 8px; }
       .button {
         display: inline-block;
         margin-top: 14px;
         padding: 12px 16px;
-        background: #dcb45c;
-        color: #171717;
+        background: var(--accent-2);
+        color: var(--page-bg);
         text-decoration: none;
         font-weight: 700;
       }
@@ -11084,9 +15101,9 @@ ${assetDeliverySnippet}
         display: inline-block;
         margin-top: 10px;
         padding: 11px 14px;
-        border: 1px solid rgba(255,255,255,0.16);
+        border: 1px solid var(--border-muted);
         background: transparent;
-        color: #efede7;
+        color: var(--text-strong);
         text-decoration: none;
         font-weight: 600;
         cursor: pointer;
@@ -11094,12 +15111,12 @@ ${assetDeliverySnippet}
       .delivery-note {
         margin-top: 10px;
         font-size: 0.92rem;
-        color: #d3cec3;
+        color: var(--text-muted);
       }
       .delivery-note[data-state="error"] {
-        color: #f7b0a2;
+        color: var(--warning);
       }
-      .text-link { color: #f5e6b0; }
+      .text-link { color: var(--accent-2); }
       ul { padding-left: 20px; }
       @media (max-width: 720px) {
         .hero-shell { grid-template-columns: 1fr; }
@@ -11108,7 +15125,7 @@ ${assetDeliverySnippet}
       }
     </style>
   </head>
-  <body>
+  <body data-design-profile="${escapeHtml(designProfile.key ?? site.designProfileKey ?? 'default')}">
     <main>
       <div class="hero-shell${heroVisual ? '' : ' hero-shell--single'}">
         <div>
@@ -11167,6 +15184,46 @@ ${assetDeliverySnippet}
       </section>
 
       ${
+        blankPreviewItems.length > 0
+          ? `<section>
+        <h2>Blank template preview</h2>
+        <div class="grid">
+          ${blankPreviewItems
+            .map(
+              (item) => `
+                <article class="card">
+                  <strong>${escapeHtml(item.label)}</strong>
+                  <p>${escapeHtml(item.detail)}</p>
+                </article>
+              `,
+            )
+            .join('')}
+        </div>
+      </section>`
+          : ''
+      }
+
+      ${
+        operatingModes.length > 0
+          ? `<section>
+        <h2>Solo / team / client use</h2>
+        <div class="grid">
+          ${operatingModes
+            .map(
+              (item) => `
+                <article class="card">
+                  <strong>${escapeHtml(item.title)}</strong>
+                  <p>${escapeHtml(item.detail)}</p>
+                </article>
+              `,
+            )
+            .join('')}
+        </div>
+      </section>`
+          : ''
+      }
+
+      ${
         evidenceCards.length > 0
           ? `<section>
         <h2>Why this asset should help</h2>
@@ -11198,7 +15255,7 @@ ${assetDeliverySnippet}
         <ul>${relatedPages
           .map(
             (page) =>
-              `<li><a class="text-link" href="${escapeHtml(path.basename(page.path))}">${escapeHtml(page.navLabel ?? page.slug)}</a></li>`,
+              `<li><a class="text-link" href="${escapeHtml(getPageHref(page))}">${escapeHtml(page.navLabel ?? page.slug)}</a></li>`,
           )
           .join('')}</ul>
       </section>`
@@ -11216,8 +15273,10 @@ function buildConsultOfferRecord(site) {
     slug: 'audit-request',
     title: `${site.cluster.label} audit request`,
     summary: `Request a narrower workflow audit for ${site.cluster.primaryKeyword} and move from browsing into a scoped implementation conversation.`,
-    landingPath: `/generated-sites/${site.siteSlug}/audit-request.html`,
-    thankYouPath: `/generated-sites/${site.siteSlug}/audit-request-thank-you.html`,
+    previewLandingPath: `/generated-sites/${site.siteSlug}/audit-request.html`,
+    previewThankYouPath: `/generated-sites/${site.siteSlug}/audit-request-thank-you.html`,
+    landingPath: '/audit/',
+    thankYouPath: '/audit/ready/',
     landingFileName: 'audit-request.html',
     thankYouFileName: 'audit-request-thank-you.html',
     clickEvent: 'consult_click',
@@ -11229,6 +15288,7 @@ function buildConsultOfferRecord(site) {
 }
 
 function renderConsultOfferHtml(site, offer) {
+  const designProfile = getSiteDesignProfile(site)
   const canonicalUrl = new URL(offer.landingPath, `${config.baseUrl}/`).toString()
   const ga4Snippet = renderGa4Snippet(
     {
@@ -11262,39 +15322,39 @@ function renderConsultOfferHtml(site, offer) {
 ${ga4Snippet}
 ${leadCaptureSnippet}
     <style>
-      :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+${renderThemeCss(designProfile, { contentWidth: '920px' })}
       * { box-sizing: border-box; }
-      body { margin: 0; background: #171717; color: #efede7; }
-      main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 48px; }
-      section { padding: 22px 0; border-top: 1px solid rgba(255,255,255,0.12); }
+      body { margin: 0; background: var(--page-bg); color: var(--text-strong); }
+      main { width: min(var(--content-width), calc(100% - 32px)); margin: 0 auto; padding: 36px 0 48px; }
+      section { padding: 22px 0; border-top: 1px solid var(--border-muted); }
       h1, h2, p, ul { margin: 0; }
       h1 { font-size: 2.35rem; line-height: 1.08; margin-bottom: 12px; }
       h2 { font-size: 1.08rem; margin-bottom: 10px; }
-      p, li, label, input, textarea { color: #d3cec3; line-height: 1.7; }
-      .eyebrow { color: #8eb777; font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
+      p, li, label, input, textarea { color: var(--text-muted); line-height: 1.7; }
+      .eyebrow { color: var(--accent); font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
       .lede { max-width: 64ch; }
       .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .card { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); padding: 14px; }
-      .card strong { display: block; color: #f3f1ea; margin-bottom: 8px; }
+      .card { border: 1px solid var(--border-soft); background: var(--surface-glass); padding: 14px; }
+      .card strong { display: block; color: var(--text-strong); margin-bottom: 8px; }
       .form-shell {
         display: grid;
         gap: 18px;
-        border: 1px solid rgba(220,180,92,0.28);
-        background: rgba(220,180,92,0.06);
+        border: 1px solid var(--accent-2-soft);
+        background: var(--accent-2-soft);
         padding: 16px;
       }
       .turnstile-shell { min-height: 66px; }
       .form-status {
         font-size: 0.92rem;
-        color: #d3cec3;
+        color: var(--text-muted);
       }
-      .form-status[data-state="error"] { color: #f7b0a2; }
+      .form-status[data-state="error"] { color: var(--warning); }
       form { display: grid; gap: 12px; max-width: 620px; }
       input, textarea {
         width: 100%;
-        border: 1px solid rgba(255,255,255,0.16);
-        background: rgba(255,255,255,0.03);
-        color: #efede7;
+        border: 1px solid var(--border-muted);
+        background: var(--surface-glass);
+        color: var(--text-strong);
         padding: 12px;
         font: inherit;
       }
@@ -11302,13 +15362,13 @@ ${leadCaptureSnippet}
         display: inline-block;
         border: 0;
         padding: 12px 16px;
-        background: #dcb45c;
-        color: #171717;
+        background: var(--accent-2);
+        color: var(--page-bg);
         font: inherit;
         font-weight: 700;
         cursor: pointer;
       }
-      .text-link { color: #f5e6b0; }
+      .text-link { color: var(--accent-2); }
       ul { padding-left: 20px; }
       @media (max-width: 720px) {
         .grid { grid-template-columns: 1fr; }
@@ -11316,11 +15376,11 @@ ${leadCaptureSnippet}
       }
     </style>
   </head>
-  <body>
+  <body data-design-profile="${escapeHtml(designProfile.key ?? site.designProfileKey ?? 'default')}">
     <main>
       <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
       <h1>${escapeHtml(offer.title)}</h1>
-      <p class="lede">Use this form when the visitor does not only need a download. It is for teams that already know the workflow matters and want help narrowing the first implementation move, the review bottleneck, or the commercial decision.</p>
+      <p class="lede">Use this form when the visitor does not only need a download. It is for teams that already know the workflow matters and want help narrowing the first implementation move, the review bottleneck, or the commercial decision. ${escapeHtml(designProfile.brandPositioning ?? '')}</p>
 
       <section>
         <h2>What this audit should resolve</h2>
@@ -11350,7 +15410,7 @@ ${leadCaptureSnippet}
           <p>Ask for a scoped audit when the team already has a live workflow question and a named owner for the next step.</p>
           <form
             method="GET"
-            action="${escapeHtml(offer.thankYouFileName)}"
+            action="${escapeHtml(offer.thankYouPath)}"
             data-ga4-submit-event="${escapeHtml(offer.submitEvent)}"
             data-ga4-label="${escapeHtml(offer.title)}"
             data-real-delivery-form="consult"
@@ -11394,7 +15454,7 @@ ${leadCaptureSnippet}
           ? `<section><h2>Review these first if needed</h2><ul>${relatedPages
               .map(
                 (page) =>
-                  `<li><a class="text-link" href="${escapeHtml(path.basename(page.path))}">${escapeHtml(page.navLabel ?? page.slug)}</a></li>`,
+                  `<li><a class="text-link" href="${escapeHtml(getPageHref(page))}">${escapeHtml(page.navLabel ?? page.slug)}</a></li>`,
               )
               .join('')}</ul></section>`
           : ''
@@ -11407,6 +15467,7 @@ ${leadCaptureSnippet}
 }
 
 function renderConsultThankYouHtml(site, offer) {
+  const designProfile = getSiteDesignProfile(site)
   const canonicalUrl = new URL(offer.thankYouPath, `${config.baseUrl}/`).toString()
   const readyEvents = [
     {
@@ -11456,29 +15517,29 @@ function renderConsultThankYouHtml(site, offer) {
     <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
 ${ga4Snippet}
     <style>
-      :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+${renderThemeCss(designProfile, { contentWidth: '820px' })}
       * { box-sizing: border-box; }
-      body { margin: 0; background: #171717; color: #efede7; }
-      main { width: min(820px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 48px; }
-      section { padding: 22px 0; border-top: 1px solid rgba(255,255,255,0.12); }
+      body { margin: 0; background: var(--page-bg); color: var(--text-strong); }
+      main { width: min(var(--content-width), calc(100% - 32px)); margin: 0 auto; padding: 40px 0 48px; }
+      section { padding: 22px 0; border-top: 1px solid var(--border-muted); }
       h1, h2, p, ul { margin: 0; }
       h1 { font-size: 2.1rem; line-height: 1.08; margin-bottom: 12px; }
       h2 { font-size: 1.05rem; margin-bottom: 10px; }
-      p, li { color: #d3cec3; line-height: 1.7; }
-      .eyebrow { color: #8eb777; font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
+      p, li { color: var(--text-muted); line-height: 1.7; }
+      .eyebrow { color: var(--accent); font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
       .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .card { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); padding: 14px; }
-      .card strong { display: block; color: #f3f1ea; margin-bottom: 8px; }
+      .card { border: 1px solid var(--border-soft); background: var(--surface-glass); padding: 14px; }
+      .card strong { display: block; color: var(--text-strong); margin-bottom: 8px; }
       .button {
         display: inline-block;
         margin-top: 14px;
         padding: 12px 16px;
-        background: #dcb45c;
-        color: #171717;
+        background: var(--accent-2);
+        color: var(--page-bg);
         text-decoration: none;
         font-weight: 700;
       }
-      .text-link { color: #f5e6b0; }
+      .text-link { color: var(--accent-2); }
       ul { padding-left: 20px; }
       @media (max-width: 720px) {
         .grid { grid-template-columns: 1fr; }
@@ -11486,7 +15547,7 @@ ${ga4Snippet}
       }
     </style>
   </head>
-  <body>
+  <body data-design-profile="${escapeHtml(designProfile.key ?? site.designProfileKey ?? 'default')}">
     <main>
       <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
       <h1>Audit request captured</h1>
@@ -11521,7 +15582,7 @@ ${ga4Snippet}
         <ul>${relatedPages
           .map(
             (page) =>
-              `<li><a class="text-link" href="${escapeHtml(path.basename(page.path))}">${escapeHtml(page.navLabel ?? page.slug)}</a></li>`,
+              `<li><a class="text-link" href="${escapeHtml(getPageHref(page))}">${escapeHtml(page.navLabel ?? page.slug)}</a></li>`,
           )
           .join('')}</ul>
       </section>`
@@ -11575,6 +15636,25 @@ function buildPageAuditSurface(page) {
     ...safeArray(page.verdicts).flatMap((item) => [item.title, item.detail]),
     ...safeArray(page.keyFacts).flatMap((item) => [item.label, item.value]),
     ...safeArray(page.examples).flatMap((item) => [item.title, item.body]),
+    ...safeArray(page.materialSlots).flatMap((slot) => [
+      slot.title,
+      ...safeArray(slot.items).flatMap((item) => [item.label, item.detail]),
+    ]),
+    ...safeArray(page.commercialModules).flatMap((module) => [
+      module.title,
+      module.description,
+      ...safeArray(module.items).flatMap((item) => [item.label, item.note]),
+    ]),
+    ...safeArray(page.stepItems).flatMap((item) => [
+      item.title,
+      item.detail,
+      item.input,
+      item.output,
+      item.owner,
+      item.successMetric,
+      item.failurePoint,
+    ]),
+    page.visualAsset?.alt,
     ...safeArray(page.sections).flatMap((section) => [
       section.heading,
       ...safeArray(section.paragraphs),
@@ -11596,6 +15676,20 @@ function auditPage(renderedPage) {
   const auditSurface = buildPageAuditSurface(renderedPage)
   const genericPhraseCount = countGenericPhraseOccurrences(auditSurface)
   const aiFlavorPhraseCount = countPhraseMatches(auditSurface, aiFlavorPhrases)
+  const designIssues = safeArray(renderedPage.designReview?.issues)
+  const designProfile = getSiteDesignProfile(renderedPage)
+  const maxGenericParagraphs = preferFiniteNumber(designProfile?.review?.maxGenericParagraphs, 2)
+  const maxRepeatedSentencePatterns = preferFiniteNumber(
+    designProfile?.review?.maxRepeatedSentencePatterns,
+    1,
+  )
+  const densePageTargets = {
+    alternatives: { facts: 6, verdicts: 4, examples: 2, refs: 5, evidenceCards: 3, maxLowEvidence: 1 },
+    workflow: { facts: 6, verdicts: 3, examples: 4, refs: 5, evidenceCards: 3, maxLowEvidence: 1 },
+    pricing: { facts: 6, verdicts: 4, examples: 3, refs: 5, evidenceCards: 3, maxLowEvidence: 1 },
+    'template-kit': { facts: 6, verdicts: 3, examples: 4, refs: 5, evidenceCards: 4, maxLowEvidence: 1 },
+  }
+  const denseTargets = densePageTargets[renderedPage.type] ?? null
 
   if (renderedPage.wordCount < 520) {
     issues.push({
@@ -11691,6 +15785,38 @@ function auditPage(renderedPage) {
     score -= 14
   }
 
+  if (denseTargets && (contentStats.factCount ?? 0) < denseTargets.facts) {
+    issues.push({
+      severity: 'high',
+      message: `${titleCase(renderedPage.type.replaceAll('-', ' '))} page needs at least ${denseTargets.facts} concrete facts to feel researcher-shaped, not merely publishable.`,
+    })
+    score -= 14
+  }
+
+  if (denseTargets && (contentStats.verdictCount ?? 0) < denseTargets.verdicts) {
+    issues.push({
+      severity: 'high',
+      message: `${titleCase(renderedPage.type.replaceAll('-', ' '))} page needs at least ${denseTargets.verdicts} explicit verdicts or recommendation lines.`,
+    })
+    score -= 14
+  }
+
+  if (denseTargets && (contentStats.exampleCount ?? 0) < denseTargets.examples) {
+    issues.push({
+      severity: 'medium',
+      message: `${titleCase(renderedPage.type.replaceAll('-', ' '))} page needs at least ${denseTargets.examples} concrete examples or scenario frames.`,
+    })
+    score -= 10
+  }
+
+  if (denseTargets && (contentStats.sourceRefCount ?? 0) < denseTargets.refs) {
+    issues.push({
+      severity: 'medium',
+      message: `${titleCase(renderedPage.type.replaceAll('-', ' '))} page needs at least ${denseTargets.refs} visible refs so the advice feels evidence-backed.`,
+    })
+    score -= 10
+  }
+
   if ((contentStats.claimCount ?? 0) < 2) {
     issues.push({
       severity: 'medium',
@@ -11774,18 +15900,18 @@ function auditPage(renderedPage) {
     score -= (contentStats.specificityScore ?? 0) < 4 ? 14 : 8
   }
 
-  if ((contentStats.repeatedSentenceCount ?? 0) > 1) {
+  if ((contentStats.repeatedSentenceCount ?? 0) > maxRepeatedSentencePatterns) {
     issues.push({
       severity: 'medium',
-      message: `Detected ${contentStats.repeatedSentenceCount} repeated sentence pattern(s); tighten templated copy before publishing.`,
+      message: `Detected ${contentStats.repeatedSentenceCount} repeated sentence pattern(s); keep this page at or below ${maxRepeatedSentencePatterns} repeated pattern(s).`,
     })
     score -= 8
   }
 
-  if ((contentStats.genericParagraphCount ?? 0) > 2 || genericPhraseCount > 5) {
+  if ((contentStats.genericParagraphCount ?? 0) > maxGenericParagraphs || genericPhraseCount > 5) {
     issues.push({
       severity: 'medium',
-      message: `Page still reads too generically; ${contentStats.genericParagraphCount ?? 0} paragraph(s) rely on generic narration and ${genericPhraseCount} generic phrase hits remain.`,
+      message: `Page still reads too generically; ${contentStats.genericParagraphCount ?? 0} paragraph(s) rely on generic narration and ${genericPhraseCount} generic phrase hits remain. Keep generic paragraphs at or below ${maxGenericParagraphs}.`,
     })
     score -= 8
   }
@@ -11804,6 +15930,14 @@ function auditPage(renderedPage) {
       message: `Found ${contentStats.lowEvidenceParagraphCount ?? 0} low-evidence paragraph(s); add named tools, numbers, or source-backed workflow details.`,
     })
     score -= (contentStats.lowEvidenceParagraphCount ?? 0) > 4 ? 14 : 8
+  }
+
+  if (denseTargets && (contentStats.lowEvidenceParagraphCount ?? 0) > denseTargets.maxLowEvidence) {
+    issues.push({
+      severity: 'high',
+      message: `${titleCase(renderedPage.type.replaceAll('-', ' '))} page still has too many low-evidence paragraphs for a high-intent page.`,
+    })
+    score -= 14
   }
 
   if (
@@ -11860,6 +15994,97 @@ function auditPage(renderedPage) {
     score -= 18
   }
 
+  if (['alternatives', 'best-tools'].includes(renderedPage.type) && (contentStats.comparisonRowCount ?? 0) > 0) {
+    if (!contentStats.comparisonUsesRankedTools || (contentStats.domainRowCount ?? 0) > 0) {
+      issues.push({
+        severity: 'high',
+        message: 'Comparison table is still leaking raw domains or non-normalized entities; verdict rows must come from ranked tool entities only.',
+      })
+      score -= 18
+    }
+
+    if ((contentStats.coreToolRowCount ?? 0) < 2) {
+      issues.push({
+        severity: 'high',
+        message: 'AI video workflow comparison needs at least two core tools in the shortlist unless the ranking layer explicitly proves there are no eligible candidates.',
+      })
+      score -= 16
+    }
+
+    if ((contentStats.comparisonEvidenceSummaryCount ?? 0) < (contentStats.comparisonRowCount ?? 0)) {
+      issues.push({
+        severity: 'high',
+        message: 'Each comparison row needs an evidence summary before it can appear in the verdict table.',
+      })
+      score -= 16
+    }
+
+    if (
+      renderedPage.comparisonRankingMode === 'recommended_starting_points' &&
+      (contentStats.comparisonEvidenceGapCount ?? 0) > 0 &&
+      /recommended first shortlist review/i.test(renderedPage.html)
+    ) {
+      issues.push({
+        severity: 'high',
+        message: 'Evidence gaps are present, but the page still reads like a hard ranking. Fall back to recommended starting points language.',
+      })
+      score -= 18
+    }
+
+    if (
+      safeArray(renderedPage.toolRanking?.selected_tools).length > 0 &&
+      safeArray(renderedPage.toolRanking?.selected_tools).some(
+        (tool) => safeArray(tool.source_ids).length === 0,
+      )
+    ) {
+      issues.push({
+        severity: 'high',
+        message: 'Selected tools are missing source-backed evidence. Wiki facts can enrich the page, but they cannot be the sole ranking basis.',
+      })
+      score -= 16
+    }
+  }
+
+  if (denseTargets && (contentStats.evidenceCardCount ?? 0) < denseTargets.evidenceCards) {
+    issues.push({
+      severity: 'high',
+      message: `${titleCase(renderedPage.type.replaceAll('-', ' '))} page needs at least ${denseTargets.evidenceCards} evidence cards or proof modules to sustain a high-intent read.`,
+    })
+    score -= 14
+  }
+
+  if ((contentStats.internalJargonCount ?? 0) > 0) {
+    issues.push({
+      severity: 'high',
+      message: `Detected ${contentStats.internalJargonCount ?? 0} internal-process phrase hit(s); public pages must avoid pipeline or research-ops wording.`,
+    })
+    score -= 18
+  }
+
+  if ((contentStats.dirtySourceCount ?? 0) > 0) {
+    issues.push({
+      severity: 'high',
+      message: `Detected ${contentStats.dirtySourceCount ?? 0} dirty source residue hit(s); scrub copied forum or source noise before publishing.`,
+    })
+    score -= 18
+  }
+
+  if ((contentStats.adjacentDuplicateWordCount ?? 0) > 0) {
+    issues.push({
+      severity: 'high',
+      message: `Detected ${contentStats.adjacentDuplicateWordCount ?? 0} adjacent duplicate-word hit(s); public copy cannot ship with repeated keyword phrasing.`,
+    })
+    score -= 18
+  }
+
+  for (const issue of designIssues) {
+    issues.push({
+      severity: issue.severity ?? 'medium',
+      message: `Design profile: ${issue.message}`,
+    })
+    score -= issue.severity === 'high' ? 12 : 6
+  }
+
   return {
     status: issues.some((issue) => issue.severity === 'high')
       ? 'attention'
@@ -11897,6 +16122,18 @@ function buildSiteSummary(cluster, renderedPages) {
       (sum, page) => sum + (page.contentStats?.lowEvidenceParagraphCount ?? 0),
       0,
     ),
+    internalJargonHits: renderedPages.reduce(
+      (sum, page) => sum + (page.contentStats?.internalJargonCount ?? 0),
+      0,
+    ),
+    dirtySourceHits: renderedPages.reduce(
+      (sum, page) => sum + (page.contentStats?.dirtySourceCount ?? 0),
+      0,
+    ),
+    adjacentDuplicateWordHits: renderedPages.reduce(
+      (sum, page) => sum + (page.contentStats?.adjacentDuplicateWordCount ?? 0),
+      0,
+    ),
     structuredUseCasePages: renderedPages.filter(
       (page) => (page.contentStats?.structuredUseCaseCount ?? 0) >= 2,
     ).length,
@@ -11922,6 +16159,186 @@ function buildSiteSummary(cluster, renderedPages) {
       })),
     ),
     antiGeneric,
+  }
+}
+
+function buildBooleanGateScore(gate) {
+  const values = Object.values(gate)
+  if (values.length === 0) return 0
+  return round((values.filter(Boolean).length / values.length) * 100)
+}
+
+function findAssetAcceptanceCheck(asset, key) {
+  return safeArray(asset?.acceptance?.checks).find((check) => check.key === key) ?? null
+}
+
+function buildSiteDesignReviewReport(site, renderedPages) {
+  const designProfile = getSiteDesignProfile(site)
+  const highValuePageTypes = safeArray(designProfile?.review?.highValuePageTypes)
+  const homepage = renderedPages.find((page) => page.slug === 'index') ?? renderedPages[0] ?? null
+  const reviewedPages = renderedPages.filter((page) => highValuePageTypes.includes(page.type))
+  const homepageHtml = homepage?.html ?? ''
+  const homepageGate = {
+    fiveSecondClarity:
+      Boolean(homepage?.h1) &&
+      homepageHtml.includes('class="hero-summary"') &&
+      homepageHtml.includes('class="hero-actions"'),
+    strongPrimaryAndSecondaryCta:
+      homepageHtml.includes('class="cta-button"') && homepageHtml.includes('class="secondary-cta"'),
+    proofAboveTheFold: homepageHtml.includes('class="hero-proof-strip"'),
+    relevantHeroPreview: Boolean(homepage?.visualAsset?.src || homepage?.visualAsset?.url),
+    publicCopyClean:
+      (homepage?.contentStats?.internalJargonCount ?? 0) === 0 &&
+      (homepage?.contentStats?.dirtySourceCount ?? 0) === 0 &&
+      (homepage?.contentStats?.adjacentDuplicateWordCount ?? 0) === 0,
+    nonResearchMemoTone:
+      (homepage?.contentStats?.genericParagraphCount ?? 0) <=
+        preferFiniteNumber(designProfile?.review?.maxGenericParagraphs, 1) &&
+      (homepage?.contentStats?.repeatedSentenceCount ?? 0) <=
+        preferFiniteNumber(designProfile?.review?.maxRepeatedSentencePatterns, 1),
+  }
+  const homepageScore = buildBooleanGateScore(homepageGate)
+
+  const highValuePages = reviewedPages.map((page) => {
+    const html = page.html ?? ''
+    const gate = {
+      verdictWithinTwoScreens:
+        html.includes('class="decision-surface"') && (page.contentStats?.verdictCount ?? 0) >= 1,
+      audienceOrFitVisible: html.includes('class="hero-summary"') || html.includes('decision-fit'),
+      watchoutOrFailureModeVisible: html.includes('decision-watchout'),
+      ctaMatchesIntent:
+        html.includes('class="next-step-bridge"') &&
+        (html.includes('class="hero-actions"') || Boolean(page.ctaHref)),
+      publicCopyClean:
+        (page.contentStats?.internalJargonCount ?? 0) === 0 &&
+        (page.contentStats?.dirtySourceCount ?? 0) === 0 &&
+        (page.contentStats?.adjacentDuplicateWordCount ?? 0) === 0,
+      copyNotMechanical:
+        (page.contentStats?.genericParagraphCount ?? 0) <=
+          preferFiniteNumber(designProfile?.review?.maxGenericParagraphs, 1) &&
+        (page.contentStats?.repeatedSentenceCount ?? 0) <=
+          preferFiniteNumber(designProfile?.review?.maxRepeatedSentencePatterns, 1),
+    }
+
+    return {
+      pageSlug: page.slug,
+      pageType: page.type,
+      gate,
+      score: buildBooleanGateScore(gate),
+      status: Object.values(gate).every(Boolean) ? 'pass' : 'needs_review',
+      notes: compactText(
+        [
+          page.designReview?.status === 'attention' ? 'Design review still has attention-level issues.' : '',
+          (page.contentStats?.lowEvidenceParagraphCount ?? 0) > 0
+            ? `${page.contentStats?.lowEvidenceParagraphCount ?? 0} low-evidence paragraph(s) remain.`
+            : '',
+          (page.contentStats?.internalJargonCount ?? 0) > 0
+            ? `${page.contentStats?.internalJargonCount ?? 0} internal-jargon hit(s) remain.`
+            : '',
+          (page.contentStats?.dirtySourceCount ?? 0) > 0
+            ? `${page.contentStats?.dirtySourceCount ?? 0} dirty-source hit(s) remain.`
+            : '',
+          (page.contentStats?.adjacentDuplicateWordCount ?? 0) > 0
+            ? `${page.contentStats?.adjacentDuplicateWordCount ?? 0} duplicate-word hit(s) remain.`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
+        220,
+      ),
+    }
+  })
+
+  const assets = safeArray(site.conversionAssets).map((asset) => {
+    const markdown = asset.downloadMarkdown || ''
+    const gate = {
+      usableWithinThreeMinutes:
+        (findAssetAcceptanceCheck(asset, 'first_run_usability')?.score ?? 0) >= 7,
+      hasBlankPreview: /^##\s+Blank template preview/m.test(markdown),
+      hasFilledExample: /^##\s+Filled example/m.test(markdown),
+      hasWatchout: /^##\s+Failure points \/ watch-outs/m.test(markdown),
+      promiseMatchesDelivery:
+        (findAssetAcceptanceCheck(asset, 'promise_match')?.score ?? 0) >= 7 &&
+        meaningfulText(asset.acceptance?.gateStatus) === 'pass',
+    }
+
+    return {
+      assetSlug: asset.slug,
+      assetKind: asset.assetKind ?? asset.type,
+      gate,
+      score: buildBooleanGateScore(gate),
+      status: Object.values(gate).every(Boolean) ? 'pass' : 'needs_review',
+      notes: compactText(
+        [
+          asset.acceptance?.gateStatus !== 'pass'
+            ? `Acceptance gate is ${asset.acceptance?.gateStatus ?? 'unknown'}.`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
+        220,
+      ),
+    }
+  })
+
+  const visualSystemGate = {
+    homepageHeroFeelsProductionReady:
+      homepageGate.relevantHeroPreview &&
+      homepageGate.proofAboveTheFold &&
+      homepageGate.strongPrimaryAndSecondaryCta,
+    corePageHeroesShareOneFamily:
+      reviewedPages
+        .filter((page) =>
+          safeArray(designProfile?.review?.requireNonFallbackHeroOn).includes(page.type),
+        )
+        .every((page) => Boolean(page.visualAsset?.src || page.visualAsset?.url)),
+    assetCoversShareOneFamily: assets.every((asset) => {
+      const sourceAsset = safeArray(site.conversionAssets).find((item) => item.slug === asset.assetSlug)
+      return Boolean(sourceAsset?.visualAsset?.src || sourceAsset?.visualAsset?.url)
+    }),
+    ctaAndProofBlocksUseConsistentHierarchy: reviewedPages.every((page) => {
+      const html = page.html ?? ''
+      return html.includes('class="hero-proof-strip"') && html.includes('class="hero-actions"')
+    }),
+    noObviousDemoVsProductionSplit:
+      reviewedPages.every((page) => page.designReview?.status !== 'attention') &&
+      assets.every((asset) => asset.status === 'pass'),
+  }
+  const visualScore = buildBooleanGateScore(visualSystemGate)
+  const scores = [
+    homepageScore,
+    ...highValuePages.map((item) => item.score),
+    ...assets.map((item) => item.score),
+    visualScore,
+  ].filter((value) => Number.isFinite(value))
+  const overallScore = round(
+    scores.reduce((sum, item) => sum + item, 0) / Math.max(scores.length, 1),
+  )
+  const status =
+    homepageScore === 100 &&
+    highValuePages.every((item) => item.status === 'pass') &&
+    assets.every((item) => item.status === 'pass') &&
+    Object.values(visualSystemGate).every(Boolean)
+      ? 'pass'
+      : 'needs_review'
+
+  return {
+    generatedAt: new Date().toISOString(),
+    siteSlug: site.siteSlug,
+    designProfileKey: designProfile?.key ?? site.designProfileKey ?? 'default',
+    status,
+    score: overallScore,
+    homepage: {
+      pageSlug: homepage?.slug ?? 'index',
+      gate: homepageGate,
+      score: homepageScore,
+    },
+    highValuePages,
+    assets,
+    visualSystem: {
+      gate: visualSystemGate,
+      score: visualScore,
+    },
   }
 }
 
@@ -11972,6 +16389,15 @@ function evaluatePublishGate(site) {
       (page.contentStats?.genericParagraphCount ?? 0) > 2 ||
       (page.contentStats?.genericPhraseCount ?? 0) > 5,
   ).length
+  const internalJargonPages = artifactPages.filter(
+    (page) => (page.contentStats?.internalJargonCount ?? 0) > 0,
+  ).length
+  const dirtySourcePages = artifactPages.filter(
+    (page) => (page.contentStats?.dirtySourceCount ?? 0) > 0,
+  ).length
+  const adjacentDuplicateWordPages = artifactPages.filter(
+    (page) => (page.contentStats?.adjacentDuplicateWordCount ?? 0) > 0,
+  ).length
   const aiFlavorPages = artifactPages.filter(
     (page) =>
       (page.contentStats?.aiFlavorParagraphCount ?? 0) > 1 ||
@@ -11990,6 +16416,29 @@ function evaluatePublishGate(site) {
       !['template-kit', 'case-study', 'workflow'].includes(page.type) ||
       (page.contentStats?.proofModuleCount ?? 0) >= 2,
   ).length
+  const rankedToolComparisonPages = artifactPages.filter(
+    (page) =>
+      !['alternatives', 'best-tools'].includes(page.type) ||
+      (page.contentStats?.comparisonUsesRankedTools ?? false),
+  ).length
+  const coreToolCoveragePages = artifactPages.filter(
+    (page) =>
+      !['alternatives', 'best-tools'].includes(page.type) ||
+      (page.contentStats?.coreToolRowCount ?? 0) >= 2,
+  ).length
+  const comparisonEvidenceSummaryPages = artifactPages.filter(
+    (page) =>
+      !['alternatives', 'best-tools'].includes(page.type) ||
+      (page.contentStats?.comparisonEvidenceSummaryCount ?? 0) >=
+        (page.contentStats?.comparisonRowCount ?? 0),
+  ).length
+  const misleadingEvidenceGapPages = artifactPages.filter(
+    (page) =>
+      ['alternatives', 'best-tools'].includes(page.type) &&
+      page.comparisonRankingMode === 'recommended_starting_points' &&
+      (page.contentStats?.comparisonEvidenceGapCount ?? 0) > 0 &&
+      /recommended first shortlist review/i.test(page.html ?? ''),
+  ).length
   const aiFluffRatio = round(
     clamp(
       (
@@ -12005,7 +16454,9 @@ function evaluatePublishGate(site) {
     ),
     2,
   )
-  const spotCheckPages = artifactPages.filter((page) => page.reviewSignals?.needsSpotCheck).length
+  const spotCheckPages = artifactPages.filter((page) => pageNeedsSpotCheck(page)).length
+  const designPass =
+    !site.designReviewReport || meaningfulText(site.designReviewReport.status) === 'pass'
 
   const informationGapPass =
     sourceSignals.outdatedSerpResults >= rules.outdatedSerpResults ||
@@ -12020,6 +16471,11 @@ function evaluatePublishGate(site) {
     originalAnchorCount >= rules.originalAnchorCount &&
     aiFluffRatio <= rules.maxAiFluffRatio
 
+  const publicCopyPass =
+    internalJargonPages === 0 &&
+    dirtySourcePages === 0 &&
+    adjacentDuplicateWordPages === 0
+
   const evidenceQualityPass =
     avgFactCount >= 2 &&
     verdictPages >= 2 &&
@@ -12032,7 +16488,11 @@ function evaluatePublishGate(site) {
     repetitionSafePages >= Math.max(artifactPages.length - 1, 1) &&
     lowSignalHeavyPages <= 1 &&
     structuredUseCasePages >= Math.max(artifactPages.length - 2, 1) &&
-    proofRichPages >= Math.max(artifactPages.length - 2, 1)
+    proofRichPages >= Math.max(artifactPages.length - 2, 1) &&
+    rankedToolComparisonPages >= Math.max(artifactPages.length - 1, 1) &&
+    coreToolCoveragePages >= Math.max(artifactPages.length - 1, 1) &&
+    comparisonEvidenceSummaryPages >= Math.max(artifactPages.length - 1, 1) &&
+    misleadingEvidenceGapPages === 0
 
   const reviewPass =
     contentConfig.reviewMode === 'unattended' ||
@@ -12043,8 +16503,10 @@ function evaluatePublishGate(site) {
     informationGapPass &&
     completenessPass &&
     nonTemplatePass &&
+    publicCopyPass &&
     evidenceQualityPass &&
     reviewPass &&
+    designPass &&
     site.audit.status !== 'attention'
       ? 'pass'
       : informationGapPass || completenessPass || evidenceQualityPass
@@ -12056,6 +16518,7 @@ function evaluatePublishGate(site) {
     informationGapPass,
     completenessPass,
     nonTemplatePass,
+    publicCopyPass,
     evidenceQualityPass,
     reviewPass,
     evidence: {
@@ -12078,11 +16541,21 @@ function evaluatePublishGate(site) {
       lowSignalHeavyPages,
       repetitionSafePages,
       genericPhrasePages,
+      internalJargonPages,
+      dirtySourcePages,
+      adjacentDuplicateWordPages,
       aiFlavorPages,
       lowEvidencePages,
       structuredUseCasePages,
       proofRichPages,
+      rankedToolComparisonPages,
+      coreToolCoveragePages,
+      comparisonEvidenceSummaryPages,
+      misleadingEvidenceGapPages,
       spotCheckPages,
+      designPass,
+      designReviewScore: site.designReviewReport?.score ?? 0,
+      designReviewStatus: site.designReviewReport?.status ?? 'not_run',
       gapOpportunities: site.research.gapSummary.gapOpportunities,
       topIntents: site.research.topIntents,
     },
@@ -12270,12 +16743,13 @@ Sitemap: ${new URL('/sitemap.xml', `${config.baseUrl}/`).toString()}
 
 function buildLlmsTxt(sites) {
   const lines = [
-    '# Trend Site Pipeline',
+    '# Automiora',
     '',
-    'This project generates compact decision pages from validated trend clusters.',
+    'Automiora publishes practical guides, workflow pages, and downloadable templates for teams evaluating AI-powered production workflows.',
     '',
     ...sites.map(
-      (site) => `- ${site.siteName}: ${new URL(site.homePath, `${config.baseUrl}/`).toString()}`,
+      (site) =>
+        `- ${site.siteName}: ${new URL(site.publicHomePath || site.homePath, `${config.baseUrl}/`).toString()}`,
     ),
   ]
 
@@ -12325,7 +16799,7 @@ function buildRootIndexHtml(primarySite) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trend Site Pipeline</title>
+    <title>Generated Sites</title>
     <style>
       body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #171717; color: #f2eee6; }
       main { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0; }
@@ -12334,8 +16808,8 @@ function buildRootIndexHtml(primarySite) {
   </head>
   <body>
     <main>
-      <h1>Trend Site Pipeline</h1>
-      <p>No release-ready site is available yet.</p>
+      <h1>Generated Sites</h1>
+      <p>A public site is not available yet.</p>
       <p><a href="/generated-sites/index.html">Browse generated sites</a></p>
     </main>
   </body>
@@ -12363,12 +16837,29 @@ function buildRootIndexHtml(primarySite) {
   </head>
   <body>
     <main>
-      <h1>Redirecting...</h1>
-      <p><a href="${escapeHtml(targetPath)}">Open the release-ready site</a></p>
+      <h1>Opening the site...</h1>
+      <p><a href="${escapeHtml(targetPath)}">Continue to the main site</a></p>
     </main>
   </body>
 </html>
 `
+}
+
+async function writePublicRouteHtml(routePath, html) {
+  const trimmed = String(routePath || '').trim()
+  if (!trimmed || trimmed === '/') return
+  const relativeRoute = trimmed.replace(/^\/+|\/+$/g, '')
+  const outputDir = path.join(publicDir, relativeRoute)
+  await mkdir(outputDir, { recursive: true })
+  await writeFile(path.join(outputDir, 'index.html'), `${html}\n`)
+}
+
+async function writePublicFile(filePath, contents) {
+  const trimmed = String(filePath || '').trim().replace(/^\/+/, '')
+  if (!trimmed) return
+  const outputPath = path.join(publicDir, trimmed)
+  await mkdir(path.dirname(outputPath), { recursive: true })
+  await writeFile(outputPath, contents)
 }
 
 function buildSeoReport(sites, publishGateBySiteSlug) {
@@ -12378,8 +16869,32 @@ function buildSeoReport(sites, publishGateBySiteSlug) {
   const blockedSites = sites.filter(
     (site) => publishGateBySiteSlug.get(site.siteSlug)?.status !== 'pass',
   )
-  const urls = releasableSites.flatMap((site) => site.pages.map((page) => page.canonicalUrl))
-  const blockedUrls = blockedSites.flatMap((site) => site.pages.map((page) => page.canonicalUrl))
+  const urls = dedupe(
+    releasableSites.flatMap((site) => [
+      ...(site.publicHomeCanonicalUrl ? [site.publicHomeCanonicalUrl] : []),
+      ...site.pages
+        .filter((page) => page.indexingDirective !== 'noindex')
+        .map((page) => page.canonicalUrl),
+      ...safeArray(site.conversionAssets).map((asset) =>
+        new URL(asset.landingPath, `${config.baseUrl}/`).toString(),
+      ),
+      ...(site.commercialOffer?.landingPath
+        ? [new URL(site.commercialOffer.landingPath, `${config.baseUrl}/`).toString()]
+        : []),
+    ]),
+  )
+  const blockedUrls = dedupe(
+    blockedSites.flatMap((site) => [
+      ...(site.publicHomeCanonicalUrl ? [site.publicHomeCanonicalUrl] : []),
+      ...site.pages.map((page) => page.canonicalUrl),
+      ...safeArray(site.conversionAssets).map((asset) =>
+        new URL(asset.landingPath, `${config.baseUrl}/`).toString(),
+      ),
+      ...(site.commercialOffer?.landingPath
+        ? [new URL(site.commercialOffer.landingPath, `${config.baseUrl}/`).toString()]
+        : []),
+    ]),
+  )
   const localBase = isLocalBaseUrl(config.baseUrl)
   const hasSubmissionQueue = urls.length > 0
   const googleSubmitReady = Boolean(googleConfig.gscSiteUrl) && hasAnyGoogleAuth()
@@ -12555,7 +17070,7 @@ const pageRefreshPresets = {
   },
 }
 
-function buildPageRefreshPlans(sites, seoQueues) {
+function buildPageRefreshPlans(sites, seoQueues, assetPerformanceView = null, commercialOpsSnapshot = null) {
   const ctrQueueBySite = new Map(
     safeArray(seoQueues?.ctrOptimizationQueue).map((entry) => [
       entry.siteSlug,
@@ -12568,10 +17083,20 @@ function buildPageRefreshPlans(sites, seoQueues) {
       new Set(safeArray(entry.pages).map((page) => page.pageSlug)),
     ]),
   )
+  const assetPerformanceMap = new Map(
+    safeArray(assetPerformanceView?.entries).map((entry) => [`${entry.siteSlug}/${entry.assetSlug}`, entry]),
+  )
+  const consultRequestsBySite = new Map(
+    safeArray(commercialOpsSnapshot?.consultsBySite).map((entry) => [
+      entry.site_slug,
+      Number(entry.request_count ?? 0),
+    ]),
+  )
 
   return sites.flatMap((site) => {
     const ctrPages = ctrQueueBySite.get(site.siteSlug) ?? new Set()
     const visibilityPages = visibilityQueueBySite.get(site.siteSlug) ?? new Set()
+    const consultRequests = consultRequestsBySite.get(site.siteSlug) ?? 0
 
     return safeArray(site.pageArtifacts)
       .filter((page) => Boolean(pageRefreshPresets[page.slug]))
@@ -12579,6 +17104,9 @@ function buildPageRefreshPlans(sites, seoQueues) {
         const preset = pageRefreshPresets[page.slug]
         const brief = safeArray(site.pageBriefs).find((item) => item.pageType === page.type)
         const linkedAssetSlug = page.assetBinding?.primary?.slug ?? site.conversionAssets[0]?.slug ?? ''
+        const linkedAssetPerformance = linkedAssetSlug
+          ? assetPerformanceMap.get(`${site.siteSlug}/${linkedAssetSlug}`)
+          : null
         const linkedClaimIds = dedupe([
           ...safeArray(brief?.primaryClaimIds).slice(0, 2),
           ...safeArray(brief?.secondaryClaimIds).slice(0, 1),
@@ -12601,6 +17129,24 @@ function buildPageRefreshPlans(sites, seoQueues) {
             `${page.contentStats?.genericParagraphCount ?? 0} generic paragraph(s) should be rewritten into more specific operator language.`,
           )
         }
+        if (
+          linkedAssetPerformance?.measurementMode === 'live_ops' &&
+          (linkedAssetPerformance.liveLeadCount ?? 0) > 0 &&
+          (linkedAssetPerformance.liveQualifiedEvents ?? 0) === 0 &&
+          (linkedAssetPerformance.liveWonEvents ?? 0) === 0
+        ) {
+          refreshTriggers.push(
+            `Live leads are arriving for ${linkedAssetSlug}, but deeper action is still zero; strengthen qualification, consult bridge, and proof density on this page.`,
+          )
+        }
+        if (
+          consultRequests === 0 &&
+          safeArray(page.commercialModules).some((module) =>
+            safeArray(module.items).some((item) => item.event === 'consult_click'),
+          )
+        ) {
+          refreshTriggers.push('The consult CTA exists, but the site still has no consult requests; tighten the higher-intent bridge and buyer language.')
+        }
         if (safeArray(site.audit?.issues).length > 0) {
           refreshTriggers.push('The site audit still has open issues, so this page should absorb the strongest supporting evidence next.')
         }
@@ -12619,7 +17165,10 @@ function buildPageRefreshPlans(sites, seoQueues) {
           pageSlug: page.slug,
           pageType: page.type,
           priority:
-            ctrPages.has(page.slug) || visibilityPages.has(page.slug) || page.type === 'template-kit'
+            ctrPages.has(page.slug) ||
+            visibilityPages.has(page.slug) ||
+            page.type === 'template-kit' ||
+            refreshTriggers.some((item) => /Live leads are arriving|no consult requests/i.test(item))
               ? 'high'
               : 'medium',
           refreshTargets: preset.refreshTargets,
@@ -13833,16 +18382,40 @@ function buildDecisionMarkdown(rows) {
 }
 
 function buildReviewQueue(sites) {
+  function buildReviewReasons(page) {
+    const reasons = [...safeArray(page.reviewSignals?.reasons)]
+    const stats = page.contentStats ?? {}
+
+    if ((stats.lowEvidenceParagraphCount ?? 0) > 0) {
+      reasons.push(`${stats.lowEvidenceParagraphCount} low-evidence paragraph(s) still need stronger proof.`)
+    }
+    if ((stats.genericParagraphCount ?? 0) > 0) {
+      reasons.push(`${stats.genericParagraphCount} generic paragraph(s) still need sharper operator language.`)
+    }
+    if (
+      ['alternatives', 'pricing', 'workflow', 'template-kit'].includes(page.type) &&
+      (stats.sourceRefCount ?? 0) < 5
+    ) {
+      reasons.push('Visible source density is still below the target for a high-intent page.')
+    }
+
+    reasons.push(...safeArray(page.designReview?.reasons))
+
+    return dedupe(reasons).filter(Boolean)
+  }
+
   return sites.flatMap((site) =>
     (site.pageArtifacts ?? [])
-      .filter((page) => page.reviewSignals?.needsSpotCheck)
+      .filter((page) => pageNeedsSpotCheck(page))
       .map((page) => ({
         siteSlug: site.siteSlug,
         pageSlug: page.slug,
         pageType: page.type,
         reviewMode: contentConfig.reviewMode,
         draftEngine: page.draftEngine,
-        reasons: page.reviewSignals.reasons,
+        designProfileKey: page.designReview?.profileKey ?? site.designProfileKey,
+        designReviewStatus: page.designReview?.status ?? 'pass',
+        reasons: buildReviewReasons(page),
         verdictCount: page.contentStats?.verdictCount ?? 0,
         factCount: page.contentStats?.factCount ?? 0,
         exampleCount: page.contentStats?.exampleCount ?? 0,
@@ -13986,7 +18559,7 @@ function buildReviewOverrideTemplate(sites) {
     ],
     pages: sites.flatMap((site) =>
       (site.pageArtifacts ?? [])
-        .filter((page) => page.reviewSignals?.needsSpotCheck)
+        .filter((page) => pageNeedsSpotCheck(page))
         .map((page) => ({
           siteSlug: site.siteSlug,
           pageSlug: page.slug,
@@ -14004,8 +18577,17 @@ function buildReviewOverrideTemplate(sites) {
   }
 }
 
-function buildContentFeedback(sites, history) {
+function buildContentFeedback(sites, history, assetPerformanceView = null, commercialOpsSnapshot = null) {
   const recentRuns = history.slice(-6)
+  const assetPerformanceMap = new Map(
+    safeArray(assetPerformanceView?.entries).map((entry) => [`${entry.siteSlug}/${entry.assetSlug}`, entry]),
+  )
+  const consultRequestsBySite = new Map(
+    safeArray(commercialOpsSnapshot?.consultsBySite).map((entry) => [
+      entry.site_slug,
+      Number(entry.request_count ?? 0),
+    ]),
+  )
   const pageTypeRows = sites.flatMap((site) =>
     (site.pageArtifacts ?? []).map((page) => ({
       siteSlug: site.siteSlug,
@@ -14018,6 +18600,8 @@ function buildContentFeedback(sites, history) {
       revenue: site.monitoring?.revenue ?? 0,
       impressions: site.monitoring?.impressions ?? 0,
       conversions: site.monitoring?.conversions ?? 0,
+      linkedAssetSlug: page.assetBinding?.primary?.slug ?? '',
+      consultRequests: consultRequestsBySite.get(site.siteSlug) ?? 0,
     })),
   )
 
@@ -14033,9 +18617,17 @@ function buildContentFeedback(sites, history) {
         totalRefs: 0,
         totalImpressions: 0,
         totalConversions: 0,
+        totalDeeperActionRate: 0,
+        totalLiveLeadCount: 0,
+        totalLiveQualifiedEvents: 0,
+        totalLiveWonEvents: 0,
+        totalConsultRequests: 0,
       }
     }
     const bucket = byPageType[row.pageType]
+    const linkedAsset = row.linkedAssetSlug
+      ? assetPerformanceMap.get(`${row.siteSlug}/${row.linkedAssetSlug}`)
+      : null
     bucket.pageCount += 1
     bucket.totalFacts += row.facts
     bucket.totalVerdicts += row.verdicts
@@ -14043,6 +18635,11 @@ function buildContentFeedback(sites, history) {
     bucket.totalRefs += row.refs
     bucket.totalImpressions += row.impressions
     bucket.totalConversions += row.conversions
+    bucket.totalDeeperActionRate += linkedAsset?.modeledDeeperActionRate ?? 0
+    bucket.totalLiveLeadCount += linkedAsset?.liveLeadCount ?? 0
+    bucket.totalLiveQualifiedEvents += linkedAsset?.liveQualifiedEvents ?? 0
+    bucket.totalLiveWonEvents += linkedAsset?.liveWonEvents ?? 0
+    bucket.totalConsultRequests += row.consultRequests
   }
 
   return {
@@ -14058,10 +18655,19 @@ function buildContentFeedback(sites, history) {
       averageVerdicts: round(bucket.totalVerdicts / Math.max(bucket.pageCount, 1), 1),
       averageExamples: round(bucket.totalExamples / Math.max(bucket.pageCount, 1), 1),
       averageRefs: round(bucket.totalRefs / Math.max(bucket.pageCount, 1), 1),
+      averageDeeperActionRate: round(bucket.totalDeeperActionRate / Math.max(bucket.pageCount, 1), 3),
+      averageConsultRequests: round(bucket.totalConsultRequests / Math.max(bucket.pageCount, 1), 1),
       guidance:
-        bucket.totalConversions > 0
-          ? 'Keep reinforcing this page type with stronger examples and CTAs.'
-          : 'If this page type stays weak, increase examples, clearer verdicts, and more specific source evidence.',
+        bucket.totalLiveLeadCount > 0 &&
+          bucket.totalLiveQualifiedEvents === 0 &&
+          bucket.totalLiveWonEvents === 0
+          ? 'This page type is already generating leads, but not deeper action yet; add stronger consult bridges, qualification cues, and evidence-heavy recommendation logic.'
+          : bucket.totalConversions > 0
+            ? 'Keep reinforcing this page type with stronger examples and CTAs.'
+            : bucket.totalConsultRequests === 0 &&
+                ['alternatives', 'pricing', 'workflow', 'template-kit'].includes(bucket.pageType)
+              ? 'No consult path has converted yet; keep the asset CTA, but make the higher-intent consult bridge more explicit.'
+              : 'If this page type stays weak, increase examples, clearer verdicts, and more specific source evidence.',
     })),
     siteRecommendations: sites.map((site) => ({
       siteSlug: site.siteSlug,
@@ -14086,6 +18692,7 @@ async function readJsonIfExists(filePath) {
 async function fetchTrendTopics() {
   try {
     const response = await fetch(feedUrl, {
+      ...withTimeout({}, contentConfig.networkTimeoutMs),
       headers: { 'User-Agent': 'Mozilla/5.0 TrendSitePipeline/1.0' },
     })
 
@@ -14118,14 +18725,18 @@ async function fetchTrendTopics() {
 
 async function ensureDirectories() {
   await mkdir(generatedDir, { recursive: true })
-  await rm(artifactsDir, { recursive: true, force: true })
+  if (!config.preserveGeneratedOutputs) {
+    await rm(artifactsDir, { recursive: true, force: true })
+  }
   await mkdir(artifactsDir, { recursive: true })
   await mkdir(storageDir, { recursive: true })
   await mkdir(wikiRoot, { recursive: true })
   await Promise.all(
     Object.values(wikiDirectoryMap).map((directory) => mkdir(directory, { recursive: true })),
   )
-  await rm(sitesRoot, { recursive: true, force: true })
+  if (!config.preserveGeneratedOutputs) {
+    await rm(sitesRoot, { recursive: true, force: true })
+  }
   await mkdir(sitesRoot, { recursive: true })
 }
 
@@ -15086,7 +19697,8 @@ async function runPipeline() {
     await mkdir(factsDir, { recursive: true })
 
     const research = await fetchPublishResearch(cluster.primaryKeyword)
-    const sourcePack = await buildSourcePack(cluster, research)
+    const rawSourcePack = await buildSourcePack(cluster, research)
+    const sourcePack = attachSourceAuthorityScores(rawSourcePack, cluster, 'comparison')
     const wikiSeed = await loadWikiSeedBundle(cluster)
     await writeJson(path.join(siteArtifactsDir, 'source-pack.json'), sourcePack)
     const pagePlanning = await buildPageModels(
@@ -15098,6 +19710,9 @@ async function runPipeline() {
       wikiSeed,
     )
     await writeJson(path.join(siteArtifactsDir, 'research-dossier.json'), pagePlanning.researchDossier)
+    await writeJson(path.join(siteArtifactsDir, 'facts-extraction.json'), pagePlanning.factsExtraction)
+    await writeJson(path.join(siteArtifactsDir, 'tool-ranking.json'), pagePlanning.toolRanking)
+    await writeJson(path.join(siteArtifactsDir, 'comparison-debug-report.json'), pagePlanning.comparisonDebugReport)
     const siteVisualBundle = await buildSiteVisualAssets({
       baseUrl: config.baseUrl,
       siteDir,
@@ -15110,6 +19725,15 @@ async function runPipeline() {
       ...page,
       visualAsset: siteVisualBundle.pageVisuals[page.slug] ?? null,
     }))
+    const publicHomeModel = pagePlanning.publicHome
+      ? {
+          ...pagePlanning.publicHome,
+          visualAsset:
+            siteVisualBundle.pageVisuals.index ??
+            pageModels.find((page) => page.slug === 'index')?.visualAsset ??
+            null,
+        }
+      : null
     const conversionAssets = pagePlanning.conversionAssets.map((asset) => ({
       ...asset,
       visualAsset: siteVisualBundle.assetVisuals[asset.slug] ?? null,
@@ -15118,35 +19742,47 @@ async function runPipeline() {
       siteSlug: cluster.siteSlug,
       siteName: cluster.thesisName,
       cluster,
+      designProfileKey: cluster.designProfileKey,
+      designProfile: cluster.designProfile,
       research,
       sourcePack,
       claims: pagePlanning.claims,
       pageBriefs: pagePlanning.pageBriefs,
+      factsExtraction: pagePlanning.factsExtraction,
       researchDossier: pagePlanning.researchDossier,
+      toolRanking: pagePlanning.toolRanking,
+      comparisonDebugReport: pagePlanning.comparisonDebugReport,
       conversionAssets,
       visualAssets: siteVisualBundle.manifest,
       homePath: `/generated-sites/${cluster.siteSlug}/index.html`,
+      publicHomePath: '/',
       outputDir: siteDir,
+      publicHome: publicHomeModel,
       pages: pageModels,
       pageArtifacts: [],
       audit: null,
+      commercialOffer: null,
     }
+
+    const consultOffer = buildConsultOfferRecord(siteRecord)
+    siteRecord.commercialOffer = consultOffer
 
     const renderedPages = []
 
     for (const page of pageModels) {
       await writeJson(path.join(factsDir, `${page.fileName.replace(/\.html$/, '')}.json`), page)
       const rendered = renderSiteHtml(siteRecord, page)
+      const designReview = evaluatePageDesign(siteRecord, page, rendered.html)
       const pageOutput = {
         ...page,
         canonicalUrl: rendered.canonicalUrl,
         titleLength: rendered.titleLength,
         descriptionLength: rendered.descriptionLength,
         wordCount: rendered.wordCount,
+        designReview,
         html: rendered.html,
       }
       renderedPages.push(pageOutput)
-      await writeFile(path.join(siteDir, page.fileName), `${rendered.html}\n`)
     }
 
     const summary = buildSiteSummary(cluster, renderedPages)
@@ -15157,34 +19793,27 @@ async function runPipeline() {
       antiGeneric: summary.antiGeneric,
     }
     siteRecord.pageArtifacts = renderedPages.map(({ html, ...page }) => page)
-    const publishGate = evaluatePublishGate(siteRecord)
-    publishGateBySiteSlug.set(siteRecord.siteSlug, publishGate)
-
-    if (publishGate.status !== 'pass') {
-      for (const page of renderedPages) {
-        page.html = applyNoindexDirective(page.html)
-        await writeFile(path.join(siteDir, page.fileName), `${page.html}\n`)
-      }
-    }
 
     const downloadsDir = path.join(siteDir, 'downloads')
     await mkdir(downloadsDir, { recursive: true })
     const assetArtifacts = []
-    const consultOffer = buildConsultOfferRecord(siteRecord)
+    const renderedAssetPages = []
 
     for (const asset of siteRecord.conversionAssets) {
       await writeMarkdown(path.join(downloadsDir, asset.downloadFileName), asset.downloadMarkdown)
+      await writePublicFile(asset.downloadPath, asset.downloadMarkdown)
       const landingPage = renderAssetLandingHtml(siteRecord, asset)
       const thankYouPage = renderAssetThankYouHtml(siteRecord, asset)
-      const landingHtml =
-        publishGate.status === 'pass' ? landingPage.html : applyNoindexDirective(landingPage.html)
-      const thankYouHtml =
-        publishGate.status === 'pass'
-          ? thankYouPage.html
-          : applyNoindexDirective(thankYouPage.html)
-
-      await writeFile(path.join(siteDir, asset.landingFileName), `${landingHtml}\n`)
-      await writeFile(path.join(siteDir, asset.thankYouFileName), `${thankYouHtml}\n`)
+      renderedAssetPages.push({
+        fileName: asset.landingFileName,
+        routePath: asset.landingPath,
+        html: landingPage.html,
+      })
+      renderedAssetPages.push({
+        fileName: asset.thankYouFileName,
+        routePath: asset.thankYouPath,
+        html: thankYouPage.html,
+      })
 
       assetArtifacts.push({
         slug: asset.slug,
@@ -15192,6 +19821,9 @@ async function runPipeline() {
         landingPath: asset.landingPath,
         thankYouPath: asset.thankYouPath,
         downloadPath: asset.downloadPath,
+        previewLandingPath: asset.previewLandingPath,
+        previewThankYouPath: asset.previewThankYouPath,
+        previewDownloadPath: asset.previewDownloadPath,
         visualAssetPath: asset.visualAsset?.url ?? '',
         visualAssetStatus: asset.visualAsset?.mode ?? 'none',
       })
@@ -15200,23 +19832,57 @@ async function runPipeline() {
     siteRecord.assetArtifacts = assetArtifacts
     const consultLandingPage = renderConsultOfferHtml(siteRecord, consultOffer)
     const consultThankYouPage = renderConsultThankYouHtml(siteRecord, consultOffer)
-    const consultLandingHtml =
-      publishGate.status === 'pass'
-        ? consultLandingPage.html
-        : applyNoindexDirective(consultLandingPage.html)
-    const consultThankYouHtml =
-      publishGate.status === 'pass'
-        ? consultThankYouPage.html
-        : applyNoindexDirective(consultThankYouPage.html)
-    await writeFile(path.join(siteDir, consultOffer.landingFileName), `${consultLandingHtml}\n`)
-    await writeFile(path.join(siteDir, consultOffer.thankYouFileName), `${consultThankYouHtml}\n`)
+    const renderedConsultPages = [
+      {
+        fileName: consultOffer.landingFileName,
+        routePath: consultOffer.landingPath,
+        html: consultLandingPage.html,
+      },
+      {
+        fileName: consultOffer.thankYouFileName,
+        routePath: consultOffer.thankYouPath,
+        html: consultThankYouPage.html,
+      },
+    ]
     siteRecord.commercialOffer = consultOffer
+    siteRecord.designReviewReport = buildSiteDesignReviewReport(siteRecord, renderedPages)
+    const publishGate = evaluatePublishGate(siteRecord)
+    publishGateBySiteSlug.set(siteRecord.siteSlug, publishGate)
+    const previewOnlyPageSlugs = new Set(siteRecord.publicHome ? ['index'] : [])
+
+    for (const page of renderedPages) {
+      const previewHtml = applyNoindexDirective(page.html)
+      await writeFile(path.join(siteDir, page.fileName), `${previewHtml}\n`)
+
+      if (page.publicPath) {
+        const publicHtml =
+          publishGate.status === 'pass' ? page.html : applyNoindexDirective(page.html)
+        await writePublicRouteHtml(page.publicPath, publicHtml)
+      }
+    }
+
+    if (siteRecord.publicHome) {
+      const renderedPublicHome = renderPublicHomeHtml(siteRecord, siteRecord.publicHome)
+      siteRecord.publicHomeCanonicalUrl = renderedPublicHome.canonicalUrl
+    }
+
+    for (const assetPage of [...renderedAssetPages, ...renderedConsultPages]) {
+      const previewHtml = applyNoindexDirective(assetPage.html)
+      await writeFile(path.join(siteDir, assetPage.fileName), `${previewHtml}\n`)
+      const finalHtml =
+        publishGate.status === 'pass' ? assetPage.html : applyNoindexDirective(assetPage.html)
+      if (assetPage.routePath) {
+        await writePublicRouteHtml(assetPage.routePath, finalHtml)
+      }
+    }
 
     siteRecord.pages = renderedPages.map((page) => ({
       slug: page.slug,
       navLabel: page.navLabel,
       type: page.type,
-      path: page.path,
+      path: page.publicPath || page.path,
+      previewPath: page.path,
+      publicPath: page.publicPath || '',
       canonicalUrl: page.canonicalUrl,
       title: page.title,
       metaDescription: page.metaDescription,
@@ -15234,17 +19900,18 @@ async function runPipeline() {
       commercialModuleCount: page.commercialModules?.length ?? 0,
       visualAssetPath: page.visualAsset?.url ?? '',
       visualAssetStatus: page.visualAsset?.mode ?? 'none',
-      indexingDirective: publishGate.status === 'pass' ? 'index' : 'noindex',
+      indexingDirective:
+        publishGate.status === 'pass' && !previewOnlyPageSlugs.has(page.slug) ? 'index' : 'noindex',
     }))
     sites.push(siteRecord)
   }
 
   await writeFile(path.join(sitesRoot, 'index.html'), buildSiteIndexHtml(sites))
 
-  const deploymentSites = sites.map((site) =>
-    buildDeploymentSite(
-      site,
-      site.audit.status,
+    const deploymentSites = sites.map((site) =>
+      buildDeploymentSite(
+        site,
+        site.audit.status,
       publishGateBySiteSlug.get(site.siteSlug) ?? evaluatePublishGate(site),
     ),
   )
@@ -15258,7 +19925,15 @@ async function runPipeline() {
   const primaryReleaseSite =
     sites.find((site) => publishGateBySiteSlug.get(site.siteSlug)?.status === 'pass') ?? sites[0] ?? null
 
-  await writeFile(path.join(publicDir, 'index.html'), buildRootIndexHtml(primaryReleaseSite))
+  let rootHtml = buildRootIndexHtml(primaryReleaseSite)
+  if (primaryReleaseSite?.publicHome) {
+    const renderedPublicHome = renderPublicHomeHtml(primaryReleaseSite, primaryReleaseSite.publicHome)
+    rootHtml =
+      publishGateBySiteSlug.get(primaryReleaseSite.siteSlug)?.status === 'pass'
+        ? renderedPublicHome.html
+        : applyNoindexDirective(renderedPublicHome.html)
+  }
+  await writeFile(path.join(publicDir, 'index.html'), rootHtml)
   await writeFile(path.join(publicDir, 'sitemap.xml'), sitemapXml)
   await writeFile(path.join(publicDir, 'robots.txt'), robotsTxt)
   await writeFile(path.join(publicDir, 'llms.txt'), llmsTxt)
@@ -15375,7 +20050,15 @@ async function runPipeline() {
   })
   await writeMarkdown(assetReviewQueueMarkdownPath, buildAssetReviewQueueMarkdown(assetReviewQueue))
   await writeJson(reviewOverridesTemplatePath, buildReviewOverrideTemplate(enrichedSites))
-  const contentFeedback = buildContentFeedback(enrichedSites, history)
+  const commercialOpsSnapshot = await readJsonIfExists(path.join(storageDir, 'commercial-ops.json'))
+  const commercialIntentModel = buildCommercialIntentModel(enrichedSites)
+  const assetPerformanceView = buildAssetPerformanceView(enrichedSites, commercialOpsSnapshot)
+  const contentFeedback = buildContentFeedback(
+    enrichedSites,
+    history,
+    assetPerformanceView,
+    commercialOpsSnapshot,
+  )
   await writeJson(feedbackPath, contentFeedback)
   const contentPlaybook = buildContentPlaybook(
     contentFeedback,
@@ -15385,11 +20068,13 @@ async function runPipeline() {
   )
   await writeJson(contentPlaybookPath, contentPlaybook)
   const seoQueues = buildSeoQueues(enrichedSites, seoReport)
-  const pageRefreshPlans = buildPageRefreshPlans(enrichedSites, seoQueues)
+  const pageRefreshPlans = buildPageRefreshPlans(
+    enrichedSites,
+    seoQueues,
+    assetPerformanceView,
+    commercialOpsSnapshot,
+  )
   const sourceRefreshQueue = buildSourceRefreshQueue(enrichedSites)
-  const commercialIntentModel = buildCommercialIntentModel(enrichedSites)
-  const commercialOpsSnapshot = await readJsonIfExists(path.join(storageDir, 'commercial-ops.json'))
-  const assetPerformanceView = buildAssetPerformanceView(enrichedSites, commercialOpsSnapshot)
   const wikiWritebackQueue = buildWikiWritebackQueue(
     enrichedSites,
     pageRefreshPlans,
@@ -15420,6 +20105,10 @@ async function runPipeline() {
     currentRunSnapshot,
   })
   await writeJson(path.join(generatedDir, 'phase1-validation.json'), phase1Validation)
+  await writeJson(path.join(generatedDir, 'design-review-report.json'), {
+    generatedAt: config.generatedAt,
+    sites: enrichedSites.map((site) => site.designReviewReport ?? null).filter(Boolean),
+  })
   await writeMarkdown(
     path.join(storageDir, 'phase1-validation.md'),
     buildPhase1ValidationMarkdown(phase1Validation),
@@ -15513,7 +20202,7 @@ async function runPipeline() {
       label: '内容生成',
       status: 'completed',
       summary: `${enrichedSites.length} 个站点蓝图、${enrichedSites.reduce((sum, site) => sum + site.pages.length, 0)} 个页面内容计划、${wikiExport.counts.claims} 张 claim 卡已生成`,
-      detail: '内容生成已经切到 source-pack -> research dossier -> claim / page brief -> page facts -> HTML 的证据驱动模式，支持扩展页型和无人值守发布。',
+      detail: '内容生成链路已经明确切到 Wiki -> facts -> ranking -> tool selection -> renderer -> decision page HTML；Wiki 负责事实层，ranking 负责 shortlist，renderer 只消费排序后的工具实体。',
       metrics: {
         sites: enrichedSites.length,
         pages: enrichedSites.reduce((sum, site) => sum + site.pages.length, 0),
@@ -15785,7 +20474,10 @@ async function runPipeline() {
       siteSlug: site.siteSlug,
       thesisKey: site.cluster.thesisKey,
       sourcePackPath: `/generated/content-artifacts/${site.siteSlug}/source-pack.json`,
+      factsExtractionPath: `/generated/content-artifacts/${site.siteSlug}/facts-extraction.json`,
       researchDossierPath: `/generated/content-artifacts/${site.siteSlug}/research-dossier.json`,
+      toolRankingPath: `/generated/content-artifacts/${site.siteSlug}/tool-ranking.json`,
+      comparisonDebugReportPath: `/generated/content-artifacts/${site.siteSlug}/comparison-debug-report.json`,
       factPaths: (site.pageArtifacts ?? []).map((page) => `/generated/content-artifacts/${site.siteSlug}/facts/${page.fileName.replace(/\.html$/, '')}.json`),
       assetFlowPaths: safeArray(site.assetArtifacts).flatMap((asset) => [
         asset.landingPath,
