@@ -28,7 +28,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "validate": "pnpm lint && pnpm build && node --check scripts/run-pipeline.mjs && node --check scripts/release-prod.mjs && node --check scripts/check-ga4-realtime.mjs && node --check scripts/release-lib.mjs && node --check scripts/seo-submit.mjs && node --check scripts/worker-d1-migrate.mjs && node --check scripts/commercial-ops.mjs"
+    "validate": "pnpm lint && pnpm build && node --check scripts/run-pipeline.mjs && node --check scripts/release-prod.mjs && node --check scripts/check-ga4-realtime.mjs && node --check scripts/release-lib.mjs && node --check scripts/seo-submit.mjs && node --check scripts/worker-d1-migrate.mjs && node --check scripts/commercial-ops.mjs",
+    "monitoring:refresh:live": "node scripts/refresh-live-monitoring.mjs"
   },
   "dependencies": {
     "react": "^19.2.5",
