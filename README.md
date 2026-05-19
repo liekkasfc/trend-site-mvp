@@ -223,6 +223,23 @@ pnpm run release:ga4 -- --site-slug ai-video-workflow-short-form-demo --asset-sl
 
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL`
 - `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`
+- `GOOGLE_AUTH_PREFERENCE`
+
+固定 runner 建议：
+
+- GitHub Actions 只配置 service account，不放个人 refresh token
+- `GOOGLE_AUTH_PREFERENCE=service_account_first`
+- 给同一个 service account 同时授予：
+  - Search Console property `sc-domain:<your-domain>`
+  - GA4 property 的只读权限
+- 定时任务跑 `pnpm run monitoring:refresh:live`
+- 运行结果查看 `live-monitoring-refresh.json` artifact 和 workflow summary
+
+仓库已内置一个独立 workflow：
+
+- `.github/workflows/monitoring-live.yml`
+
+它会每天定时执行 live monitoring，并在 GSC/GA4 不是 `live` 时直接标红，避免 silent fallback。
 
 如果你要让 `seo:submit` 调用 GSC sitemap submit，而不是只读 GSC/GA4 数据，重新执行一次：
 
@@ -235,6 +252,7 @@ pnpm run google:oauth
 ### Release automation
 
 - `CLOUDFLARE_PAGES_PROJECT`
+- `CLOUDFLARE_PAGES_BRANCH`
 - `RELEASE_SITE_SLUG`
 - `RELEASE_ASSET_SLUG`
 - `AUTO_RELEASE_ENABLED`
@@ -258,13 +276,27 @@ pnpm run seo:indexnow:init -- --write-env
 - `worker:r2:sync`
 - `worker:d1:migrate`
 - `worker:deploy`
-- `wrangler pages deploy dist --project-name <project>`
+- `wrangler pages deploy dist --project-name <project> --branch <production-branch>`
 - `release:health`
 - `seo:diagnostics`
 - `seo:submit`
 - `www -> apex` 跳转校验
 - `deliver` 的 `HEAD` / `GET` 验证
 - GA4 realtime 验证
+
+默认 production branch 读取：
+
+- `CLOUDFLARE_PAGES_BRANCH`
+- 未设置时默认 `main`
+
+重要说明：
+
+- Cloudflare Pages 如果不显式指定 production branch，当前 git 分支部署很容易只生成一个 preview alias，而不会切换 `automiora.com` 主站内容。
+- 所以看到 `*.pages.dev` preview 更新，不等于主站已经切到新版本。
+- 发布后至少做一次主站核对：
+  - `https://automiora.com/generated-sites/<site-slug>/`
+  - 对比 production 主站与最新 preview / 本地 `dist` 是否一致
+- 如果主站和 preview 内容不一致，优先检查这次 Pages deploy 是否真的发到了 `CLOUDFLARE_PAGES_BRANCH`。
 
 输出会落到：
 

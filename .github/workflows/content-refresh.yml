@@ -1,0 +1,79 @@
+name: Content Refresh
+
+on:
+  schedule:
+    - cron: '15 1 * * *'
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Run mode
+        required: true
+        default: daily-check
+        type: choice
+        options:
+          - daily-check
+          - weekly-refresh
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Daily update check
+        if: github.event_name == 'schedule' && github.event.schedule == '15 1 * * *'
+        run: pnpm run pipeline:update:daily
+        env: &pipeline_env
+          SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
+          AUTO_RELEASE_ENABLED: ${{ secrets.AUTO_RELEASE_ENABLED }}
+          AUTO_RELEASE_ON_GATE_PASS: ${{ secrets.AUTO_RELEASE_ON_GATE_PASS }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          FIRECRAWL_ENABLED: ${{ secrets.FIRECRAWL_ENABLED }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          FIRECRAWL_API_URL: ${{ secrets.FIRECRAWL_API_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          GOOGLE_AUTH_PREFERENCE: service_account_first
+          GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+          GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+          GSC_SITE_URL: ${{ secrets.GSC_SITE_URL }}
+          GA4_PROPERTY_ID: ${{ secrets.GA4_PROPERTY_ID }}
+          GA4_MEASUREMENT_ID: ${{ secrets.GA4_MEASUREMENT_ID }}
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          DELIVERY_API_BASE_URL: ${{ secrets.DELIVERY_API_BASE_URL }}
+          WRANGLER_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Weekly full refresh
+        if: github.event_name == 'schedule' && github.event.schedule == '0 2 * * 0'
+        run: pnpm run pipeline:refresh:weekly
+        env: *pipeline_env
+
+      - name: Manual run
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ inputs.mode }}" = "weekly-refresh" ]; then
+            pnpm run pipeline:refresh:weekly
+          else
+            pnpm run pipeline:update:daily
+          fi
+        env: *pipeline_env
