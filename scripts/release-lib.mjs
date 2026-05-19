@@ -105,6 +105,11 @@ export function getDefaultPagesProject() {
   return process.env.CLOUDFLARE_PAGES_PROJECT ?? 'automiora-site'
 }
 
+export function getDefaultPagesBranch() {
+  loadProjectEnv()
+  return process.env.CLOUDFLARE_PAGES_BRANCH ?? 'main'
+}
+
 export function getDefaultD1Database() {
   loadProjectEnv()
   return process.env.CLOUDFLARE_D1_DATABASE ?? 'automiora-site-prod'
@@ -290,17 +295,20 @@ export async function fetchManual(url, options = {}) {
 }
 
 export function getAssetFilePaths(siteSlug, assetSlug) {
-  const landingFileName = `asset-${assetSlug}.html`
-  const thankYouFileName = `asset-${assetSlug}-thank-you.html`
-  const assetDirectory = path.join(projectRoot, 'public', 'generated-sites', siteSlug)
+  const publicAssetDirectory = path.join(projectRoot, 'public', assetSlug)
+  const publicThankYouDirectory = path.join(publicAssetDirectory, 'ready')
+  const publicLandingPath = `/${assetSlug}/`
+  const publicThankYouPath = `/${assetSlug}/ready/`
 
   return {
-    localLandingFile: path.join(assetDirectory, landingFileName),
-    localThankYouFile: path.join(assetDirectory, thankYouFileName),
-    publicLandingPath: `/generated-sites/${siteSlug}/${landingFileName}`,
-    publicThankYouPath: `/generated-sites/${siteSlug}/${thankYouFileName}`,
-    liveLandingRoute: `/generated-sites/${siteSlug}/asset-${assetSlug}`,
-    liveLandingHtmlRoute: `/generated-sites/${siteSlug}/${landingFileName}`,
+    localLandingFile: path.join(publicAssetDirectory, 'index.html'),
+    localThankYouFile: path.join(publicThankYouDirectory, 'index.html'),
+    publicLandingPath,
+    publicThankYouPath,
+    liveLandingRoute: publicLandingPath,
+    liveLandingHtmlRoute: `${publicLandingPath}index.html`,
+    previewLandingRoute: `/generated-sites/${siteSlug}/asset-${assetSlug}`,
+    previewThankYouRoute: `/generated-sites/${siteSlug}/asset-${assetSlug}-thank-you.html`,
   }
 }
 
@@ -326,6 +334,7 @@ function base64UrlEncode(value) {
 function googleConfig() {
   loadProjectEnv()
   return {
+    authPreference: process.env.GOOGLE_AUTH_PREFERENCE ?? '',
     oauthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID ?? '',
     oauthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? '',
     oauthRefreshToken: process.env.GOOGLE_OAUTH_REFRESH_TOKEN ?? '',
@@ -357,83 +366,119 @@ export function getGoogleAuthMissingNote() {
   return 'Add GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REFRESH_TOKEN, or GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.'
 }
 
+function preferredGoogleAuthModes(config) {
+  const availableModes = []
+  if (hasGoogleUserOAuthAuth(config)) availableModes.push('oauth_user')
+  if (hasGoogleServiceAccountAuth(config)) availableModes.push('service_account')
+
+  const preference = String(config.authPreference ?? '').trim().toLowerCase()
+  const defaultPreference = process.env.GITHUB_ACTIONS === 'true' ? 'service_account_first' : 'oauth_user_first'
+  const effectivePreference = preference || defaultPreference
+
+  if (effectivePreference === 'service_account_only') {
+    return availableModes.filter((mode) => mode === 'service_account')
+  }
+
+  if (effectivePreference === 'oauth_user_only') {
+    return availableModes.filter((mode) => mode === 'oauth_user')
+  }
+
+  if (effectivePreference === 'service_account_first') {
+    return availableModes.sort((left, right) => {
+      if (left === right) return 0
+      return left === 'service_account' ? -1 : 1
+    })
+  }
+
+  return availableModes.sort((left, right) => {
+    if (left === right) return 0
+    return left === 'oauth_user' ? -1 : 1
+  })
+}
+
 export async function getGoogleAccessToken(scopes) {
   const config = googleConfig()
   if (!hasGoogleUserOAuthAuth(config) && !hasGoogleServiceAccountAuth(config)) {
     throw new Error(getGoogleAuthMissingNote())
   }
 
-  const authMode = hasGoogleUserOAuthAuth(config) ? 'oauth_user' : 'service_account'
-  const scopeKey = [authMode, ...new Set(scopes)].sort().join(' ')
-  const cached = googleTokenCache.get(scopeKey)
-  if (cached && cached.expiresAt > Date.now() + 60_000) {
-    return cached.accessToken
-  }
-
   const normalizedScopes = [...new Set(scopes)].sort()
-  const form = hasGoogleUserOAuthAuth(config)
-    ? new URLSearchParams({
-        client_id: config.oauthClientId,
-        client_secret: config.oauthClientSecret,
-        refresh_token: config.oauthRefreshToken,
-        grant_type: 'refresh_token',
-      })
-    : (() => {
-        const now = Math.floor(Date.now() / 1000)
-        const header = base64UrlEncode(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
-        const payload = base64UrlEncode(
-          JSON.stringify({
-            iss: config.serviceAccountEmail,
-            scope: normalizedScopes.join(' '),
-            aud: 'https://oauth2.googleapis.com/token',
-            exp: now + 3600,
-            iat: now,
-          }),
-        )
-        const assertionBase = `${header}.${payload}`
-        const signature = crypto
-          .sign('RSA-SHA256', Buffer.from(assertionBase), config.serviceAccountPrivateKey)
-          .toString('base64url')
-
-        return new URLSearchParams({
-          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-          assertion: `${assertionBase}.${signature}`,
-        })
-      })()
-
   const tokenErrors = []
-  for (const tokenUrl of config.oauthTokenUrls) {
-    try {
-      const response = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'AutomioraRelease/1.0',
-        },
-        body: form.toString(),
-      })
+  const authModes = preferredGoogleAuthModes(config)
 
-      if (!response.ok) {
-        tokenErrors.push(`${tokenUrl} -> ${response.status} ${await response.text()}`)
+  for (const authMode of authModes) {
+    const scopeKey = [authMode, ...normalizedScopes].sort().join(' ')
+    const cached = googleTokenCache.get(scopeKey)
+    if (cached && cached.expiresAt > Date.now() + 60_000) {
+      return cached.accessToken
+    }
+
+    const form = authMode === 'oauth_user'
+      ? new URLSearchParams({
+          client_id: config.oauthClientId,
+          client_secret: config.oauthClientSecret,
+          refresh_token: config.oauthRefreshToken,
+          grant_type: 'refresh_token',
+        })
+      : (() => {
+          const now = Math.floor(Date.now() / 1000)
+          const header = base64UrlEncode(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+          const payload = base64UrlEncode(
+            JSON.stringify({
+              iss: config.serviceAccountEmail,
+              scope: normalizedScopes.join(' '),
+              aud: 'https://oauth2.googleapis.com/token',
+              exp: now + 3600,
+              iat: now,
+            }),
+          )
+          const assertionBase = `${header}.${payload}`
+          const signature = crypto
+            .sign('RSA-SHA256', Buffer.from(assertionBase), config.serviceAccountPrivateKey)
+            .toString('base64url')
+
+          return new URLSearchParams({
+            grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            assertion: `${assertionBase}.${signature}`,
+          })
+        })()
+
+    for (const tokenUrl of config.oauthTokenUrls) {
+      try {
+        const response = await fetch(tokenUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'AutomioraRelease/1.0',
+          },
+          body: form.toString(),
+        })
+
+        if (!response.ok) {
+          tokenErrors.push(`${authMode}:${tokenUrl} -> ${response.status} ${await response.text()}`)
+          continue
+        }
+
+        const payload = await response.json()
+        const expiresIn = Number(payload.expires_in ?? 3600)
+        googleTokenCache.set(scopeKey, {
+          accessToken: payload.access_token,
+          expiresAt: Date.now() + Math.max(expiresIn - 60, 60) * 1000,
+        })
+
+        return payload.access_token
+      } catch (error) {
+        tokenErrors.push(
+          `${authMode}:${tokenUrl} -> ${error instanceof Error ? error.message : 'Unknown token error'}`,
+        )
         continue
       }
-
-      const payload = await response.json()
-      const expiresIn = Number(payload.expires_in ?? 3600)
-      googleTokenCache.set(scopeKey, {
-        accessToken: payload.access_token,
-        expiresAt: Date.now() + Math.max(expiresIn - 60, 60) * 1000,
-      })
-
-      return payload.access_token
-    } catch (error) {
-      tokenErrors.push(
-        `${tokenUrl} -> ${error instanceof Error ? error.message : 'Unknown token error'}`,
-      )
     }
   }
 
-  throw new Error(`Google OAuth token exchange failed: ${tokenErrors.join(' | ')}`)
+  throw new Error(
+    `Google OAuth token exchange failed across ${authModes.length} auth mode(s) and ${config.oauthTokenUrls.length} endpoint(s): ${tokenErrors.join(' | ')}`,
+  )
 }
 
 export async function runRealtimeReport(body, explicitPropertyId = '') {

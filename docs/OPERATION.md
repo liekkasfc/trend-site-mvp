@@ -13,6 +13,19 @@ pnpm run dev
 pnpm run pipeline
 ```
 
+增量更新命令：
+
+```bash
+pnpm run pipeline:update:daily
+pnpm run pipeline:refresh:weekly
+```
+
+说明：
+
+- `pipeline`：默认保留现有输出，并只重写受影响页面
+- `pipeline:update:daily`：按 Wiki + 新抓取数据做变更检测，走 update queue
+- `pipeline:refresh:weekly`：强制整站 full refresh
+
 默认前端：
 
 - `http://localhost:4173/`
@@ -41,20 +54,20 @@ SITE_IMAGE_PROVIDER=openai
 SITE_IMAGE_MODEL=gpt-image-2
 ```
 
-如果你想先走 HiAPI 供应商，不用配 `OPENAI_API_KEY`，直接这样：
+如果你想先走 APIMart 供应商，不用配 `OPENAI_API_KEY`，直接这样：
 
 ```bash
-HIAPI_API_KEY=<your hiapi key>
+APIMART_API_KEY=<your apimart key>
 SITE_IMAGE_GENERATION_ENABLED=true
-SITE_IMAGE_PROVIDER=hiapi
+SITE_IMAGE_PROVIDER=apimart
 SITE_IMAGE_MODEL=gpt-image-2
 ```
 
 也可以统一只配：
 
 ```bash
-SITE_IMAGE_API_KEY=<your hiapi key>
-SITE_IMAGE_PROVIDER=hiapi
+SITE_IMAGE_API_KEY=<your apimart key>
+SITE_IMAGE_PROVIDER=apimart
 ```
 
 可选配置：
@@ -66,19 +79,26 @@ SITE_IMAGE_PAGE_TYPES=hub,workflow,use-cases,template-kit,case-study
 SITE_IMAGE_ASSET_KINDS=template_pack,checklist,worksheet
 ```
 
-HiAPI 相关可选项：
+APIMart 相关可选项：
 
 ```bash
-SITE_IMAGE_API_BASE_URL=https://api.hiapi.ai/v1
-SITE_IMAGE_HIAPI_ASPECT_RATIO=16:9
-SITE_IMAGE_HIAPI_IMAGE_SIZE=2K
+SITE_IMAGE_API_BASE_URL=https://api.apimart.ai/v1
+SITE_IMAGE_APIMART_ASPECT_RATIO=16:9
+SITE_IMAGE_APIMART_RESOLUTION=2k
+SITE_IMAGE_APIMART_INITIAL_DELAY_MS=12000
+SITE_IMAGE_APIMART_POLL_INTERVAL_MS=4000
+SITE_IMAGE_APIMART_TIMEOUT_MS=180000
 ```
 
 说明：
 
 - `SITE_IMAGE_PROVIDER=openai` 时，脚本走 `/images/generations`
-- `SITE_IMAGE_PROVIDER=hiapi` 时，脚本走 `/chat/completions`，并解析返回的 markdown 图片内容
+- `SITE_IMAGE_PROVIDER=apimart` 时，脚本走 `/images/generations`，拿到 `task_id` 后轮询 `/tasks/{task_id}` 再下载稳定图片 URL
 - 如果没有配置可用 key，系统仍会为这些页面生成 fallback SVG visual，所以站点不会退回纯文字头图
+- 如果 provider 可用但生成失败，错误会写进 `public/generated/content-artifacts/<site-slug>/visual-assets.json`
+  - 先看 `generationFailures`
+  - 常见情况不是代码坏了，而是供应商余额不足、模型不可用或轮询超时
+  - 这类失败现在不会再默默吞掉
 
 ## 2. 修改后校验顺序
 
@@ -87,6 +107,14 @@ pnpm run lint
 pnpm run build
 pnpm run pipeline
 ```
+
+如果这次变更影响了首页、高价值页、资产页或视觉层，继续执行：
+
+1. 对照 [`SITE-DESIGN-SPEC.md`](/Users/max/code/trend-site-mvp/docs/SITE-DESIGN-SPEC.md) 过一轮首页 / 高价值页 / 资产 / 视觉 Gate
+2. 如需记录结果，复制：
+   - [`storage/design-review.template.json`](/Users/max/code/trend-site-mvp/storage/design-review.template.json)
+   - 到 `storage/design-review.json`
+3. 先改设计和文案层问题，再决定是否正式发布
 
 如果这次是正式发布，不只是本地检查，直接跑：
 
@@ -99,6 +127,9 @@ pnpm run release:prod
 最常用的文件：
 
 - `public/generated/pipeline-report.json`
+- `public/generated/content-update-report.json`
+- `public/generated/page-dependency-graph.json`
+- `public/generated/update-queue.json`
 - `public/generated/phase1-validation.json`
 - `public/generated/wiki-index.json`
 - `public/generated-sites/*`
@@ -169,8 +200,35 @@ active thesis 推荐在 `config/thesis-registry.json` 里显式维护：
 - 生成 facts JSON
 - 生成 10 页标准 cluster
 - 跑 Gate 2
+  - Gate 2 现在还会硬拦公开文案漏网
+  - 拦截 internal/dev jargon
+  - 拦截 source residue / 脏句子
+  - 拦截相邻重复关键词短语，比如 `workflow workflow`
+  - 区分阻塞性问题和可带着发布的视觉债
+    - 会继续硬拦：公开页内部语言、脏 source residue、comparison 泄漏 domain、重复脏词
+    - 不再单独因为视觉 provider 余额不足导致的 fallback hero 永久卡死整站发布
 - 只给未过关页面打 `noindex`
 - 生成 review queue / feedback / next-run playbook
+- 生成 content update report / dependency graph / update queue
+
+## 5.1 自动内容更新
+
+现在支持基于 Wiki 的自动更新链路：
+
+- claim / asset / tool 都带：
+  - `last_verified`
+  - `staleness_days`
+  - `refresh_priority`
+  - `change_triggers`
+- 每日检查会比较旧 Wiki 与新抓取结果，标记：
+  - `changed_claims`
+  - `changed_tools`
+- 页面依赖会显式输出：
+  - `tool -> pages`
+  - `claim -> pages`
+  - `asset -> pages`
+- update queue 只挑受影响页面重写
+- 如果开启自动发布，只有真的有 page / asset 更新时才会继续触发部署
 
 ## 6. 可选人工审校
 
@@ -297,7 +355,7 @@ pnpm run release:prod
 4. `pnpm run worker:r2:sync`
 5. `pnpm run worker:d1:migrate`
 6. `pnpm run worker:deploy`
-7. `wrangler pages deploy dist --project-name $CLOUDFLARE_PAGES_PROJECT`
+7. `wrangler pages deploy dist --project-name $CLOUDFLARE_PAGES_PROJECT --branch $CLOUDFLARE_PAGES_BRANCH`
 8. 跑 `release:health`
 9. 跑 `seo:diagnostics`
 10. 跑 `seo:submit`
@@ -315,6 +373,7 @@ pnpm run release:prod
 相关环境变量：
 
 - `CLOUDFLARE_PAGES_PROJECT`
+- `CLOUDFLARE_PAGES_BRANCH`
 - `RELEASE_SITE_SLUG`
 - `RELEASE_ASSET_SLUG`
 - `AUTO_RELEASE_ENABLED`
@@ -322,6 +381,10 @@ pnpm run release:prod
 - `INDEXNOW_KEY`
 - `INDEXNOW_HOST`
 - `INDEXNOW_KEY_LOCATION`
+
+建议默认值：
+
+- `CLOUDFLARE_PAGES_BRANCH=main`
 
 初始化或同步 IndexNow key 文件：
 
@@ -344,12 +407,30 @@ pnpm run release:ga4 -- --site-slug ai-video-workflow-short-form-demo --asset-sl
 
 注意：
 
+- `release:prod` 现在应该被理解成“production branch deploy + smoke test”，不是“任意当前分支的 preview 发布”。
+- 如果 Pages deploy 没显式指定 branch，Cloudflare 很可能会把当前 git 分支发成 preview alias。
+- preview alias 更新不代表 `automiora.com` 主站已经切到新版本。
+- 真实主站发布后，至少核对一次：
+  - `https://automiora.com/generated-sites/<site-slug>/`
+  - 最新 preview alias
+  - 必要时直接比对 HTML 哈希或关键 meta/style 片段
+- 如果出现“preview 是新版、主站还是旧版”，第一优先检查：
+  - 本次 deploy 是否发到了 `CLOUDFLARE_PAGES_BRANCH`
+  - 而不是只发到了当前工作分支的 preview
 - `release:test-lead` 是后端直提交流程，不会触发页面里的前端 `gtag`。
 - 所以 `release:ga4` 最稳的用法，是先用浏览器真实走一遍 asset page -> thank-you -> download，再查 realtime。
 - `seo:submit` 里 Google sitemap submit 需要 `GSC_SITE_URL + Google auth`，IndexNow 需要 `INDEXNOW_KEY + INDEXNOW_HOST`。
 - 如果 `seo:submit` 返回 Google `ACCESS_TOKEN_SCOPE_INSUFFICIENT`，重新执行一次 `pnpm run google:oauth`，让 refresh token 包含 `https://www.googleapis.com/auth/webmasters` scope。
 - `worker:d1:migrate` / `commercial:ops` / 正式 `release:prod` 都依赖可用的 `CLOUDFLARE_API_TOKEN`。
 - 如果 `TURNSTILE_REQUIRED=true`，脚本提交流程需要真实 `turnstile token`，否则应该改走浏览器路径。
+
+主站内容切换的最小命令：
+
+```bash
+pnpm exec wrangler pages deploy dist --project-name "$CLOUDFLARE_PAGES_PROJECT" --branch "$CLOUDFLARE_PAGES_BRANCH"
+```
+
+如果只是修正“preview 已更新、主站未更新”的问题，可以只重跑这一步，不必先重跑整条 `release:prod`。
 
 ## 6.2 Phase 1 收益验证怎么看
 
@@ -404,9 +485,53 @@ pnpm run release:ga4 -- --site-slug ai-video-workflow-short-form-demo --asset-sl
 
 - [`ASSET-ACCEPTANCE-GATE.md`](/Users/max/code/trend-site-mvp/docs/ASSET-ACCEPTANCE-GATE.md)
 
+## 6.4 Site Design Spec 现在怎么执行
+
+发布前，默认把下面几类页面纳入设计层验收：
+
+- 首页 / hub
+- `alternatives`
+- `pricing`
+- `workflow`
+- `template-kit`
+- `case-study`
+- 核心 asset landing / thank-you / download surfaces
+
+默认执行顺序：
+
+1. 先看首页首屏是否满足：
+   - 结果承诺
+   - 适用对象
+   - proof
+   - 主次 CTA
+   - 与 thesis 强相关的 preview
+2. 再看高价值页是否符合：
+   - `verdict -> proof -> action`
+   - 前 `2` 屏内能完成判断
+   - 文案不再像研究备忘录
+3. 再看 asset 是否满足：
+   - `3` 分钟内可开始使用
+   - 有 blank preview
+   - 有 filled example
+   - watch-out 清楚
+4. 最后看视觉一致性：
+   - hero family
+   - asset cover family
+   - CTA / proof block / table 层级一致
+
+如果任意项明显不过关：
+
+- 不建议直接发布
+- 先把问题记录进 `design-review.json`
+- 再回到页面和资产层做定向重写或视觉替换
+
+完整标准见：
+
+- [`SITE-DESIGN-SPEC.md`](/Users/max/code/trend-site-mvp/docs/SITE-DESIGN-SPEC.md)
+
 ## 7. 启用 GSC + GA4 真数据
 
-推荐 OAuth：
+本地手工调试推荐 OAuth：
 
 - `GOOGLE_OAUTH_CLIENT_ID`
 - `GOOGLE_OAUTH_CLIENT_SECRET`
@@ -426,6 +551,27 @@ pnpm run google:oauth
 
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL`
 - `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`
+- `GOOGLE_AUTH_PREFERENCE`
+
+固定 runner 推荐配置：
+
+- 执行环境：GitHub Actions
+- workflow：`.github/workflows/monitoring-live.yml`
+- 认证策略：`GOOGLE_AUTH_PREFERENCE=service_account_first`
+- 不在自动化环境里依赖个人 OAuth refresh token
+- service account 必须同时具备：
+  - `GSC_SITE_URL` 对应 Search Console property 的访问权限
+  - `GA4_PROPERTY_ID` 对应 property 的 `Viewer` 或更高只读权限
+
+这个 workflow 会：
+
+- 定时执行 `pnpm run monitoring:refresh:live`
+- 上传 `public/generated/live-monitoring-refresh.json`
+- 上传 `public/generated/monitoring-history.json`
+- 上传 `public/generated/pipeline-report.json`
+- 当 `monitoringMode !== live_google` 或 `gscStatus/ga4Status !== live` 时直接失败
+
+这样 Google 权限、网络、凭证异常会在固定 runner 上暴露为红色 workflow，而不是只在本地 heartbeat 里被动发现。
 
 ## 8. 内容 AI 配置
 

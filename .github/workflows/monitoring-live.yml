@@ -1,0 +1,106 @@
+name: Live Monitoring
+
+on:
+  schedule:
+    - cron: '10 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: live-monitoring
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Refresh live monitoring
+        run: pnpm run monitoring:refresh:live
+        env:
+          SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
+          GOOGLE_AUTH_PREFERENCE: service_account_first
+          GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+          GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          GSC_SITE_URL: ${{ secrets.GSC_SITE_URL }}
+          GA4_PROPERTY_ID: ${{ secrets.GA4_PROPERTY_ID }}
+          GA4_MEASUREMENT_ID: ${{ secrets.GA4_MEASUREMENT_ID }}
+          GA4_CONVERSION_EVENTS: ${{ secrets.GA4_CONVERSION_EVENTS }}
+
+      - name: Write workflow summary
+        if: always()
+        run: |
+          node --input-type=module <<'EOF'
+          import fs from 'node:fs'
+
+          const reportPath = 'public/generated/live-monitoring-refresh.json'
+          if (!fs.existsSync(reportPath)) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'Live monitoring report was not generated.\n')
+            process.exit(0)
+          }
+
+          const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'))
+          const current = report.currentRun?.sites?.[0] ?? {}
+          const lines = [
+            '## Live Monitoring',
+            '',
+            `- generatedAt: ${report.generatedAt ?? 'unknown'}`,
+            `- monitoringMode: ${report.currentRun?.mode ?? 'unknown'}`,
+            `- gscStatus: ${report.gsc?.status ?? 'unknown'}`,
+            `- ga4Status: ${report.ga4?.status ?? 'unknown'}`,
+            `- impressions: ${current.impressions ?? 'unknown'}`,
+            `- sessions: ${current.sessions ?? 'unknown'}`,
+            `- conversions: ${current.conversions ?? 'unknown'}`,
+          ]
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`)
+          EOF
+
+      - name: Upload monitoring artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-monitoring
+          path: |
+            public/generated/live-monitoring-refresh.json
+            public/generated/monitoring-history.json
+            public/generated/pipeline-report.json
+          if-no-files-found: error
+
+      - name: Fail if live data is degraded
+        run: |
+          node --input-type=module <<'EOF'
+          import fs from 'node:fs'
+
+          const report = JSON.parse(fs.readFileSync('public/generated/live-monitoring-refresh.json', 'utf8'))
+          const failures = []
+
+          if (report.currentRun?.mode !== 'live_google') {
+            failures.push(`monitoringMode=${report.currentRun?.mode ?? 'unknown'}`)
+          }
+          if (report.gsc?.status !== 'live') {
+            failures.push(`gscStatus=${report.gsc?.status ?? 'unknown'}`)
+          }
+          if (report.ga4?.status !== 'live') {
+            failures.push(`ga4Status=${report.ga4?.status ?? 'unknown'}`)
+          }
+
+          if (failures.length > 0) {
+            console.error(`Live monitoring refresh did not complete cleanly: ${failures.join(', ')}`)
+            process.exit(1)
+          }
+          EOF
