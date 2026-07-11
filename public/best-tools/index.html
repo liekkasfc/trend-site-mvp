@@ -3,62 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Best ai video workflow tools: shortlist by buyer fit</title>
-    <meta name="description" content="A best-of page for ai video workflow that groups tools by buyer fit, workflow maturity, and commercial readiness." />
-    <meta name="robots" content="noindex, nofollow" />
+    <title>Best AI video workflow tools: shortlist by buyer fit</title>
+    <meta name="description" content="A best-of page for AI video workflow that groups tools by buyer fit, workflow maturity, and commercial readiness." />
     <link rel="canonical" href="https://automiora.com/best-tools/" />
-    <meta property="og:title" content="Best ai video workflow tools: shortlist by buyer fit" />
-    <meta property="og:description" content="A best-of page for ai video workflow that groups tools by buyer fit, workflow maturity, and commercial readiness." />
+    <meta property="og:title" content="Best AI video workflow tools: shortlist by buyer fit" />
+    <meta property="og:description" content="A best-of page for AI video workflow that groups tools by buyer fit, workflow maturity, and commercial readiness." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://automiora.com/best-tools/" />
     
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Best ai video workflow tools: shortlist by buyer fit" />
-    <meta name="twitter:description" content="A best-of page for ai video workflow that groups tools by buyer fit, workflow maturity, and commercial readiness." />
+    <meta name="twitter:title" content="Best AI video workflow tools: shortlist by buyer fit" />
+    <meta name="twitter:description" content="A best-of page for AI video workflow that groups tools by buyer fit, workflow maturity, and commercial readiness." />
     
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemList","itemListElement":[{"@type":"ListItem","position":1,"name":"Seedance","description":"audio-video generation. Seedance pricing Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models. https://seed. bytedance. com/zh/pricing. Recommended first shortlist review"},{"@type":"ListItem","position":2,"name":"Kling","description":"native audio-video outputs. Kling pricing Official Kling pricing page covering plans, credits, and subscription details. https://kling. ai/pricing. Good second option"},{"@type":"ListItem","position":3,"name":"Runway","description":"creative video workflows. Visitors who only need category education and are not ready to compare tools. Useful benchmark or fallback"},{"@type":"ListItem","position":4,"name":"Pika","description":"short-form video generation. Visitors who only need category education and are not ready to compare tools. Useful benchmark or fallback"}]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemList","itemListElement":[{"@type":"ListItem","position":1,"name":"Runway","description":"creative video workflows. Not for Do not start here if the team only needs a quick one-model experiment and does not need editing or review workflow yet.. Start here for the first live evaluation"},{"@type":"ListItem","position":2,"name":"Pika","description":"short-form video generation. Not for Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.. Keep this as the strongest fallback"},{"@type":"ListItem","position":3,"name":"Seedance","description":"audio-video generation. Not for Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.. Use as a benchmark or niche fit"},{"@type":"ListItem","position":4,"name":"Kling","description":"native audio-video outputs. Not for Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.. Use as a benchmark or niche fit"}]}</script>
 
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-0YDYHQCDQC"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      window.gtag = window.gtag || gtag;
-      gtag('js', new Date());
-      gtag('config', "G-0YDYHQCDQC", {
-        page_title: "Best ai video workflow tools: shortlist by buyer fit",
-        page_path: "/best-tools/",
-        send_page_view: true
-      });
 
-      window.addEventListener('DOMContentLoaded', function () {
-        
-
-        document.querySelectorAll('[data-ga4-event]').forEach(function (element) {
-          element.addEventListener('click', function () {
-            if (typeof window.gtag !== 'function') return;
-            window.gtag('event', element.dataset.ga4Event, {
-              page_path: "/best-tools/",
-              page_title: "Best ai video workflow tools: shortlist by buyer fit",
-              event_label: element.dataset.ga4Label || '',
-              cta_title: "AI Video Workflow prompt pack"
-            });
-          });
-        });
-
-        document.querySelectorAll('form[data-ga4-submit-event]').forEach(function (form) {
-          form.addEventListener('submit', function () {
-            if (typeof window.gtag !== 'function') return;
-            window.gtag('event', form.dataset.ga4SubmitEvent, {
-              page_path: "/best-tools/",
-              page_title: "Best ai video workflow tools: shortlist by buyer fit",
-              event_label: form.dataset.ga4Label || '',
-              cta_title: "AI Video Workflow prompt pack"
-            });
-          });
-        });
-      });
-    </script>
-  
     <style>
 
       :root {
@@ -238,6 +197,37 @@
       .cta-button:hover {
         filter: brightness(1.06);
       }
+      .comparison-tool-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .comparison-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.06);
+        color: var(--text-strong);
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      .comparison-badge--best,
+      .comparison-badge--beginner {
+        background: rgba(220, 180, 92, 0.18);
+        color: #f3cb75;
+      }
+      .comparison-badge--fast {
+        background: rgba(142, 183, 119, 0.2);
+      }
+      .comparison-badge--premium {
+        background: rgba(103, 145, 214, 0.18);
+      }
+      .comparison-badge--fallback,
+      .comparison-badge--backup {
+        background: rgba(255,255,255,0.1);
+      }
       .cluster-links {
         display: grid;
         gap: 8px;
@@ -253,16 +243,67 @@
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
       .mini-card,
-      .step-item {
+      .step-item,
+      .tool-card,
+      .failure-card {
         border: 1px solid var(--border-soft);
         background: var(--surface-glass);
         padding: 14px;
       }
+      .tool-card--primary {
+        border-color: var(--accent-2-soft);
+        background: linear-gradient(180deg, rgba(220, 180, 92, 0.12), rgba(255,255,255,0.03));
+      }
+      .tool-card--fallback {
+        border-color: var(--accent-soft);
+      }
       .mini-card strong,
-      .step-item strong {
+      .step-item strong,
+      .tool-card strong,
+      .failure-card strong {
         display: block;
         color: var(--text-strong);
         margin-bottom: 8px;
+      }
+      .tool-signal-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 12px;
+      }
+      .failure-stack {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .prompt-shell {
+        display: grid;
+        gap: 14px;
+      }
+      .prompt-form-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .prompt-field {
+        display: grid;
+        gap: 6px;
+      }
+      .prompt-field select {
+        width: 100%;
+        border: 1px solid var(--border-soft);
+        background: rgba(255,255,255,0.03);
+        color: var(--text-strong);
+        padding: 12px;
+      }
+      .prompt-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .prompt-output {
+        display: grid;
+        gap: 12px;
       }
       .step-list {
         display: grid;
@@ -331,6 +372,12 @@
         padding: 10px 8px;
         border-bottom: 1px solid var(--border-soft);
       }
+      .comparison-row--primary td {
+        background: rgba(220, 180, 92, 0.08);
+      }
+      .comparison-row--fallback td {
+        background: rgba(142, 183, 119, 0.08);
+      }
       footer {
         padding: 0 0 32px;
         color: var(--text-muted);
@@ -343,9 +390,280 @@
         .hero-summary,
         .hero-proof-strip,
         .card-grid,
-        .fact-grid {
+        .fact-grid,
+        .tool-signal-grid,
+        .prompt-form-grid {
           grid-template-columns: 1fr;
         }
+      }
+      :root {
+        color-scheme: light;
+        font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", sans-serif;
+        --page-bg: #f4f7fc;
+        --surface: #ffffff;
+        --surface-alt: #eef2ff;
+        --surface-glass: rgba(255, 255, 255, 0.92);
+        --text-strong: #111827;
+        --text-muted: #52607a;
+        --accent: #5f6fff;
+        --accent-soft: rgba(95, 111, 255, 0.12);
+        --accent-2: #6d4dff;
+        --accent-2-soft: rgba(109, 77, 255, 0.12);
+        --warning: #d9485f;
+        --border-soft: rgba(17, 24, 39, 0.08);
+        --border-muted: rgba(17, 24, 39, 0.14);
+        --card-shadow: 0 14px 34px rgba(34, 43, 74, 0.08);
+        --hero-shadow: 0 24px 60px rgba(34, 43, 74, 0.12);
+      }
+      body {
+        background:
+          radial-gradient(circle at top left, rgba(109, 77, 255, 0.1), transparent 30%),
+          radial-gradient(circle at top right, rgba(95, 111, 255, 0.08), transparent 28%),
+          linear-gradient(180deg, #f9fbff 0%, #f4f7fc 32%, #eff3fb 100%);
+      }
+      header, main, footer {
+        width: min(1160px, calc(100% - 32px));
+      }
+      header {
+        padding: 22px 0 10px;
+      }
+      main {
+        display: grid;
+        gap: 22px;
+        padding-bottom: 44px;
+      }
+      section {
+        padding: 24px;
+        border: 1px solid var(--border-soft);
+        border-radius: 24px;
+        background: rgba(255,255,255,0.92);
+        box-shadow: var(--card-shadow);
+        backdrop-filter: blur(16px);
+      }
+      h1 {
+        font-size: clamp(2.6rem, 3.8vw, 4rem);
+        line-height: 1.02;
+        margin: 14px 0;
+        max-width: 12ch;
+      }
+      h2 {
+        font-size: 1.42rem;
+        line-height: 1.15;
+        margin-bottom: 12px;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border: 1px solid rgba(95, 111, 255, 0.12);
+        border-radius: 999px;
+        background: rgba(95, 111, 255, 0.08);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+      .lede {
+        font-size: 1.03rem;
+        line-height: 1.66;
+      }
+      .hero-shell {
+        gap: 28px;
+        padding: 10px 0 14px;
+      }
+      .hero-summary-item,
+      .hero-proof-item,
+      .mini-card,
+      .step-item,
+      .tool-card,
+      .failure-card,
+      details {
+        border-radius: 20px;
+        background: rgba(255,255,255,0.96);
+        box-shadow: 0 12px 28px rgba(35, 42, 69, 0.05);
+      }
+      nav {
+        margin-top: 22px;
+        padding: 16px 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: linear-gradient(180deg, rgba(19, 29, 59, 0.96), rgba(8, 18, 43, 0.98));
+        box-shadow: 0 20px 48px rgba(7, 17, 44, 0.18);
+      }
+      nav a {
+        color: rgba(248, 250, 255, 0.8);
+        padding: 10px 14px;
+        border-radius: 999px;
+        border-color: rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+      }
+      nav a:hover,
+      nav a.active {
+        color: #f8faff;
+        border-color: rgba(140, 160, 255, 0.4);
+        background: rgba(140, 160, 255, 0.12);
+        transform: translateY(-1px);
+      }
+      .hero-visual {
+        border-radius: 24px;
+        background: rgba(255,255,255,0.96);
+        box-shadow: var(--hero-shadow);
+      }
+      .hero-visual figcaption {
+        padding: 16px 18px 18px;
+        background: linear-gradient(180deg, rgba(245, 247, 255, 0.96), #ffffff);
+      }
+      .cta-button,
+      .secondary-cta {
+        padding: 13px 18px;
+        border-radius: 14px;
+        transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+      }
+      .cta-button {
+        background: linear-gradient(135deg, #5f6fff, #6d4dff);
+        color: #ffffff;
+        box-shadow: 0 14px 30px rgba(95, 111, 255, 0.22);
+      }
+      .secondary-cta {
+        background: rgba(255,255,255,0.92);
+        box-shadow: 0 10px 24px rgba(35, 42, 69, 0.06);
+      }
+      .cta-button:hover,
+      .secondary-cta:hover {
+        transform: translateY(-1px);
+      }
+      .cta-button:hover {
+        filter: brightness(1.03);
+      }
+      .cta {
+        padding: 26px;
+        border: 0;
+        background: linear-gradient(135deg, #5c41ef 0%, #7651ff 52%, #8d72ff 100%);
+        box-shadow: 0 24px 52px rgba(92, 65, 239, 0.24);
+      }
+      .cta strong,
+      .cta p {
+        color: #ffffff;
+      }
+      .cta p {
+        color: rgba(255,255,255,0.88);
+      }
+      .cta .cta-button {
+        background: #ffffff;
+        color: #4f3ce1;
+        box-shadow: none;
+      }
+      .comparison-tool-cell {
+        flex-wrap: wrap;
+      }
+      .comparison-badge {
+        padding: 6px 12px;
+        background: #eef2ff;
+        color: #49566c;
+      }
+      .comparison-badge--best,
+      .comparison-badge--beginner {
+        background: rgba(109, 77, 255, 0.12);
+        color: #5a43e3;
+      }
+      .comparison-badge--fast {
+        background: rgba(15, 154, 111, 0.12);
+        color: #0f8b66;
+      }
+      .comparison-badge--premium {
+        background: rgba(95, 111, 255, 0.12);
+        color: #4d5de0;
+      }
+      .comparison-badge--fallback,
+      .comparison-badge--backup {
+        background: #f0f4fa;
+      }
+      .tool-card--primary {
+        border-color: rgba(109, 77, 255, 0.22);
+        background: linear-gradient(180deg, rgba(109, 77, 255, 0.08), rgba(255,255,255,0.98));
+      }
+      .tool-card--fallback {
+        border-color: rgba(95, 111, 255, 0.18);
+        background: linear-gradient(180deg, rgba(95, 111, 255, 0.06), rgba(255,255,255,0.98));
+      }
+      .meta-label,
+      .step-meta dt,
+      .claim-meta {
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+      .next-step-bridge {
+        padding: 24px;
+        border-color: rgba(95, 111, 255, 0.14);
+        background: linear-gradient(180deg, rgba(95, 111, 255, 0.08), rgba(255,255,255,0.96));
+      }
+      .text-link {
+        color: #5841e1;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .comparison-table-shell {
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,249,255,0.98));
+        padding: 18px 18px 8px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.82);
+      }
+      table {
+        border-collapse: separate;
+        border-spacing: 0 10px;
+        margin-top: 8px;
+      }
+      th, td {
+        padding: 16px 14px;
+        border-top: 1px solid var(--border-soft);
+        border-bottom: 1px solid var(--border-soft);
+        background: rgba(255,255,255,0.98);
+      }
+      th {
+        color: var(--text-strong);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border: 0;
+        background: transparent;
+        padding-top: 0;
+        padding-bottom: 2px;
+      }
+      td:first-child,
+      th:first-child {
+        border-left: 1px solid var(--border-soft);
+        border-top-left-radius: 18px;
+        border-bottom-left-radius: 18px;
+      }
+      td:last-child,
+      th:last-child {
+        border-right: 1px solid var(--border-soft);
+        border-top-right-radius: 18px;
+        border-bottom-right-radius: 18px;
+      }
+      .comparison-row--primary td {
+        background: rgba(109, 77, 255, 0.08);
+        border-color: rgba(109, 77, 255, 0.14);
+      }
+      .comparison-row--fallback td {
+        background: rgba(95, 111, 255, 0.05);
+        border-color: rgba(95, 111, 255, 0.12);
+      }
+      .prompt-shell {
+        padding: 18px;
+        border: 1px solid rgba(95, 111, 255, 0.1);
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(95, 111, 255, 0.06), rgba(255,255,255,0.96));
+      }
+      .prompt-field select {
+        border-radius: 14px;
+        border: 1px solid rgba(17, 24, 39, 0.12);
+        background: #ffffff;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+      }
+      footer {
+        padding: 0 0 36px;
       }
     </style>
   </head>
@@ -354,8 +672,8 @@
       <div class="hero-shell hero-shell--single">
         <div class="hero-copy">
           <p class="eyebrow">AI Video Workflow</p>
-          <h1>Find the best ai video workflow tool for the job in front of you</h1>
-          <p class="lede">Use the shortlist to self-select fast by buyer fit and workflow maturity instead of giving every visible option the same review depth. Ranking matters only when the visitor understands why the first option should be first.</p>
+          <h1>Find the best AI video workflow tool for the job in front of you</h1>
+          <p class="lede">Use the shortlist to self-select fast by buyer fit and workflow maturity instead of giving every visible option the same review depth.</p>
           
     <div class="hero-summary">
       
@@ -366,12 +684,12 @@
           
             <article class="hero-summary-item">
               <span class="meta-label">Outcome</span>
-              <p>turn scattered tools, prompts, and approvals into a repeatable launch workflow</p>
+              <p>tool comparisons, workflow guides, and a reusable prompt pack</p>
             </article>
           
             <article class="hero-summary-item">
               <span class="meta-label">Positioning</span>
-              <p>AI workflow decision and execution layer for short-form product content</p>
+              <p>Focused on AI-assisted product demo, launch, and screenshot-to-video workflows for SaaS and product teams.</p>
             </article>
           
     </div>
@@ -380,18 +698,18 @@
     <div class="hero-proof-strip">
       
             <article class="hero-proof-item">
-              <span class="meta-label">Seedance</span>
-              <p>audio-video generation. Seedance pricing Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models. https://seed. bytedance. com/zh/pricing</p>
-            </article>
-          
-            <article class="hero-proof-item">
-              <span class="meta-label">Kling</span>
-              <p>native audio-video outputs. Kling pricing Official Kling pricing page covering plans, credits, and subscription details. https://kling. ai/pricing</p>
-            </article>
-          
-            <article class="hero-proof-item">
               <span class="meta-label">Runway</span>
-              <p>creative video workflows. Evidence gap: missing_limitation_evidence</p>
+              <p>creative video workflows. Runway pricing Official Runway pricing page covering plans, credits, and subscription options.</p>
+            </article>
+          
+            <article class="hero-proof-item">
+              <span class="meta-label">Pika</span>
+              <p>short-form video generation. Pika pricing Official Pika pricing page covering plans, credits, and subscription details.</p>
+            </article>
+          
+            <article class="hero-proof-item">
+              <span class="meta-label">Seedance</span>
+              <p>audio-video generation. Seedance pricing Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models.</p>
             </article>
           
     </div>
@@ -402,24 +720,24 @@
               class="cta-button"
               href="/prompt-pack/"
               data-ga4-event="asset_cta_click"
-              data-ga4-label="AI Video Workflow prompt pack"
+              data-ga4-label="Prompt Pack"
             >
-              AI Video Workflow prompt pack
+              Prompt Pack
             </a>
       
     </div>
   
-          <nav><a href="/">Overview</a><a href="/compare/">Alternatives</a><a href="/workflow/">Workflow</a><a href="/faq/">FAQ</a><a class="active" href="/best-tools/">Best Tools</a><a href="/pricing/">Pricing</a><a href="/free-vs-paid/">Free vs Paid</a><a href="/use-cases/">Use Cases</a><a href="/templates/">Template Kit</a><a href="/case-study/">Case Study</a></nav>
+          <nav><a href="/">Overview</a><a href="/compare/">Alternatives</a><a href="/workflow/">Workflow</a><a href="/faq/">FAQ</a><a class="active" href="/best-tools/">Best Tools</a><a href="/pricing/">Pricing</a><a href="/free-vs-paid/">Free vs Paid</a><a href="/use-cases/">Use Cases</a><a href="/templates/">Template Kit</a><a href="/case-study/">Case Study</a><a href="/guides/ai-video-diy-vs-freelancer/">DIY vs Hire</a><a href="/cost/ai-video-production-cost/">Cost Guide</a><a href="/hire/ai-video-editor/">Hire Editor</a></nav>
         </div>
         
       </div>
     </header>
     <main>
       
-        <section>
+        <section data-section-id="how-to-use-this-shortlist">
           <h2>How to use this shortlist</h2>
-          <p>Use a best-of page to split the market by who should click first, not by who has the longest feature list.</p>
-          <ul><li>Seedance: audio-video generation</li><li>Kling: native audio-video outputs</li><li>Runway: creative video workflows</li><li>Pika: short-form video generation</li></ul>
+          <p>Use this page to choose the first tools worth testing, not to over-claim a final ordering the evidence cannot fully support yet.</p>
+          <ul><li>Runway: creative video workflows</li><li>Pika: short-form video generation</li><li>Seedance: audio-video generation</li><li>Kling: native audio-video outputs</li></ul>
         </section>
       
     <section>
@@ -435,27 +753,35 @@
       <div class="card-grid">
         
               <article class="mini-card">
-                <p class="claim-meta">Recommendation · Buy · score 99</p>
-                <strong>The right next step is to grab AI Video Workflow prompt pack before opening more tabs.</strong>
-                <p>A concrete asset turns category research into a measurable next action.</p>
-                <ul class="mini-list"><li>A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts.</li><li>AI Video Workflow checklist supports the repeat run.</li></ul>
-                <p class="mini-note"><span class="meta-label">Watch-out</span> If the asset does not help the first pilot happen faster, it is not strong enough yet.</p>
-              </article>
-            
-              <article class="mini-card">
-                <p class="claim-meta">Comparison · Compare · score 100</p>
-                <strong>Seedance is the recommended first shortlist review because it fits the highest-intent visitor best.</strong>
+                <p class="claim-meta">Comparison · Compare stage</p>
+                <strong>ltx. studio is the recommended first shortlist review because it fits the highest-intent visitor best.</strong>
                 <p>Comparison pages convert better when they collapse the field to one primary option and one fallback.</p>
-                <ul class="mini-list"><li>Seedance: Recommended first shortlist review. audio-video generation</li><li>Kling: Good second option. native audio-video outputs</li></ul>
-                <p class="mini-note"><span class="meta-label">Watch-out</span> Seedance pricing Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models. https://seed. bytedance. com/zh/pricing</p>
+                <ul class="mini-list"><li>ltx. studio: Recommended first shortlist review. Teams that want the fastest path from evaluation to execution</li><li>vidworkflow. com: Good second opinion. Visitors who need clearer tradeoffs before they commit</li></ul>
+                <p class="mini-note"><span class="meta-label">Watch-out</span> Teams still run into review loops, prompt drift, and inconsistent output quality on the first pass.</p>
               </article>
             
               <article class="mini-card">
-                <p class="claim-meta">Pricing · Compare · score 100</p>
+                <p class="claim-meta">Pricing · Compare stage</p>
                 <strong>Buyers should compare workflow cost and review overhead before they compare plan names.</strong>
                 <p>Visible pricing hides the operational cost of setup drag, rework, and unclear output quality.</p>
-                <ul class="mini-list"><li>kling. ai: Official Kling pricing page covering plans, credits, and subscription details.</li></ul>
+                <ul class="mini-list"><li>vidworkflow. com: AI-Powered Video Generation Workflows End-to-end video creation workflows powered by AI. Pick a workflow, customize it, and get a finished video ready to publish. Create Horizontal Video — $20 3-12 min video duration. One-time payment. No subscription.</li></ul>
                 <p class="mini-note"><span class="meta-label">Watch-out</span> If exact public pricing is missing, the page should say so and focus on upgrade triggers instead.</p>
+              </article>
+            
+              <article class="mini-card">
+                <p class="claim-meta">Pricing · Compare stage</p>
+                <strong>Buyers should compare workflow cost and review overhead before they compare plan names.</strong>
+                <p>Visible pricing hides the operational cost of setup drag, rework, and unclear output quality.</p>
+                <ul class="mini-list"><li>Runway pricing: Official Runway pricing page covering plans, credits, and subscription options.</li><li>Pika pricing: Official Pika pricing page covering plans, credits, and subscription details.</li><li>Kling pricing: Official Kling pricing page covering plans, credits, and subscription details.</li></ul>
+                <p class="mini-note"><span class="meta-label">Watch-out</span> If exact public pricing is missing, the page should say so and focus on upgrade triggers instead.</p>
+              </article>
+            
+              <article class="mini-card">
+                <p class="claim-meta">Comparison · Compare stage</p>
+                <strong>Runway is the recommended first shortlist review because it fits the highest-intent visitor best.</strong>
+                <p>Comparison pages convert better when they collapse the field to one primary option and one fallback.</p>
+                <ul class="mini-list"><li>Runway: Start here for the first live evaluation. creative video workflows</li><li>Pika: Keep this as the strongest fallback. short-form video generation</li></ul>
+                <p class="mini-note"><span class="meta-label">Watch-out</span> Do not start here if the team only needs a quick one-model experiment and does not need editing or review workflow yet.</p>
               </article>
             
       </div>
@@ -466,28 +792,23 @@
       <div class="card-grid">
         
               <article class="mini-card">
-                <strong>Seedance</strong>
-                <p>Recommended first shortlist review. Seedance pricing Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models. https://seed. bytedance. com/zh/pricing</p>
-              </article>
-            
-              <article class="mini-card">
-                <strong>Kling</strong>
-                <p>Good second option. Kling pricing Official Kling pricing page covering plans, credits, and subscription details. https://kling. ai/pricing</p>
-              </article>
-            
-              <article class="mini-card">
                 <strong>Runway</strong>
-                <p>Useful benchmark or fallback. Runway official pricing Runway official pricing page seeded from a common first-party path fallback when search results missed it. https://runwayml. com/pricing</p>
+                <p>Start here for the first live evaluation</p>
               </article>
             
               <article class="mini-card">
                 <strong>Pika</strong>
-                <p>Useful benchmark or fallback. Pika official pricing Pika official pricing page seeded from a common first-party path fallback when search results missed it. https://pika. art/pricing</p>
+                <p>Keep this as the strongest fallback</p>
               </article>
             
               <article class="mini-card">
-                <strong>Name the fallback path explicitly</strong>
-                <p>The second-choice path should name one asset, one missing proof point, and the condition that would move it ahead of Seedance.</p>
+                <strong>Seedance</strong>
+                <p>Use as a benchmark or niche fit</p>
+              </article>
+            
+              <article class="mini-card">
+                <strong>Kling</strong>
+                <p>Use as a benchmark or niche fit</p>
               </article>
             
       </div>
@@ -498,64 +819,222 @@
       <div class="fact-grid">
         
               <article class="mini-card">
-                <span class="eyebrow">Seedance</span>
-                <p>audio-video generation. Seedance pricing Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models. https://seed. bytedance. com/zh/pricing</p>
-              </article>
-            
-              <article class="mini-card">
-                <span class="eyebrow">Kling</span>
-                <p>native audio-video outputs. Kling pricing Official Kling pricing page covering plans, credits, and subscription details. https://kling. ai/pricing</p>
-              </article>
-            
-              <article class="mini-card">
                 <span class="eyebrow">Runway</span>
-                <p>creative video workflows. Evidence gap: missing_limitation_evidence</p>
+                <p>creative video workflows. Runway pricing Official Runway pricing page covering plans, credits, and subscription options.</p>
               </article>
             
               <article class="mini-card">
                 <span class="eyebrow">Pika</span>
-                <p>short-form video generation. Evidence gap: missing_limitation_evidence</p>
+                <p>short-form video generation. Pika pricing Official Pika pricing page covering plans, credits, and subscription details.</p>
               </article>
             
               <article class="mini-card">
-                <span class="eyebrow">Decision-path coverage</span>
-                <p>3 buyer paths are mapped so the page can recommend a first choice, fallback, and watch-out instead of one generic winner.</p>
+                <span class="eyebrow">Seedance</span>
+                <p>audio-video generation. Seedance pricing Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models.</p>
+              </article>
+            
+              <article class="mini-card">
+                <span class="eyebrow">Kling</span>
+                <p>native audio-video outputs. Kling pricing Official Kling pricing page covering plans, credits, and subscription details.</p>
               </article>
             
       </div>
     </section>
   
-    <section>
-      <h2>Examples</h2>
+    <section class="tool-experience-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Real use notes</p>
+          <h2>What these tools feel like on a real first run</h2>
+        </div>
+        <p class="section-copy">These notes are here to help the visitor decide fast: where each tool works, where it fails, and when to stop forcing the wrong fit.</p>
+      </div>
       <div class="card-grid">
         
-              <article class="mini-card">
-                <strong>Shortlist review</strong>
-                <p>A buyer compares Seedance and Kling, scores time-to-value and review overhead, then uses AI Video Workflow prompt pack to capture the decision.</p>
+              <article class="tool-card tool-card--backup">
+                <div class="comparison-tool-cell">
+                  <strong>Runway</strong>
+                  <span class="comparison-badge comparison-badge--best">Best</span>
+                </div>
+                <p><span class="meta-label">Best for</span> creative video workflows</p>
+                <p><span class="meta-label">NOT FOR</span> Do not start here if the team only needs a quick one-model experiment and does not need editing or review workflow yet.</p>
+                <p><span class="meta-label">When to switch</span> Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</p>
+                <p><span class="meta-label">Verdict</span> Start here for the first live evaluation</p>
+                <div class="tool-signal-grid">
+                  <article class="mini-card">
+                    <span class="meta-label">Typical first run result</span>
+                    <p></p>
+                  </article>
+                  <article class="mini-card">
+                    <span class="meta-label">What most people get wrong</span>
+                    <p></p>
+                  </article>
+                  <article class="mini-card">
+                    <span class="meta-label">How teams actually use this</span>
+                    <p></p>
+                  </article>
+                </div>
+                <div class="failure-stack">
+                  
+                </div>
+              </article>
+            
+              <article class="tool-card tool-card--backup">
+                <div class="comparison-tool-cell">
+                  <strong>Pika</strong>
+                  <span class="comparison-badge comparison-badge--trusted">Trusted</span>
+                </div>
+                <p><span class="meta-label">Best for</span> short-form video generation</p>
+                <p><span class="meta-label">NOT FOR</span> Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</p>
+                <p><span class="meta-label">When to switch</span> Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</p>
+                <p><span class="meta-label">Verdict</span> Keep this as the strongest fallback</p>
+                <div class="tool-signal-grid">
+                  <article class="mini-card">
+                    <span class="meta-label">Typical first run result</span>
+                    <p></p>
+                  </article>
+                  <article class="mini-card">
+                    <span class="meta-label">What most people get wrong</span>
+                    <p></p>
+                  </article>
+                  <article class="mini-card">
+                    <span class="meta-label">How teams actually use this</span>
+                    <p></p>
+                  </article>
+                </div>
+                <div class="failure-stack">
+                  
+                </div>
+              </article>
+            
+              <article class="tool-card tool-card--backup">
+                <div class="comparison-tool-cell">
+                  <strong>Seedance</strong>
+                  <span class="comparison-badge comparison-badge--trusted">Trusted</span>
+                </div>
+                <p><span class="meta-label">Best for</span> audio-video generation</p>
+                <p><span class="meta-label">NOT FOR</span> Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</p>
+                <p><span class="meta-label">When to switch</span> Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</p>
+                <p><span class="meta-label">Verdict</span> Use as a benchmark or niche fit</p>
+                <div class="tool-signal-grid">
+                  <article class="mini-card">
+                    <span class="meta-label">Typical first run result</span>
+                    <p></p>
+                  </article>
+                  <article class="mini-card">
+                    <span class="meta-label">What most people get wrong</span>
+                    <p></p>
+                  </article>
+                  <article class="mini-card">
+                    <span class="meta-label">How teams actually use this</span>
+                    <p></p>
+                  </article>
+                </div>
+                <div class="failure-stack">
+                  
+                </div>
+              </article>
+            
+              <article class="tool-card tool-card--backup">
+                <div class="comparison-tool-cell">
+                  <strong>Kling</strong>
+                  <span class="comparison-badge comparison-badge--trusted">Trusted</span>
+                </div>
+                <p><span class="meta-label">Best for</span> native audio-video outputs</p>
+                <p><span class="meta-label">NOT FOR</span> Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</p>
+                <p><span class="meta-label">When to switch</span> Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</p>
+                <p><span class="meta-label">Verdict</span> Use as a benchmark or niche fit</p>
+                <div class="tool-signal-grid">
+                  <article class="mini-card">
+                    <span class="meta-label">Typical first run result</span>
+                    <p></p>
+                  </article>
+                  <article class="mini-card">
+                    <span class="meta-label">What most people get wrong</span>
+                    <p></p>
+                  </article>
+                  <article class="mini-card">
+                    <span class="meta-label">How teams actually use this</span>
+                    <p></p>
+                  </article>
+                </div>
+                <div class="failure-stack">
+                  
+                </div>
               </article>
             
       </div>
     </section>
   
-    <section>
-      <h2>Operator notes worth keeping</h2>
-      <ul><li>SERP gap summary: pricing gap in top search results; outdated results still present in top SERP</li><li>Live query set: ai video workflow / ai video workflow pricing / ai video workflow alternatives</li><li>Conversion asset: AI Video Workflow prompt pack</li><li>Source pack coverage: official 18, competitive 1, community 0, workflow 2, product 2, video 2, deep research 0</li></ul>
+    <section class="tool-ranking-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Core tools</p>
+          <h2>Start with the tools that deserve buyer attention first</h2>
+        </div>
+        <p class="section-copy">The core tool set anchors this ranking before narrower options are considered.</p>
+      </div>
+      <div class="card-grid">
+        <article class="mini-card tool-ranking-card">
+          <div class="comparison-tool-cell">
+            <strong>Runway</strong>
+            <span class="comparison-badge">Best</span>
+          </div>
+          <p><span class="meta-label">Best for</span> creative video workflows</p>
+          <p><span class="meta-label">Limitation</span> Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</p>
+          <p><span class="meta-label">Cost</span> Check current plan limits and credits on the official site before rollout.</p>
+          <p><span class="meta-label">When not to use</span> Do not start here if the team only needs a quick one-model experiment and does not need editing or review workflow yet.</p>
+        </article>
+      
+        <article class="mini-card tool-ranking-card">
+          <div class="comparison-tool-cell">
+            <strong>Pika</strong>
+            <span class="comparison-badge">Trusted</span>
+          </div>
+          <p><span class="meta-label">Best for</span> short-form video generation</p>
+          <p><span class="meta-label">Limitation</span> Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</p>
+          <p><span class="meta-label">Cost</span> Check current plan limits and credits on the official site before rollout.</p>
+          <p><span class="meta-label">When not to use</span> Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</p>
+        </article>
+      
+        <article class="mini-card tool-ranking-card">
+          <div class="comparison-tool-cell">
+            <strong>Seedance</strong>
+            <span class="comparison-badge">Trusted</span>
+          </div>
+          <p><span class="meta-label">Best for</span> audio-video generation</p>
+          <p><span class="meta-label">Limitation</span> Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</p>
+          <p><span class="meta-label">Cost</span> Check current plan limits and credits on the official site before rollout.</p>
+          <p><span class="meta-label">When not to use</span> Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</p>
+        </article>
+      
+        <article class="mini-card tool-ranking-card">
+          <div class="comparison-tool-cell">
+            <strong>Kling</strong>
+            <span class="comparison-badge">Trusted</span>
+          </div>
+          <p><span class="meta-label">Best for</span> native audio-video outputs</p>
+          <p><span class="meta-label">Limitation</span> Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</p>
+          <p><span class="meta-label">Cost</span> Check current plan limits and credits on the official site before rollout.</p>
+          <p><span class="meta-label">When not to use</span> Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</p>
+        </article>
+      </div>
     </section>
   
     <section class="comparison-module">
       <div class="section-heading">
         <div>
           <p class="section-kicker">Shortlist</p>
-          <h2>Compare the obvious options first</h2>
+          <h2>Compare the tools that actually deserve a live test</h2>
         </div>
-        <p class="section-copy">Use this table as an evidence-backed starting point when the current run still has gaps. It is here to narrow the field before you spend another round on prompts, pricing tabs, or sample renders.</p>
+        <p class="section-copy">Use this table to rule out the wrong tool shape before you spend another round on prompts, pricing tabs, or sample renders.</p>
       </div>
       <div class="comparison-table-shell">
       <table>
         <thead>
-          <tr><th>Option</th><th>Best for</th><th>Not for</th><th>Verdict</th><th>Evidence summary</th></tr>
+          <tr><th>Tool</th><th>Best for</th><th>NOT FOR</th><th>Hidden cost</th><th>When to switch</th><th>Quick verdict</th></tr>
         </thead>
-        <tbody><tr><td>Seedance</td><td>audio-video generation</td><td>Seedance pricing Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models. https://seed. bytedance. com/zh/pricing</td><td>Recommended first shortlist review</td><td>Seedance pricing Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models. https://seed. bytedance. com/zh/pricing Seedance 2.0 - seed. bytedance. com Seedance 2.0 adopts a unified multimodal audio-video joint generation architecture that supports text, image, audio, and video inputs, leading to the most comprehens... Seedance docs Official Seed docs hub with API and workflow documentation. https://seed. bytedance. com/zh/docs</td></tr><tr><td>Kling</td><td>native audio-video outputs</td><td>Kling pricing Official Kling pricing page covering plans, credits, and subscription details. https://kling. ai/pricing</td><td>Good second option</td><td>Kling pricing Official Kling pricing page covering plans, credits, and subscription details. https://kling. ai/pricing Official Kling pricing page covering plans, credits, and subscription details. Kling AI: Next-Generation AI Creative Studio Kling AI, tools for creating imaginative images and videos, based on state-of-art generative AI methods. https://kling. ai/</td></tr><tr><td>Runway</td><td>creative video workflows</td><td>Visitors who only need category education and are not ready to compare tools</td><td>Useful benchmark or fallback</td><td>Runway official pricing Runway official pricing page seeded from a common first-party path fallback when search results missed it. https://runwayml. com/pricing Runway official changelog Runway official changelog page seeded from a common first-party path fallback when search results missed it. https://runwayml. com/changelog Runway docs Official Runway learning and docs hub for workflows, guides, and product usage. https://learn. runwayml. com/</td></tr><tr><td>Pika</td><td>short-form video generation</td><td>Visitors who only need category education and are not ready to compare tools</td><td>Useful benchmark or fallback</td><td>Pika official pricing Pika official pricing page seeded from a common first-party path fallback when search results missed it. https://pika. art/pricing Pika official changelog Pika official changelog page seeded from a common first-party path fallback when search results missed it. https://pika. art/release-notes Pika official docs Pika official docs page seeded from a common first-party path fallback when search results missed it. https://pika. art/help</td></tr></tbody>
+        <tbody><tr class="comparison-row"><td><div class="comparison-tool-cell"><strong>Runway</strong><span class="comparison-badge comparison-badge--best">Best</span></div></td><td>creative video workflows</td><td>Do not start here if the team only needs a quick one-model experiment and does not need editing or review workflow yet.</td><td>Check current plan limits and credits on the official site before rollout.</td><td>Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</td><td>Start here for the first live evaluation</td></tr><tr class="comparison-row"><td><div class="comparison-tool-cell"><strong>Pika</strong><span class="comparison-badge comparison-badge--trusted">Trusted</span></div></td><td>short-form video generation</td><td>Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</td><td>Check current plan limits and credits on the official site before rollout.</td><td>Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</td><td>Keep this as the strongest fallback</td></tr><tr class="comparison-row"><td><div class="comparison-tool-cell"><strong>Seedance</strong><span class="comparison-badge comparison-badge--trusted">Trusted</span></div></td><td>audio-video generation</td><td>Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</td><td>Check current plan limits and credits on the official site before rollout.</td><td>Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</td><td>Use as a benchmark or niche fit</td></tr><tr class="comparison-row"><td><div class="comparison-tool-cell"><strong>Kling</strong><span class="comparison-badge comparison-badge--trusted">Trusted</span></div></td><td>native audio-video outputs</td><td>Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</td><td>Check current plan limits and credits on the official site before rollout.</td><td>Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.</td><td>Use as a benchmark or niche fit</td></tr></tbody>
       </table>
       </div>
     </section>
@@ -565,21 +1044,21 @@
           <div class="card-grid">
             
                   <article class="mini-card">
-                    <strong>seed. bytedance. com</strong>
-                    <p>Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models.</p>
-                    <p><a href="https://seed.bytedance.com/zh/pricing" target="_blank" rel="noreferrer noopener">Open source</a></p>
+                    <strong>The Best AI video workflow Guide &amp; Tool Stack (2026)</strong>
+                    <p>an AI video workflow is a structured production process in which artificial intelligence handles the generation, iteration, and refinement of video content — replacing or accelerating the manual steps that</p>
+                    <p><a href="https://ltx.studio/blog/ai-video-workflow" target="_blank" rel="noreferrer noopener">Open source</a></p>
                   </article>
                 
                   <article class="mini-card">
-                    <strong>kling. ai</strong>
-                    <p>Official Kling pricing page covering plans, credits, and subscription details.</p>
-                    <p><a href="https://kling.ai/pricing" target="_blank" rel="noreferrer noopener">Open source</a></p>
+                    <strong>AI Video Generation Workflows | VidWorkflow</strong>
+                    <p>AI-Powered Video Generation Workflows End-to-end video creation workflows powered by AI. Pick a workflow, customize it, and get a finished video ready to publish. Create Horizontal Video — $20 3-12 min video duration</p>
+                    <p><a href="https://vidworkflow.com/" target="_blank" rel="noreferrer noopener">Open source</a></p>
                   </article>
                 
                   <article class="mini-card">
-                    <strong>runwayml. com</strong>
-                    <p>Runway official pricing page seeded from a common first-party path fallback when search results missed it.</p>
-                    <p><a href="https://runwayml.com/pricing" target="_blank" rel="noreferrer noopener">Open source</a></p>
+                    <strong>Google AI Studio</strong>
+                    <p>Holywater scales content analysis and creation by integrating Gemini Pro and Leo models into video production workflows for My Drama, an award-winning AI video streaming app.</p>
+                    <p><a href="https://aistudio.google.com/" target="_blank" rel="noreferrer noopener">Open source</a></p>
                   </article>
                 
           </div>
@@ -591,44 +1070,44 @@
           <div class="card-grid">
             
                   <article class="mini-card">
-                    <strong>Seedance</strong>
-                    <p>Recommended first shortlist review</p>
-                    <p>
-                      <a
-                        href="https://seed.bytedance.com/zh/pricing"
-                        target="_blank" rel="noreferrer noopener"
-                        data-ga4-event="affiliate_click"
-                        data-ga4-label="Seedance"
-                      >
-                        Open
-                      </a>
-                    </p>
-                  </article>
-                
-                  <article class="mini-card">
-                    <strong>Kling</strong>
-                    <p>Good second option</p>
-                    <p>
-                      <a
-                        href="https://kling.ai/pricing"
-                        target="_blank" rel="noreferrer noopener"
-                        data-ga4-event="affiliate_click"
-                        data-ga4-label="Kling"
-                      >
-                        Open
-                      </a>
-                    </p>
-                  </article>
-                
-                  <article class="mini-card">
                     <strong>Runway</strong>
-                    <p>Useful benchmark or fallback</p>
+                    <p>Start here for the first live evaluation</p>
                     <p>
                       <a
                         href="https://runwayml.com/pricing"
                         target="_blank" rel="noreferrer noopener"
-                        data-ga4-event="affiliate_click"
+                        data-ga4-event="tool_clickout"
                         data-ga4-label="Runway"
+                      >
+                        Open
+                      </a>
+                    </p>
+                  </article>
+                
+                  <article class="mini-card">
+                    <strong>Pika</strong>
+                    <p>Keep this as the strongest fallback</p>
+                    <p>
+                      <a
+                        href="https://pika.art/pricing"
+                        target="_blank" rel="noreferrer noopener"
+                        data-ga4-event="tool_clickout"
+                        data-ga4-label="Pika"
+                      >
+                        Open
+                      </a>
+                    </p>
+                  </article>
+                
+                  <article class="mini-card">
+                    <strong>Seedance</strong>
+                    <p>Use as a benchmark or niche fit</p>
+                    <p>
+                      <a
+                        href="https://seed.bytedance.com/zh/pricing"
+                        target="_blank" rel="noreferrer noopener"
+                        data-ga4-event="tool_clickout"
+                        data-ga4-label="Seedance"
                       >
                         Open
                       </a>
@@ -643,33 +1122,83 @@
       <ul>
         
               <li>
-                <a href="https://seed.bytedance.com/zh/pricing" target="_blank" rel="noreferrer noopener">seed. bytedance. com</a>
+                <a href="https://ltx.studio/blog/ai-video-workflow" target="_blank" rel="noreferrer noopener">The Best AI video workflow Guide &amp; Tool Stack (2026)</a>
+                 - an AI video workflow is a structured production process in which artificial intelligence handles the generation, iteration, and refinement of video content — replacing or accelerating the manual steps that
+              </li>
+            
+              <li>
+                <a href="https://vidworkflow.com/" target="_blank" rel="noreferrer noopener">AI Video Generation Workflows | VidWorkflow</a>
+                 - AI-Powered Video Generation Workflows End-to-end video creation workflows powered by AI. Pick a workflow, customize it, and get a finished video ready to publish. Create Horizontal Video — $20 3-12 min video duration
+              </li>
+            
+              <li>
+                <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer noopener">Google AI Studio</a>
+                 - Holywater scales content analysis and creation by integrating Gemini Pro and Leo models into video production workflows for My Drama, an award-winning AI video streaming app.
+              </li>
+            
+              <li>
+                <a href="https://runwayml.com/pricing" target="_blank" rel="noreferrer noopener">Runway pricing</a>
+                 - Official Runway pricing page covering plans, credits, and subscription options.
+              </li>
+            
+              <li>
+                <a href="https://pika.art/pricing" target="_blank" rel="noreferrer noopener">Pika pricing</a>
+                 - Official Pika pricing page covering plans, credits, and subscription details.
+              </li>
+            
+              <li>
+                <a href="https://learn.runwayml.com/" target="_blank" rel="noreferrer noopener">Runway docs</a>
+                 - Official Runway learning and docs hub for workflows, guides, and product usage.
+              </li>
+            
+              <li>
+                <a href="https://runwayml.com/changelog" target="_blank" rel="noreferrer noopener">Runway official changelog</a>
+                 - Runway official changelog page seeded from a common first-party path fallback when search results missed it.
+              </li>
+            
+              <li>
+                <a href="https://www.reddit.com/r/aivideo/comments/17syzyl/which_ai_video_generation_workflow_has_given_you/" target="_blank" rel="noreferrer noopener">Which ai video generation workflow has given you the best - Reddit</a>
+                 - Teams still run into review loops, prompt drift, and inconsistent output quality on the first pass.
+              </li>
+            
+              <li>
+                <a href="https://pika.art/docs" target="_blank" rel="noreferrer noopener">Pika official docs</a>
+                 - Pika official docs page seeded from a common first-party path fallback when search results missed it.
+              </li>
+            
+              <li>
+                <a href="https://pika.art/changelog" target="_blank" rel="noreferrer noopener">Pika official changelog</a>
+                 - Pika official changelog page seeded from a common first-party path fallback when search results missed it.
+              </li>
+            
+              <li>
+                <a href="https://seed.bytedance.com/zh/pricing" target="_blank" rel="noreferrer noopener">Seedance pricing</a>
                  - Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models.
               </li>
             
               <li>
-                <a href="https://kling.ai/pricing" target="_blank" rel="noreferrer noopener">kling. ai</a>
+                <a href="https://seed.bytedance.com/zh/docs" target="_blank" rel="noreferrer noopener">Seedance docs</a>
+                 - Official Seed docs hub with API and workflow documentation.
+              </li>
+            
+              <li>
+                <a href="https://seed.bytedance.com/en/seedance2_0" target="_blank" rel="noreferrer noopener">Seedance 2.0</a>
+                 - Official Seedance release page with model updates and capability details.
+              </li>
+            
+              <li>
+                <a href="https://kling.ai/pricing" target="_blank" rel="noreferrer noopener">Kling pricing</a>
                  - Official Kling pricing page covering plans, credits, and subscription details.
               </li>
             
               <li>
-                <a href="https://runwayml.com/pricing" target="_blank" rel="noreferrer noopener">runwayml. com</a>
-                 - Runway official pricing page seeded from a common first-party path fallback when search results missed it.
+                <a href="https://kling.ai/docs" target="_blank" rel="noreferrer noopener">Kling docs</a>
+                 - Official Kling docs hub for workflows, APIs, and usage guidance.
               </li>
             
               <li>
-                <a href="https://pika.art/pricing" target="_blank" rel="noreferrer noopener">pika. art</a>
-                 - Pika official pricing page seeded from a common first-party path fallback when search results missed it.
-              </li>
-            
-              <li>
-                <a href="https://deepmind.google/models/veo/" target="_blank" rel="noreferrer noopener">deepmind. google</a>
-                 - Official Veo product page with model details, workflow guidance, and first-party capability context.
-              </li>
-            
-              <li>
-                <a href="https://lumalabs.ai/pricing" target="_blank" rel="noreferrer noopener">lumalabs. ai</a>
-                 - Luma official pricing page seeded from a common first-party path fallback when search results missed it.
+                <a href="https://kling.ai/blog" target="_blank" rel="noreferrer noopener">Kling official changelog</a>
+                 - Kling official changelog page seeded from a common first-party path fallback when search results missed it.
               </li>
             
       </ul>
@@ -678,20 +1207,21 @@
     <section>
       <h2>Keep the visitor moving</h2>
       <p>Open the next page that matches the decision you still need to make instead of leaving the workflow half-resolved.</p>
-      <ul><li><a href="/">Overview</a></li><li><a href="/compare/">Alternatives</a></li><li><a href="/workflow/">Workflow</a></li><li><a href="/faq/">FAQ</a></li><li><a href="/pricing/">Pricing</a></li><li><a href="/free-vs-paid/">Free vs Paid</a></li><li><a href="/use-cases/">Use Cases</a></li><li><a href="/templates/">Template Kit</a></li><li><a href="/case-study/">Case Study</a></li></ul>
+      <ul><li><a href="/">Overview</a></li><li><a href="/compare/">Alternatives</a></li><li><a href="/workflow/">Workflow</a></li><li><a href="/faq/">FAQ</a></li><li><a href="/best-tools/">Best Tools</a></li><li><a href="/pricing/">Pricing</a></li><li><a href="/free-vs-paid/">Free vs Paid</a></li><li><a href="/use-cases/">Use Cases</a></li><li><a href="/templates/">Template Kit</a></li><li><a href="/case-study/">Case Study</a></li><li><a href="/guides/ai-video-diy-vs-freelancer/">DIY vs Hire</a></li><li><a href="/cost/ai-video-production-cost/">Cost Guide</a></li><li><a href="/hire/ai-video-editor/">Hire Editor</a></li></ul>
     </section>
   
       
+      <script type="application/json" id="section-provenance">[{"section_id":"intro","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. best-tools","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","community-reddit-com-which-ai-video-generation-workf-ded74c1191","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"how-to-use-this-shortlist","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. best-tools","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","community-reddit-com-which-ai-video-generation-workf-ded74c1191","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"verdicts","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. best-tools","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","community-reddit-com-which-ai-video-generation-workf-ded74c1191","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"facts","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. best-tools","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","community-reddit-com-which-ai-video-generation-workf-ded74c1191","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"comparison","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. best-tools","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","community-reddit-com-which-ai-video-generation-workf-ded74c1191","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"cta","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. best-tools","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","community-reddit-com-which-ai-video-generation-workf-ded74c1191","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"}]</script>
       <section class="cta">
-        <strong>AI Video Workflow prompt pack</strong>
-        <p>Turn the shortlist into a reusable buyer asset with AI Video Workflow prompt pack.</p>
+        <strong>Prompt Pack</strong>
+        <p>A first-run prompt pack for turning one source asset into a short-form demo with a usable brief, sequence, CTA, and handoff note.</p>
         <a
                 class="cta-button"
                 href="/prompt-pack/"
                 data-ga4-event="asset_cta_click"
-                data-ga4-label="AI Video Workflow prompt pack"
+                data-ga4-label="Prompt Pack"
               >
-                AI Video Workflow prompt pack
+                Prompt Pack
               </a>
       </section>
     </main>

@@ -2,3 +2,4 @@
 
 Automiora publishes practical guides, workflow pages, and downloadable templates for teams evaluating AI-powered production workflows.
 
+- AI video workflow for short-form product and demo content: https://automiora.com/

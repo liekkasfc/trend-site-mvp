@@ -6,11 +6,13 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "hub"
 target_intent: "overview_to_decision"
 target_asset: "AI Video Workflow prompt pack"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.definition.6bfd358e","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e"]
-secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.use-case.3c28df3f","claim.ai-video-workflow-short-form-demo.use-case.e0ff240d","claim.ai-video-workflow-short-form-demo.use-case.5d966843"]
+status: "active"
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.conversion.6b545884"]
+secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a","claim.ai-video-workflow-short-form-demo.use-case.75d8602f"]
 required_sections: ["Verdicts","Shortlist logic","Workflow route","Asset CTA"]
 cta_strategy: "lead_with_asset"
 review_priority: "high"
+workflow_steps: []
 completeness_score: 100
 ---
 ## Page goal
@@ -29,10 +31,10 @@ Map the category fast, then choose the best next surface: shortlist, workflow, o
 
 ## Required claims
 
-- AI Video Workflow prompt pack is the main conversion asset because it shortens the time from reading to the first test.
-- ai video workflow works best as a decision surface that combines tools, workflow guidance, and a reusable asset.
-- ltx.studio is the recommended first shortlist review because it fits the highest-intent visitor best.
 - Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
+- Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
+- Runway is the recommended first shortlist review because it fits the highest-intent visitor best.
+- Prompt Pack is the main conversion asset because it shortens the time from reading to the first test.
 
 ## Required examples
 

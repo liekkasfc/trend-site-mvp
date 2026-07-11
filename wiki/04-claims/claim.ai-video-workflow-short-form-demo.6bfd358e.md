@@ -10,9 +10,13 @@ confidence: 0.82
 quality_score: 100
 freshness: "current-run"
 reuse_priority: "medium"
+refresh_priority: ""
 lifecycle_decision: "active"
 source_ids: ["source.ai-video-workflow-short-form-demo.official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","source.ai-video-workflow-short-form-demo.official-aistudio-google-com-google-ai-studio-86e7d7fc8c"]
 status: "active"
+last_verified: "2026-07-11"
+staleness_days: 14
+change_triggers: ["Refresh when pricing, rankings, or community complaints change materially."]
 ---
 ## Claim
 
@@ -41,6 +45,9 @@ If the visitor only wants a basic glossary answer, a full decision page can feel
 
 medium
 
+## Refresh priority
+
+
 ## Quality score
 
 100
@@ -56,3 +63,15 @@ active
 ## Refresh condition
 
 Refresh when pricing, rankings, or community complaints change materially.
+
+## Last verified
+
+2026-07-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- Refresh when pricing, rankings, or community complaints change materially.

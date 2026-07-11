@@ -1,22 +1,23 @@
-# AI Video Workflow comparison worksheet
+# Comparison Worksheet
 
-A worksheet to compare output quality, speed, pricing clarity, and editing overhead.
+Weighted evaluation grid: Rate shortlist options on time-to-value, workflow friction, pricing clarity, review drag, and reuse potential with a visible weighting model. Decision log: Capture the first recommendation, the fallback, the reject reasons, and the exact trigger for revisiting the decision. Commercial notes: Track hidden costs, upgrade trigger, manual review drag, and which unknowns still need proof before signing off. Filled shortlist example: A worked example showing how one team narrows the field, rejects weak options, and justifies the first choice.
 
 ## Best-fit use cases
 - image-to-video clips
 
 ## Why this asset exists
-- Shortlist field already exists: 4 visible options including Seedance, Kling, Runway are already in play. The worksheet exists to cut that field down to one first choice and one fallback.
+- Shortlist field already exists: 4 visible options including Runway, Pika, Seedance are already in play. The worksheet exists to cut that field down to one first choice and one fallback.
+- Pricing clarity is still thin: One of the clearest public anchors is still $20 for 3-12 min. The worksheet makes the buyer log hidden cost and review drag instead of trusting fuzzy plan names.
 - Commercial comparison beats feature comparison: The scoring grid forces the buyer to compare workflow friction, upgrade triggers, and reuse potential, which is usually more useful than comparing raw feature lists.
 
 ## What is inside
-- Weighted scoring grid: Score shortlist options on time-to-value, workflow friction, pricing clarity, review drag, and reuse potential with a visible weighting model.
+- Weighted evaluation grid: Rate shortlist options on time-to-value, workflow friction, pricing clarity, review drag, and reuse potential with a visible weighting model.
 - Decision log: Capture the first recommendation, the fallback, the reject reasons, and the exact trigger for revisiting the decision.
 - Commercial notes: Track hidden costs, upgrade trigger, manual review drag, and which unknowns still need proof before signing off.
 - Filled shortlist example: A worked example showing how one team narrows the field, rejects weak options, and justifies the first choice.
 
 ## First 30 minutes
-- List the live contenders: Start with Seedance, Kling, Runway or the closest equivalents already in your shortlist.
+- List the live contenders: Start with Runway, Pika, Seedance or the closest equivalents already in your shortlist.
 - Score the commercial reality: Fill the pricing clarity, workflow friction, and hidden-cost columns before anyone ranks the options by feature hype alone.
 - Lock the first recommendation: Use the decision log to name the first choice, the fallback, and the exact reason the rest of the field lost.
 
@@ -57,9 +58,9 @@ A worksheet to compare output quality, speed, pricing clarity, and editing overh
 - If hidden cost is still unknown, leave the decision provisional instead of pretending the field is clean.
 
 ## Filled example
-- First choice: Seedance because it clears the first pilot with lower workflow drag and a clearer path to reuse.
-- Fallback: Kling because it stays viable if the first option breaks on output quality or reviewer expectations.
-- Rejected: Runway because the visible value is weaker once hidden review cost and upgrade uncertainty are logged.
+- First choice: Runway because it clears the first pilot with lower workflow drag and a clearer path to reuse.
+- Fallback: Pika because it stays viable if the first option breaks on output quality or reviewer expectations.
+- Rejected: Seedance because the visible value is weaker once hidden review cost and upgrade uncertainty are logged.
 - Upgrade trigger: move to the paid workflow only when weekly throughput and review coordination become the real bottleneck.
 
 ## Second run and handoff
@@ -109,7 +110,7 @@ A worksheet to compare output quality, speed, pricing clarity, and editing overh
 
 | Option | Best for | Watch-out | Verdict |
 | --- | --- | --- | --- |
-| Seedance | audio-video generation | Seedance pricing Official Seed pricing page covering plans, credits, and billing details for ByteDance Seed models. https://seed. bytedance. com/zh/pricing | Recommended first shortlist review |
-| Kling | native audio-video outputs | Kling pricing Official Kling pricing page covering plans, credits, and subscription details. https://kling. ai/pricing | Good second option |
-| Runway | creative video workflows | Visitors who only need category education and are not ready to compare tools | Useful benchmark or fallback |
-| Pika | short-form video generation | Visitors who only need category education and are not ready to compare tools | Useful benchmark or fallback |
+| Runway | creative video workflows | Do not start here if the team only needs a quick one-model experiment and does not need editing or review workflow yet. | Start here for the first live evaluation |
+| Pika | short-form video generation | Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow. | Keep this as the strongest fallback |
+| Seedance | audio-video generation | Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow. | Use as a benchmark or niche fit |
+| Kling | native audio-video outputs | Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow. | Use as a benchmark or niche fit |

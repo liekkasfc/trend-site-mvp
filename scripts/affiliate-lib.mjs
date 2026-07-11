@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 export const AFFILIATE_ALLOWED_PAGE_TYPES = [
@@ -16,7 +16,7 @@ export const COMMERCIAL_PAGE_SPECS = [
     slug: 'ai-video-diy-vs-freelancer',
     navLabel: 'DIY vs Hire',
     publicPath: '/guides/ai-video-diy-vs-freelancer/',
-    title: 'AI Video DIY vs Hiring a Freelancer',
+    title: 'AI Video DIY vs Hiring a Freelancer: Cost and Fit',
     metaDescription:
       'Decide when to create AI video yourself, when to use templates, and when hiring a freelancer is safer for the project.',
     primaryOfferIds: ['fiverr-ai-video-editor', 'fiverr-product-demo-video'],
@@ -27,7 +27,7 @@ export const COMMERCIAL_PAGE_SPECS = [
     slug: 'ai-video-production-cost',
     navLabel: 'Cost Guide',
     publicPath: '/cost/ai-video-production-cost/',
-    title: 'How Much Does AI Video Production Cost?',
+    title: 'AI Video Production Cost: Tools, Retries, and Hiring',
     metaDescription:
       'Break down AI video tool costs, retry costs, voice-over, editing, and outsourcing without inventing a single market average.',
     primaryOfferIds: [
@@ -42,7 +42,7 @@ export const COMMERCIAL_PAGE_SPECS = [
     slug: 'ai-video-editor',
     navLabel: 'Hire Editor',
     publicPath: '/hire/ai-video-editor/',
-    title: 'How to Hire an AI Video Editor',
+    title: 'How to Hire an AI Video Editor: Scope and Red Flags',
     metaDescription:
       'Use this hiring checklist to scope an AI video edit, prepare assets, avoid red flags, and ask better questions before ordering.',
     primaryOfferIds: [
@@ -527,14 +527,41 @@ export function aggregateAffiliateRows(rows, knownTrackingCodes = [], generatedA
   const byCountry = new Map()
   const now = new Date(generatedAt)
   let dataThroughDate = null
+  let invalidDateRows = 0
+  let negativeMetricRows = 0
+  let rowLevelMetricAnomalies = 0
 
   for (const row of rows) {
-    addMetrics(summary, row)
-    addMetrics(mapMetrics(byTracking, row.trackingCode || 'untracked'), row)
-    addMetrics(mapMetrics(byCountry, row.country || 'unknown'), row)
+    const normalizedRow = {
+      ...row,
+      clicks: toNumber(row.clicks, 0),
+      registrations: toNumber(row.registrations, 0),
+      ftb: toNumber(row.ftb, 0),
+      commission: toNumber(row.commission, 0),
+    }
+    const hasNegativeMetric = ['clicks', 'registrations', 'ftb', 'commission'].some(
+      (key) => normalizedRow[key] < 0,
+    )
+    if (hasNegativeMetric) {
+      negativeMetricRows += 1
+      normalizedRow.clicks = Math.max(0, normalizedRow.clicks)
+      normalizedRow.registrations = Math.max(0, normalizedRow.registrations)
+      normalizedRow.ftb = Math.max(0, normalizedRow.ftb)
+      normalizedRow.commission = Math.max(0, normalizedRow.commission)
+    }
+    if (normalizedRow.registrations > normalizedRow.clicks || normalizedRow.ftb > normalizedRow.registrations) {
+      rowLevelMetricAnomalies += 1
+    }
+
+    addMetrics(summary, normalizedRow)
+    addMetrics(mapMetrics(byTracking, normalizedRow.trackingCode || 'untracked'), normalizedRow)
+    addMetrics(mapMetrics(byCountry, normalizedRow.country || 'unknown'), normalizedRow)
     const parsedDate = new Date(row.date)
     if (!Number.isNaN(parsedDate.getTime()) && (!dataThroughDate || parsedDate > dataThroughDate)) {
       dataThroughDate = parsedDate
+    }
+    if (Number.isNaN(parsedDate.getTime())) {
+      invalidDateRows += 1
     }
   }
 
@@ -550,6 +577,15 @@ export function aggregateAffiliateRows(rows, knownTrackingCodes = [], generatedA
   }
   if (summary.commission > 0 && summary.ftb === 0) {
     anomalies.push('Commission is present with zero FTB; verify report semantics before using revenue.')
+  }
+  if (invalidDateRows > 0) {
+    anomalies.push(`${invalidDateRows} row(s) have invalid dates and were excluded from trend windows.`)
+  }
+  if (negativeMetricRows > 0) {
+    anomalies.push(`${negativeMetricRows} row(s) contain negative metrics; negative values were clamped to zero.`)
+  }
+  if (rowLevelMetricAnomalies > 0) {
+    anomalies.push(`${rowLevelMetricAnomalies} row(s) have registrations or FTB counts above the prior funnel step.`)
   }
 
   const sevenDayRows = rows.filter((row) => isWithinDays(row.date, now, 7))
@@ -627,15 +663,89 @@ function isWithinDays(dateValue, now, days) {
   return deltaDays >= 0 && deltaDays <= days
 }
 
-export async function readFiverrImportRows(importDirectory) {
-  if (!existsSync(importDirectory)) return []
-  const fileNames = (await readdir(importDirectory)).filter((fileName) => /\.csv$/i.test(fileName))
-  const rows = []
-  for (const fileName of fileNames) {
-    const csvText = await readFile(path.join(importDirectory, fileName), 'utf8')
-    rows.push(...parseFiverrCsv(csvText).map((row) => ({ ...row, importFile: fileName })))
+function buildFiverrOverlapKey(row) {
+  return [
+    meaningfulText(row?.date).toLowerCase(),
+    meaningfulText(row?.trackingCode).toLowerCase(),
+    meaningfulText(row?.country).toLowerCase(),
+  ].join('|')
+}
+
+export async function readFiverrImportRowsWithMetadata(importDirectory, options = {}) {
+  if (!existsSync(importDirectory)) {
+    return {
+      rows: [],
+      metadata: {
+        importedFiles: [],
+        duplicateRowsSkipped: 0,
+        overlappingRowsReplaced: 0,
+        allFiles: Boolean(options.allFiles),
+      },
+    }
   }
-  return rows
+
+  const csvFiles = await Promise.all(
+    (await readdir(importDirectory))
+      .filter((fileName) => /\.csv$/i.test(fileName))
+      .map(async (fileName) => {
+        const filePath = path.join(importDirectory, fileName)
+        const fileStat = await stat(filePath)
+        return {
+          fileName,
+          filePath,
+          mtimeMs: fileStat.mtimeMs,
+        }
+      }),
+  )
+
+  const selectedFiles = (options.allFiles
+    ? csvFiles.sort((left, right) => left.mtimeMs - right.mtimeMs || left.fileName.localeCompare(right.fileName))
+    : csvFiles.sort((left, right) => right.mtimeMs - left.mtimeMs || right.fileName.localeCompare(left.fileName)).slice(0, 1)
+  )
+
+  const rowsByKey = new Map()
+  let duplicateRowsSkipped = 0
+  let overlappingRowsReplaced = 0
+
+  for (const [importBatchIndex, file] of selectedFiles.entries()) {
+    const csvText = await readFile(file.filePath, 'utf8')
+    for (const [rowIndex, row] of parseFiverrCsv(csvText).entries()) {
+      const overlapKey = buildFiverrOverlapKey(row)
+      const key = overlapKey === '||'
+        ? `${file.fileName}#${rowIndex}`
+        : overlapKey
+      const nextRow = {
+        ...row,
+        importFile: file.fileName,
+        importBatchIndex,
+      }
+      const existingRow = rowsByKey.get(key)
+      if (existingRow?.importFile === file.fileName) {
+        duplicateRowsSkipped += 1
+        continue
+      }
+      if (existingRow) {
+        overlappingRowsReplaced += 1
+      }
+      rowsByKey.set(key, nextRow)
+    }
+  }
+
+  return {
+    rows: [...rowsByKey.values()].map(({ importBatchIndex, ...row }) => row),
+    metadata: {
+      importedFiles: selectedFiles.map((file) => file.fileName),
+      duplicateRowsSkipped,
+      overlappingRowsReplaced,
+      allFiles: Boolean(options.allFiles),
+    },
+  }
+}
+
+export async function readFiverrImportRows(importDirectory, options = {}) {
+  const result = await readFiverrImportRowsWithMetadata(importDirectory, options)
+  readFiverrImportRows.lastImportMetadata = result.metadata
+  return result.rows
 }
 
 export async function writeJson(filePath, payload) {

@@ -6,9 +6,9 @@ target_type: "cluster"
 signal_source: "optimization"
 finding: "Clear audit warnings before scaling"
 decision: "test"
-action: "7 audit issue(s) remain open."
+action: "15 audit issue(s) remain open."
 owner: "pipeline"
-created_at: "2026-05-03T08:13:19.150Z"
+created_at: "2026-07-11T14:10:32.162Z"
 ---
 ## What happened
 
@@ -16,7 +16,7 @@ Clear audit warnings before scaling
 
 ## Signal observed
 
-7 audit issue(s) remain open.
+15 audit issue(s) remain open.
 
 ## Why it matters
 
@@ -29,4 +29,4 @@ Run this as the next optimization experiment.
 ## Next run change
 
 - Apply to pages: index, alternatives, workflow
-- Primary claim anchor: ai video workflow works best as a decision surface that combines tools, workflow guidance, and a reusable asset.
+- Primary claim anchor: The right next step is to grab prompt pack before opening more tabs.

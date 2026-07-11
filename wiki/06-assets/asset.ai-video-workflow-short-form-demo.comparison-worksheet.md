@@ -2,6 +2,7 @@
 id: "asset.ai-video-workflow-short-form-demo.comparison-worksheet"
 type: "conversion_asset"
 thesis_id: "thesis.video-creation"
+title: "Comparison Worksheet"
 asset_kind: "worksheet"
 status: "active"
 intent_stage: "decision"
@@ -13,13 +14,16 @@ form_event: "asset_form_submit"
 delivery_event: "asset_delivery"
 refresh_cycle: "monthly"
 refresh_priority: "low"
-reuse_score: 0
+last_verified: "2026-07-11"
+staleness_days: 14
+change_triggers: ["Landing copy changed","Delivery flow changed","Primary tool shortlist changed","Workflow steps changed"]
+reuse_score: 37
 acceptance_mode: "A"
 acceptance_status: "auto_release_candidate"
 accepted_version: "v1-accepted"
-landing_path: "/generated-sites/ai-video-workflow-short-form-demo/asset-comparison-worksheet.html"
-thank_you_path: "/generated-sites/ai-video-workflow-short-form-demo/asset-comparison-worksheet-thank-you.html"
-download_path: "/generated-sites/ai-video-workflow-short-form-demo/downloads/comparison-worksheet.md"
+landing_path: "/comparison-worksheet/"
+thank_you_path: "/comparison-worksheet/ready/"
+download_path: "/downloads/comparison-worksheet.md"
 ---
 ## Asset promise
 
@@ -31,7 +35,7 @@ indie hackers, product marketers, and content operators shipping short-form prod
 
 ## What the visitor receives
 
-- Weighted scoring grid: Score shortlist options on time-to-value, workflow friction, pricing clarity, review drag, and reuse potential with a visible weighting model.
+- Weighted evaluation grid: Rate shortlist options on time-to-value, workflow friction, pricing clarity, review drag, and reuse potential with a visible weighting model.
 - Decision log: Capture the first recommendation, the fallback, the reject reasons, and the exact trigger for revisiting the decision.
 - Commercial notes: Track hidden costs, upgrade trigger, manual review drag, and which unknowns still need proof before signing off.
 - Filled shortlist example: A worked example showing how one team narrows the field, rejects weak options, and justifies the first choice.
@@ -58,9 +62,9 @@ image-to-video clips
 
 ## Delivery rules
 
-- Landing page: /generated-sites/ai-video-workflow-short-form-demo/asset-comparison-worksheet.html
-- Thank-you page: /generated-sites/ai-video-workflow-short-form-demo/asset-comparison-worksheet-thank-you.html
-- Download file: /generated-sites/ai-video-workflow-short-form-demo/downloads/comparison-worksheet.md
+- Landing page: /comparison-worksheet/
+- Thank-you page: /comparison-worksheet/ready/
+- Download file: /downloads/comparison-worksheet.md
 - Track asset_cta_click, asset_form_submit, download_shortlist, and asset_delivery in GA4.
 - Refresh on a monthly cycle or when the workflow changes.
 
@@ -84,9 +88,24 @@ Auto-gate candidate; sample human spot-check only.
 
 low
 
+## Last verified
+
+2026-07-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- Landing copy changed
+- Delivery flow changed
+- Primary tool shortlist changed
+- Workflow steps changed
+
 ## Reuse score
 
-0
+37
 
 ## Asset performance view
 

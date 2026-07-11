@@ -546,7 +546,15 @@ function shortHash(value, length = 10) {
 function compactText(value, maxLength = 220) {
   const normalized = String(value ?? '').replace(/\s+/g, ' ').trim()
   if (normalized.length <= maxLength) return normalized
-  return `${normalized.slice(0, Math.max(maxLength - 1, 0)).trimEnd()}...`
+  const clipped = normalized.slice(0, Math.max(maxLength, 1)).trimEnd()
+  const sentenceBoundary = Math.max(clipped.lastIndexOf('. '), clipped.lastIndexOf('? '), clipped.lastIndexOf('! '))
+  const phraseBoundary = Math.max(clipped.lastIndexOf('; '), clipped.lastIndexOf(', '), clipped.lastIndexOf(' '))
+  const boundary = sentenceBoundary > maxLength * 0.45 ? sentenceBoundary + 1 : phraseBoundary
+  const trimmed = clipped
+    .slice(0, boundary > maxLength * 0.45 ? boundary : clipped.length)
+    .replace(/[,:;.\-\s]+$/g, '')
+    .trim()
+  return trimmed || clipped.replace(/[,:;.\-\s]+$/g, '').trim()
 }
 
 function normalizeCollection(values) {
@@ -750,6 +758,12 @@ function normalizePublicCopySpacing(value) {
     .trim()
 }
 
+function removeVisibleTruncationMarkers(value) {
+  return String(value ?? '')
+    .replace(/\s*(?:\.\.\.|…)\s*$/g, '.')
+    .replace(/\s*(?:\.\.\.|…)\s+([-–—])/g, ' $1')
+}
+
 function sanitizePublicMarkdown(value) {
   return String(value ?? '')
     .split('\n')
@@ -761,6 +775,8 @@ function sanitizePublicMarkdown(value) {
       }
       normalized = collapseAdjacentDuplicateWords(normalized)
       normalized = normalized
+        .replace(/\s*(?:\.\.\.|…)\s*$/g, '.')
+        .replace(/\s*(?:\.\.\.|…)\s+([-–—])/g, ' $1')
         .replace(/\s+([,.;:!?])/g, '$1')
         .replace(/([,.;:!?])([A-Za-z])/g, '$1 $2')
         .replace(/[ \t]{2,}/g, ' ')
@@ -778,6 +794,7 @@ function sanitizePublicText(value) {
   }
 
   normalized = collapseAdjacentDuplicateWords(normalized)
+  normalized = removeVisibleTruncationMarkers(normalized)
   normalized = normalizePublicCopySpacing(normalized)
   return normalized
 }
@@ -1940,7 +1957,7 @@ function normalizeCatalogDomain(value) {
   return hostname || candidate.replace(/^www\./i, '').toLowerCase()
 }
 
-function normalizeToolCatalog(config) {
+function normalizeToolCatalog(catalogConfig) {
   const defaultUseCasesByCategory = {
     video_model: ['Text-to-video and image-to-video creation', 'Fast concept validation'],
     avatar_video: ['Avatar-led outreach and personalized video', 'Presenter-style delivery'],
@@ -1953,7 +1970,7 @@ function normalizeToolCatalog(config) {
     avatar_personalized_video: 'avatar_video',
     education: 'education_site',
   }
-  return normalizeCollection(config?.tools)
+  return normalizeCollection(catalogConfig?.tools)
     .map((entry) => {
       const id = slugify(entry.id || entry.name || '').trim()
       if (!id) return null
@@ -3522,13 +3539,11 @@ function buildThesisRuntime(entry) {
     'template',
     'case-study',
   ]
-  const commercialPageTemplates = affiliateConfig.feature.enabled
-    ? dedupe([
-        ...safeArray(experiment.commercialPageTemplates),
-        ...safeArray(experiment.commercialPages).map((item) => item.pageType),
-        ...COMMERCIAL_PAGE_SPECS.map((item) => item.pageType),
-      ]).filter((pageType) => AFFILIATE_ALLOWED_PAGE_TYPES.includes(pageType)).slice(0, 3)
-    : []
+  const commercialPageTemplates = dedupe([
+    ...safeArray(experiment.commercialPageTemplates),
+    ...safeArray(experiment.commercialPages).map((item) => item.pageType),
+    ...COMMERCIAL_PAGE_SPECS.map((item) => item.pageType),
+  ]).filter((pageType) => AFFILIATE_ALLOWED_PAGE_TYPES.includes(pageType)).slice(0, 3)
 
   return {
     thesisKey: entry.thesisKey,
@@ -13559,6 +13574,17 @@ async function buildPageModels(
       nextPage.ctaCopy = auditOffer.ctaPromise || auditOffer.summary || nextPage.ctaCopy
       nextPage.ctaHref = auditOffer.landingPath || nextPage.ctaHref
       nextPage.ctaEvent = auditOffer.conversionEvent || nextPage.ctaEvent
+    } else if (
+      pageBriefPublishable &&
+      !affiliateConfig.feature.enabled &&
+      normalizeWikiLookupKey(nextPage.pageBrief?.ctaStrategy).startsWith('affiliate') &&
+      primaryAssetRoute
+    ) {
+      nextPage.ctaTitle = nextPage.assetBinding?.primary?.title || nextPage.ctaTitle
+      nextPage.ctaButtonLabel = nextPage.ctaTitle
+      nextPage.ctaCopy = primaryAssetRoute.summary || primaryAssetRoute.promise || nextPage.ctaCopy
+      nextPage.ctaHref = primaryAssetRoute.landingPath || nextPage.ctaHref
+      nextPage.ctaEvent = primaryAssetRoute.clickEvent || nextPage.ctaEvent
     } else if (pageBriefPublishable && /asset/.test(meaningfulText(nextPage.pageBrief?.ctaStrategy)) && primaryAssetRoute) {
       nextPage.ctaTitle = nextPage.assetBinding?.primary?.title || nextPage.ctaTitle
       nextPage.ctaButtonLabel = nextPage.ctaTitle
@@ -13663,6 +13689,24 @@ async function buildPageModels(
       ...safeArray(page.sections).flatMap((section) => [section.heading, ...safeArray(section.paragraphs), ...safeArray(section.bullets)]),
       ...safeArray(page.examples).flatMap((item) => [item.title, item.body]),
       ...safeArray(page.keyFacts).flatMap((item) => [item.label, item.value]),
+      ...safeArray(page.comparisonRows).flatMap((row) => [
+        row.name,
+        row.bestFor,
+        row.notFor,
+        row.verdict,
+        row.pricingSignal,
+        row.hiddenCost,
+        row.whenToSwitch,
+        row.evidenceSummary,
+      ]),
+      ...safeArray(page.decisionPaths).flatMap((item) => [
+        item.title,
+        item.audience,
+        item.trigger,
+        item.workflow,
+        item.recommendation,
+        item.watchOut,
+      ]),
       ...safeArray(page.beforeAfter).flatMap((item) => [item.label, item.detail]),
       ...safeArray(page.deliveryFlow).flatMap((item) => [item.title, item.detail]),
     ]
@@ -13719,21 +13763,30 @@ async function buildPageModels(
       case 'one_next_step':
         return meaningfulText(page.ctaHref) || safeArray(page.nextPageCards).length > 0
       case 'affiliate_disclosure':
-        return Boolean(page.affiliateDisclosureRequired) && safeArray(page.affiliateModules).length > 0
+        return !affiliateConfig.feature.enabled ||
+          (Boolean(page.affiliateDisclosureRequired) && safeArray(page.affiliateModules).length > 0)
+      case 'decision_table':
+        return comparisonRows.length >= 3 || safeArray(page.decisionPaths).length >= 3
       case 'diy_cost_and_time':
+        return /diy cost|tool subscription|failed generation|retry|reviewer time|manual edit/.test(surface)
       case 'tool_subscription_cost':
+        return /tool subscription|tool access|tool fees|official pricing|official-source anchor/.test(surface)
       case 'retry_cost':
+        return /retry|retries|failed generation|generation attempts/.test(surface)
       case 'voice_over_and_editing_cost':
+        return /voice-over|voice over|editing|captions|final edit/.test(surface)
       case 'outsourcing_cost':
+        return /outsource|outsourced|freelancer labor|provider quote|service order/.test(surface)
       case 'price_source_note':
       case 'hiring_trigger':
       case 'who_should_not_outsource':
       case 'materials_to_prepare':
       case 'scope_checklist':
       case 'rights_and_delivery_format':
-      case 'revision_plan':
       case 'red_flags':
         return surface.includes(sectionKey.replace(/_/g, ' '))
+      case 'revision_plan':
+        return /\brevision\b/.test(surface) && /\b(plan|count|limit|policy|scope)\b/.test(surface)
       case 'fit_framing':
       case 'use_case_map':
         return (
@@ -13785,10 +13838,14 @@ async function buildPageModels(
     const isAffiliateCtaStrategy = ctaStrategy.startsWith('affiliate')
     const ctaStrategyMatches =
       !ctaStrategy ||
-      ctaStrategy === 'consult_offer' ||
+        ctaStrategy === 'consult_offer' ||
       (
         isAffiliateCtaStrategy &&
-        safeArray(page.affiliateModules).length > 0
+        (
+          affiliateConfig.feature.enabled
+            ? safeArray(page.affiliateModules).length > 0
+            : meaningfulText(page.ctaHref)
+        )
       ) ||
       (
         /asset/.test(ctaStrategy) &&
@@ -13806,7 +13863,11 @@ async function buildPageModels(
         ? !meaningfulText(page.ctaHref)
         : (
             isAffiliateCtaStrategy
-              ? safeArray(page.affiliateModules).length > 0
+              ? (
+                  affiliateConfig.feature.enabled
+                    ? safeArray(page.affiliateModules).length > 0
+                    : meaningfulText(page.ctaHref)
+                )
               : meaningfulText(page.ctaHref) &&
                 (
                   page.pageBrief?.ctaStrategy === 'consult_offer'
@@ -14832,11 +14893,18 @@ function renderToolRankingCards(page) {
 }
 
 const publicRouteByPageType = {
+  hub: '/',
   alternatives: '/compare/',
   workflow: '/workflow/',
+  faq: '/faq/',
+  'best-of': '/best-tools/',
+  'best-tools': '/best-tools/',
   pricing: '/pricing/',
   'free-vs-paid': '/free-vs-paid/',
+  'use-case': '/use-cases/',
+  'use-cases': '/use-cases/',
   'template-kit': '/templates/',
+  'case-study': '/case-study/',
   'diy-vs-hire': '/guides/ai-video-diy-vs-freelancer/',
   'cost-guide': '/cost/ai-video-production-cost/',
   'hire-service': '/hire/ai-video-editor/',
@@ -20022,6 +20090,29 @@ function countGenericPhraseOccurrences(text) {
   return countPhraseMatches(text, genericContentPhrases)
 }
 
+function hasUnsupportedAffiliateClaim(text) {
+  const surface = String(text ?? '')
+  if (
+    /\b(i personally used|i bought|my purchase|70%\s+commission|verified seller result|fake before|fake after|actual customer result)\b/i.test(
+      surface,
+    )
+  ) {
+    return true
+  }
+
+  const sentences = surface
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+
+  return sentences.some((sentence) => {
+    if (!/\bguarantee(?:d|s)?\b/i.test(sentence)) return false
+    return !/\b(avoid|pause if|do not|don'?t|not|no|unclear|refuses?|cannot|should stop|red flag|watch out|promises?)\b/i.test(
+      sentence,
+    )
+  })
+}
+
 function auditPage(renderedPage) {
   const issues = []
   let score = 100
@@ -20080,12 +20171,7 @@ function auditPage(renderedPage) {
         )
         ? 'pass'
         : 'fail',
-    unsupportedClaimCheck:
-      /\b(i personally used|i bought|my purchase|guaranteed?|70%\s+commission|verified seller result|fake before|fake after|actual customer result)\b/i.test(
-        auditSurface,
-      )
-        ? 'fail'
-        : 'pass',
+    unsupportedClaimCheck: hasUnsupportedAffiliateClaim(auditSurface) ? 'fail' : 'pass',
     duplicateContentCheck:
       (contentStats.repeatedSentenceCount ?? 0) <= maxRepeatedSentencePatterns &&
       !/\bNone yet\b/i.test(auditSurface) &&
@@ -21437,6 +21523,48 @@ function isReleaseEligiblePublishGate(publishGate) {
   return status === 'pass' || (status === 'needs_review' && publishGate?.wikiFirstPass === true)
 }
 
+const baseIndexablePublicPaths = new Set([
+  '/',
+  '/workflow/',
+  '/compare/',
+  '/pricing/',
+  '/best-tools/',
+  '/faq/',
+  '/case-study/',
+  '/free-vs-paid/',
+  '/templates/',
+  '/use-cases/',
+])
+
+function normalizeRoutePath(value) {
+  const normalized = String(value || '').trim()
+  if (!normalized || normalized === '/') return '/'
+  return `/${normalized.replace(/^\/+|\/+$/g, '')}/`
+}
+
+function isIndexablePublicPath(routePath) {
+  const normalizedRoutePath = normalizeRoutePath(routePath)
+  if (baseIndexablePublicPaths.has(normalizedRoutePath)) return true
+  return COMMERCIAL_PAGE_SPECS.some((page) => normalizeRoutePath(page.publicPath) === normalizedRoutePath)
+}
+
+function resolveIndexingDirective(page, publishGate, options = {}) {
+  if (options.previewOnly) return 'noindex'
+  if (!isReleaseEligiblePublishGate(publishGate)) return 'noindex'
+  const routePath = normalizeRoutePath(options.publicPath ?? page?.publicPath ?? '')
+  return isIndexablePublicPath(routePath) ? 'index' : 'noindex'
+}
+
+function applyRobotsDirective(html, directive) {
+  if (directive === 'index') {
+    return html.replace(
+      /    <meta name="robots" content="noindex, nofollow" \/>\n?/i,
+      '    <meta name="robots" content="index, follow" />\n',
+    )
+  }
+  return applyNoindexDirective(html)
+}
+
 function buildSitemapXml(urls) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -21593,12 +21721,8 @@ async function removePublicRoute(routePath) {
 
 function buildSeoReport(sites, publishGateBySiteSlug) {
   const allowedPublicPaths = new Set([
-    '/',
-    '/workflow/',
-    '/compare/',
-    '/prompt-pack/',
-    '/audit/',
-    ...(affiliateConfig.feature.enabled ? COMMERCIAL_PAGE_SPECS.map((item) => item.publicPath) : []),
+    ...baseIndexablePublicPaths,
+    ...COMMERCIAL_PAGE_SPECS.map((item) => item.publicPath),
   ])
   const isAllowedPublicUrl = (url) => {
     try {
@@ -21615,16 +21739,12 @@ function buildSeoReport(sites, publishGateBySiteSlug) {
   )
   const urls = dedupe(
     releasableSites.flatMap((site) => [
-      ...(site.publicHomeCanonicalUrl ? [site.publicHomeCanonicalUrl] : []),
+      ...(site.publicHomeCanonicalUrl && site.publicHomeIndexingDirective !== 'noindex'
+        ? [site.publicHomeCanonicalUrl]
+        : []),
       ...site.pages
         .filter((page) => page.indexingDirective !== 'noindex')
         .map((page) => page.canonicalUrl),
-      ...safeArray(site.conversionAssets).map((asset) =>
-        new URL(asset.landingPath, `${config.baseUrl}/`).toString(),
-      ),
-      ...(site.commercialOffer?.landingPath
-        ? [new URL(site.commercialOffer.landingPath, `${config.baseUrl}/`).toString()]
-        : []),
     ]).filter(isAllowedPublicUrl),
   )
   const blockedUrls = dedupe(
@@ -25289,7 +25409,9 @@ async function writeWikiFirstMutationCards({
       cluster_id: clusterId,
       title: auditOfferTitle,
       asset_kind: 'consult_offer',
-      status: isPublishableWikiStatus(existingAuditOffer?.status) ? existingAuditOffer.status : 'accepted',
+      status: isPublishableWikiStatus(existingAuditOffer?.status)
+        ? meaningfulText(existingAuditOffer?.status) || 'accepted'
+        : 'accepted',
       intent_stage: 'commercial',
       delivery_mode: 'consult',
       primary_pages: safeArray(existingAuditOffer?.primaryPages).length > 0 ? existingAuditOffer.primaryPages : ['workflow', 'case-study', 'template-kit'],
@@ -26695,8 +26817,11 @@ async function runPipeline() {
         await writeFile(path.join(siteDir, page.fileName), `${previewHtml}\n`)
 
         if (page.publicPath) {
-          const publicHtml =
-            isReleaseEligiblePublishGate(publishGate) ? page.html : applyNoindexDirective(page.html)
+          const indexingDirective = resolveIndexingDirective(page, publishGate, {
+            publicPath: page.publicPath,
+            previewOnly: previewOnlyPageSlugs.has(page.slug),
+          })
+          const publicHtml = applyRobotsDirective(page.html, indexingDirective)
           await writePublicRouteHtml(page.publicPath, publicHtml)
         }
       }
@@ -26706,6 +26831,9 @@ async function runPipeline() {
       const renderedPublicHome = renderPublicHomeHtml(siteRecord, siteRecord.publicHome)
       siteRecord.publicHomeCanonicalUrl = renderedPublicHome.canonicalUrl
       siteRecord.publicHomeRendered = renderedPublicHome
+      siteRecord.publicHomeIndexingDirective = resolveIndexingDirective(siteRecord.publicHome, publishGate, {
+        publicPath: '/',
+      })
     }
 
     for (const assetPage of [...renderedAssetPages, ...renderedConsultPages]) {
@@ -26756,8 +26884,10 @@ async function runPipeline() {
       commercialIntentScore: page.commercialIntentScore ?? 0,
       visualAssetPath: page.visualAsset?.url ?? '',
       visualAssetStatus: page.visualAsset?.mode ?? 'none',
-      indexingDirective:
-        isReleaseEligiblePublishGate(publishGate) && !previewOnlyPageSlugs.has(page.slug) ? 'index' : 'noindex',
+      indexingDirective: resolveIndexingDirective(page, publishGate, {
+        publicPath: page.publicPath,
+        previewOnly: previewOnlyPageSlugs.has(page.slug),
+      }),
     }))
     siteRuntimeUpdateState.push({
       siteSlug: siteRecord.siteSlug,
@@ -26798,10 +26928,12 @@ async function runPipeline() {
   let rootHtml = buildRootIndexHtml(primaryReleaseSite)
   if (primaryReleaseSite?.publicHome) {
     const renderedPublicHome = renderPublicHomeHtml(primaryReleaseSite, primaryReleaseSite.publicHome)
-    rootHtml =
-      isReleaseEligiblePublishGate(publishGateBySiteSlug.get(primaryReleaseSite.siteSlug))
-        ? renderedPublicHome.html
-        : applyNoindexDirective(renderedPublicHome.html)
+    const publicHomeIndexingDirective = resolveIndexingDirective(
+      primaryReleaseSite.publicHome,
+      publishGateBySiteSlug.get(primaryReleaseSite.siteSlug),
+      { publicPath: '/' },
+    )
+    rootHtml = applyRobotsDirective(renderedPublicHome.html, publicHomeIndexingDirective)
   }
   await writeFile(path.join(publicDir, 'index.html'), rootHtml)
   await writeFile(path.join(publicDir, 'sitemap.xml'), sitemapXml)

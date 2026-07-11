@@ -6,11 +6,13 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "template-kit"
 target_intent: "asset_evaluation"
 target_asset: "AI Video Workflow prompt pack"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.recommendation.913017be","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e"]
+status: "active"
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.conversion.6b545884"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.use-case.1625abf0","claim.ai-video-workflow-short-form-demo.use-case.dc351dec","claim.ai-video-workflow-short-form-demo.caveat.a9652179"]
 required_sections: ["Asset inventory","First-run example","Repeat-run example","Delivery CTA"]
 cta_strategy: "implementation_asset"
 review_priority: "high"
+workflow_steps: []
 completeness_score: 100
 ---
 ## Page goal
@@ -30,8 +32,9 @@ Understand what is included, who it is for, and why it reduces work now.
 ## Required claims
 
 - AI Video Workflow prompt pack is the main conversion asset because it shortens the time from reading to the first test.
-- The right next step is to grab ai video workflow prompt pack before opening more tabs.
 - Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
+- Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
+- Prompt Pack is the main conversion asset because it shortens the time from reading to the first test.
 
 ## Required examples
 
@@ -66,7 +69,8 @@ implementation_asset -> AI Video Workflow prompt pack
 
 - This page is already in the CTR optimization queue.
 - This page is already in the visibility / indexing queue.
-- 1 low-evidence paragraph(s) should be replaced with stronger proof.
+- The consult CTA exists, but the site still has no consult requests; tighten the higher-intent bridge and buyer language.
+- The site audit still has open issues, so this page should absorb the strongest supporting evidence next.
 
 ## Optimization writeback
 
@@ -74,5 +78,5 @@ implementation_asset -> AI Video Workflow prompt pack
 - page_brief:page-brief.ai-video-workflow-short-form-demo.template-kit
 - conversion_asset:prompt-pack
 - claim:claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c
-- claim:claim.ai-video-workflow-short-form-demo.recommendation.913017be
+- claim:claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e
 - claim:claim.ai-video-workflow-short-form-demo.use-case.1625abf0

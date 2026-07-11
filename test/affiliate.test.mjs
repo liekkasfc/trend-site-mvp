@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import {
+  mkdtempSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -8,8 +15,10 @@ import {
   buildAffiliateGa4Payload,
   loadAffiliateConfig,
   parseFiverrCsv,
+  readFiverrImportRowsWithMetadata,
   selectAffiliateModulesForPage,
 } from '../scripts/affiliate-lib.mjs'
+import { buildAffiliatePublicSummary } from '../scripts/build-affiliate-report.mjs'
 import { buildPinterestPack } from '../scripts/generate-pinterest-pack.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -168,16 +177,98 @@ describe('affiliate report import', () => {
     assert.deepEqual(report.unmatchedTrackingCodes, ['automiora_voice_over'])
   })
 
+  it('parses quoted fields, comma money, case-insensitive headers, and reports anomalies', () => {
+    const csv = [
+      'DATE,Tracking Code,COUNTRY,Clicks,Registrations,FTB,Commission',
+      '2026-07-10,"automiora,tag",US,"1,234",12,2,"$1,234.56"',
+      'not-a-date,automiora_ai_video_editor,US,-5,9,10,-12',
+    ].join('\n')
+
+    const rows = parseFiverrCsv(csv)
+    const report = aggregateAffiliateRows(rows, ['automiora,tag', 'automiora_ai_video_editor'], generatedAt)
+
+    assert.equal(rows[0].trackingCode, 'automiora,tag')
+    assert.equal(rows[0].clicks, 1234)
+    assert.equal(rows[0].commission, 1234.56)
+    assert.equal(report.summary.clicks, 1234)
+    assert.equal(report.summary.commission, 1234.56)
+    assert.equal(report.anomalies.some((item) => item.includes('invalid dates')), true)
+    assert.equal(report.anomalies.some((item) => item.includes('negative metrics')), true)
+  })
+
+  it('defaults to the latest Fiverr CSV and dedupes overlapping all-file imports', async () => {
+    const importDir = mkdtempSync(path.join(tmpdir(), 'fiverr-import-'))
+    try {
+      const olderPath = path.join(importDir, 'older.csv')
+      const latestPath = path.join(importDir, 'latest.csv')
+      writeFileSync(
+        olderPath,
+        [
+          'Date,Tracking Code,Country,Clicks,Registrations,FTB,Commission',
+          '2026-07-10,automiora_ai_video_editor,US,10,1,0,$0.00',
+        ].join('\n'),
+      )
+      writeFileSync(
+        latestPath,
+        [
+          'Date,Tracking Code,Country,Clicks,Registrations,FTB,Commission',
+          '2026-07-10,automiora_ai_video_editor,US,20,2,1,$9.00',
+          '2026-07-10,automiora_ai_video_editor,US,20,2,1,$9.00',
+        ].join('\n'),
+      )
+      utimesSync(olderPath, new Date('2026-07-10T00:00:00Z'), new Date('2026-07-10T00:00:00Z'))
+      utimesSync(latestPath, new Date('2026-07-11T00:00:00Z'), new Date('2026-07-11T00:00:00Z'))
+
+      const latestOnly = await readFiverrImportRowsWithMetadata(importDir)
+      assert.deepEqual(latestOnly.metadata.importedFiles, ['latest.csv'])
+      assert.equal(latestOnly.rows.length, 1)
+      assert.equal(latestOnly.metadata.duplicateRowsSkipped, 1)
+
+      const allFiles = await readFiverrImportRowsWithMetadata(importDir, { allFiles: true })
+      assert.deepEqual(allFiles.metadata.importedFiles, ['older.csv', 'latest.csv'])
+      assert.equal(allFiles.rows.length, 1)
+      assert.equal(allFiles.rows[0].clicks, 20)
+      assert.equal(allFiles.metadata.overlappingRowsReplaced, 1)
+      assert.equal(allFiles.metadata.duplicateRowsSkipped, 1)
+    } finally {
+      rmSync(importDir, { recursive: true, force: true })
+    }
+  })
+
   it('returns an explicit no_data report for empty imports', () => {
     const report = aggregateAffiliateRows([], [], generatedAt)
     assert.equal(report.status, 'no_data')
     assert.equal(report.summary.clicks, 0)
     assert.equal(report.byTrackingCode.length, 0)
   })
+
+  it('uses accurate public metric names and leaves true click rate unknown without session data', () => {
+    const report = aggregateAffiliateRows([
+      {
+        date: '2026-07-10',
+        trackingCode: 'automiora_ai_video_editor',
+        country: 'US',
+        clicks: 10,
+        registrations: 2,
+        ftb: 1,
+        commission: 12,
+      },
+    ], ['automiora_ai_video_editor'], generatedAt)
+    const summary = buildAffiliatePublicSummary(report)
+
+    assert.equal(summary.affiliateClickRate, null)
+    assert.equal(summary.affiliateClickRateStatus, 'unknown')
+    assert.equal(summary.affiliateClickToRegistrationRate, 0.2)
+    assert.equal(summary.affiliateClickToFtbRate, 0.1)
+    assert.equal(summary.affiliateRegistrationToFtbRate, 0.5)
+    assert.equal(summary.affiliateCommissionPerClick, 1.2)
+    assert.equal(summary.affiliateCommissionPerFtb, 12)
+    assert.ok(summary.deprecated.affiliateClickRate)
+  })
 })
 
 describe('Pinterest pack generation', () => {
-  it('builds review-required pins with unique IDs', () => {
+  it('builds review-required pins with required fields and unique IDs', () => {
     const pack = buildPinterestPack([
       {
         siteSlug: 'ai-video-workflow-short-form-demo',
@@ -187,11 +278,28 @@ describe('Pinterest pack generation', () => {
         description: 'Prepare scope, rights, revisions, and delivery requirements before ordering.',
         path: '/hire/ai-video-editor/',
       },
-    ], generatedAt.toISOString())
+    ], generatedAt.toISOString(), { siteBaseUrl: 'https://automiora.com' })
 
     assert.equal(pack.status, 'review_required')
     assert.equal(pack.summary.pinCount, 3)
     assert.equal(new Set(pack.pins.map((pin) => pin.id)).size, pack.pins.length)
     assert.equal(pack.pins.every((pin) => pin.destinationPath === '/hire/ai-video-editor/'), true)
+    assert.deepEqual(pack.pins.map((pin) => pin.variant), ['Cost', 'Red flags', 'DIY vs Hire'])
+    for (const pin of pack.pins) {
+      assert.equal(pin.utmSource, 'pinterest')
+      assert.equal(pin.utmMedium, 'organic')
+      assert.equal(pin.status, 'review_required')
+      assert.ok(pin.destinationUrl.startsWith('https://automiora.com/hire/ai-video-editor/'))
+      assert.ok(pin.altText)
+      assert.ok(pin.imagePrompt)
+      assert.ok(pin.affiliateDisclosure)
+    }
+  })
+
+  it('does not create pins when there are no eligible real pages', () => {
+    const pack = buildPinterestPack([], generatedAt.toISOString())
+    assert.equal(pack.status, 'no_eligible_pages')
+    assert.equal(pack.summary.pinCount, 0)
+    assert.deepEqual(pack.pins, [])
   })
 })

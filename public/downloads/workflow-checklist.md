@@ -1,6 +1,6 @@
-# AI Video Workflow checklist
+# Workflow Checklist
 
-A checklist for moving from source asset to publish-ready short-form demo.
+Choose the first production-shaped use case: Owner: The operator or marketer responsible for the first live test. Done when: A pass/fail definition before any tool or prompt testing starts. Failure point: Trying to solve the entire category in one pass. Collect the source asset and operating constraints: Owner: The teammate who owns source material and final approval. Done when: Everyone can name the input, output, and review bar without reopening search. Failure point: Comparing tools before the team agrees on what “good” looks like. Shortlist the obvious options: Owner: The buyer, operator, or builder making the implementation decision. Done when: The field collapses to a manageable shortlist instead of another endless tool list. Failure point: Keeping every visible option in play because the page never makes a recommendation. Run one measurable pilot: Owner: The person executing and reviewing the first production-shaped test. Done when: The team learns where review overhead, rework, or output quality actually breaks down. Failure point: Calling the pilot a success without naming what had to be fixed by hand. Turn the pilot into a reusable asset: Owner: The teammate who will hand this process to the next operator. Done when: The next run starts from an asset instead of from fresh research. Failure point: Leaving the learning inside a single person’s head instead of packaging it.
 
 ## Best-fit use cases
 - short-form product demo videos
@@ -115,7 +115,7 @@ A checklist for moving from source asset to publish-ready short-form demo.
 ### Turn the pilot into a reusable asset
 - [ ] Owner: The teammate who will hand this process to the next operator
 - [ ] Input: The winning prompt flow, checklist notes, or comparison criteria from the pilot
-- [ ] Output: AI Video Workflow prompt pack plus one repeat-run checklist or worksheet
+- [ ] Output: Prompt Pack plus one repeat-run checklist or worksheet
 - [ ] Done definition: The next run starts from an asset instead of from fresh research.
 - [ ] Failure sign: Leaving the learning inside a single person’s head instead of packaging it.
 - [ ] Fallback action: Pause the next step until leaving the learning inside a single person’s head instead of packaging it is resolved.

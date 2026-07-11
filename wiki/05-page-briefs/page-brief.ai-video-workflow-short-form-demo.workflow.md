@@ -6,11 +6,13 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "workflow"
 target_intent: "implementation"
 target_asset: "AI Video Workflow comparison worksheet"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.use-case.3c28df3f","claim.ai-video-workflow-short-form-demo.use-case.e0ff240d","claim.ai-video-workflow-short-form-demo.use-case.5d966843"]
+status: "active"
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.caveat.a9652179"]
 required_sections: ["Step cards","Prompt examples","Failure points","Reusable asset CTA"]
 cta_strategy: "implementation_asset"
 review_priority: "high"
+workflow_steps: [{"title":"Choose the first production-shaped use case","detail":"Start with one narrow use case tied to short-form product demo videos, not the whole category at once.","input":"One concrete job like short-form product demo videos","output":"A narrow pilot brief with one owner, one channel, and one success metric.","owner":"The operator or marketer responsible for the first live test","successMetric":"A pass/fail definition before any tool or prompt testing starts.","failurePoint":"Trying to solve the entire category in one pass."},{"title":"Collect the source asset and operating constraints","detail":"Define the input, output, owner, and quality bar before comparing tools or templates.","input":"Source screenshots, stills, launch notes, or the seed prompt plus output constraints.","output":"A short operating brief covering format, reviewer, deadline, and quality threshold.","owner":"The teammate who owns source material and final approval","successMetric":"Everyone can name the input, output, and review bar without reopening search.","failurePoint":"Comparing tools before the team agrees on what “good” looks like."},{"title":"Shortlist the obvious options","detail":"Use Runway, Pika, Seedance, Kling as a starting field, then cut the list by buyer fit.","input":"One shortlist field plus the highest-risk comparison criteria","output":"A primary option, a fallback option, and one reason each survived the cut.","owner":"The buyer, operator, or builder making the implementation decision","successMetric":"The field collapses to a manageable shortlist instead of another endless tool list.","failurePoint":"Keeping every visible option in play because the page never makes a recommendation."},{"title":"Run one measurable pilot","detail":"Document baseline effort, first-pass quality, and the exact failure mode you hit in the pilot.","input":"One use case, one shortlist choice, and one defined output format","output":"A reviewed pilot with baseline effort, quality notes, and the first failure mode recorded.","owner":"The person executing and reviewing the first production-shaped test","successMetric":"The team learns where review overhead, rework, or output quality actually breaks down.","failurePoint":"Calling the pilot a success without naming what had to be fixed by hand."},{"title":"Turn the pilot into a reusable asset","detail":"Package the learnings into Prompt Pack so the next visitor or teammate can start faster.","input":"The winning prompt flow, checklist notes, or comparison criteria from the pilot","output":"Prompt Pack plus one repeat-run checklist or worksheet","owner":"The teammate who will hand this process to the next operator","successMetric":"The next run starts from an asset instead of from fresh research.","failurePoint":"Leaving the learning inside a single person’s head instead of packaging it."}]
 completeness_score: 100
 ---
 ## Page goal
@@ -30,9 +32,9 @@ Run one production-shaped test and avoid the first avoidable mistake.
 ## Required claims
 
 - Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
+- Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
 - short-form product demo videos is a concrete entry point for ai video workflow.
 - launch and product update videos is a concrete entry point for ai video workflow.
-- screenshot-to-video launch clips is a concrete entry point for ai video workflow.
 
 ## Required examples
 
@@ -68,8 +70,9 @@ implementation_asset -> AI Video Workflow comparison worksheet
 
 - This page is already in the CTR optimization queue.
 - This page is already in the visibility / indexing queue.
-- 2 low-evidence paragraph(s) should be replaced with stronger proof.
-- 1 generic paragraph(s) should be rewritten into more specific operator language.
+- 2 generic paragraph(s) should be rewritten into more specific operator language.
+- The consult CTA exists, but the site still has no consult requests; tighten the higher-intent bridge and buyer language.
+- The site audit still has open issues, so this page should absorb the strongest supporting evidence next.
 
 ## Optimization writeback
 
@@ -77,5 +80,5 @@ implementation_asset -> AI Video Workflow comparison worksheet
 - page_brief:page-brief.ai-video-workflow-short-form-demo.workflow
 - conversion_asset:comparison-worksheet
 - claim:claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e
-- claim:claim.ai-video-workflow-short-form-demo.use-case.3c28df3f
+- claim:claim.ai-video-workflow-short-form-demo.workflow.cab12a2d
 - claim:claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c

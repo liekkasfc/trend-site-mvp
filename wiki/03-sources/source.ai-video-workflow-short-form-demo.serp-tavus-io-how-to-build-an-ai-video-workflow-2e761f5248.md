@@ -1,15 +1,16 @@
 ---
 id: "source.ai-video-workflow-short-form-demo.serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
-type: "source"
+type: "source_summary"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 source_kind: "serp"
+raw_source_id: "serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"
 title: "How to Build an AI Video Workflow [2025] - tavus.io"
 url: "https://www.tavus.io/post/ai-video-workflow"
 domain: "tavus.io"
-published_at: "2025-01-01"
-captured_at: "2026-05-03T12:49:23.647Z"
-freshness_score: 80
+published_at: null
+captured_at: "2026-07-11T14:10:32.162Z"
+freshness_score: 72
 credibility_score: 70
 status: "active"
 ---
@@ -20,7 +21,7 @@ Learn how to build an AI video workflow that optimizes production, automates rep
 ## Key facts extracted
 
 - How to Build an AI Video Workflow [2025] - tavus.io
-- Intent: workflow
+- Intent: ai video workflow
 - Category: serp
 
 ## Buyer pain signals

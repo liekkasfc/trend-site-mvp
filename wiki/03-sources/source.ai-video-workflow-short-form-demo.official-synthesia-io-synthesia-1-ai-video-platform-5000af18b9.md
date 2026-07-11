@@ -1,14 +1,15 @@
 ---
 id: "source.ai-video-workflow-short-form-demo.official-synthesia-io-synthesia-1-ai-video-platform-5000af18b9"
-type: "source"
+type: "source_summary"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 source_kind: "official"
+raw_source_id: "official-synthesia-io-synthesia-1-ai-video-platform-5000af18b9"
 title: "Synthesia: #1 AI Video Platform for Business"
 url: "https://www.synthesia.io/"
 domain: "synthesia.io"
 published_at: null
-captured_at: "2026-05-03T12:49:23.647Z"
+captured_at: "2026-07-11T14:10:32.162Z"
 freshness_score: 72
 credibility_score: 92
 status: "active"
@@ -20,7 +21,7 @@ All-in-one AI Video platform for business Create studio-quality videos with AI a
 ## Key facts extracted
 
 - Synthesia: #1 AI Video Platform for Business
-- Intent: pricing
+- Intent: ai video workflow
 - Category: official
 
 ## Buyer pain signals

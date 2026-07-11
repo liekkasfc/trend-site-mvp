@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -21,114 +22,136 @@ const outputJsonPath = path.join(generatedDir, 'pinterest-pack.json')
 const outputMarkdownPath = path.join(storageDir, 'pinterest-pack.md')
 
 const fallbackAudience = 'AI video operators comparing DIY, templates, and outsourced execution'
+const defaultSiteBaseUrl = process.env.SITE_BASE_URL || 'https://automiora.com'
+
+function normalizeRoutePath(value) {
+  const normalized = String(value || '').trim()
+  if (!normalized || normalized === '/') return '/'
+  return `/${normalized.replace(/^\/+|\/+$/g, '')}/`
+}
+
+function publicHtmlPath(routePath) {
+  const normalized = normalizeRoutePath(routePath)
+  if (normalized === '/') return path.join(projectRoot, 'public', 'index.html')
+  return path.join(projectRoot, 'public', normalized.replace(/^\/+|\/+$/g, ''), 'index.html')
+}
+
+function isReleaseEligibleGate(gate) {
+  const status = String(gate?.status ?? '').toLowerCase()
+  return status === 'pass' || (status === 'needs_review' && gate?.wikiFirstPass === true)
+}
+
+function pageHtmlIsEligible(routePath) {
+  const htmlPath = publicHtmlPath(routePath)
+  if (!existsSync(htmlPath)) return false
+  const html = readFileSync(htmlPath, 'utf8')
+  if (/<meta\s+name="robots"[^>]+noindex/i.test(html)) return false
+  return html.includes('rel="canonical"')
+}
 
 function normalizePageForPin(page, siteSlug = 'ai-video-workflow-short-form-demo') {
   const spec = COMMERCIAL_PAGE_SPECS.find((item) => item.pageType === page.type || item.slug === page.slug)
+  const routePath = normalizeRoutePath(meaningfulText(page.publicPath) || meaningfulText(page.path) || spec?.publicPath || '')
   return {
     siteSlug,
     pageType: page.type ?? spec?.pageType ?? '',
     slug: page.slug ?? spec?.slug ?? '',
     title: meaningfulText(page.title) || spec?.title || '',
     description: meaningfulText(page.metaDescription) || spec?.metaDescription || '',
-    path: meaningfulText(page.publicPath) || meaningfulText(page.path) || spec?.publicPath || '',
+    path: routePath,
+    indexingDirective: page.indexingDirective ?? '',
   }
 }
 
 function getCommercialPages(report) {
   const pageTypes = new Set(COMMERCIAL_PAGE_SPECS.map((item) => item.pageType))
-  const reportPages = Array.isArray(report?.sites)
-    ? report.sites.flatMap((site) =>
-        (Array.isArray(site.pages) ? site.pages : [])
-          .filter((page) => pageTypes.has(page.type))
-          .map((page) => normalizePageForPin(page, site.siteSlug)),
-      )
+  return Array.isArray(report?.sites)
+    ? report.sites.flatMap((site) => {
+        const gateEligible = isReleaseEligibleGate(site?.gates?.publish)
+        return (Array.isArray(site.pages) ? site.pages : [])
+          .filter((page) =>
+            gateEligible &&
+            pageTypes.has(page.type) &&
+            page.indexingDirective === 'index' &&
+            pageHtmlIsEligible(page.publicPath || page.path),
+          )
+          .map((page) => normalizePageForPin(page, site.siteSlug))
+      })
     : []
-
-  if (reportPages.length > 0) {
-    return reportPages
-  }
-
-  return COMMERCIAL_PAGE_SPECS.map((spec) =>
-    normalizePageForPin(
-      {
-        type: spec.pageType,
-        slug: spec.slug,
-        title: spec.title,
-        metaDescription: spec.metaDescription,
-        publicPath: spec.publicPath,
-      },
-      'ai-video-workflow-short-form-demo',
-    ),
-  )
 }
 
-function buildPinVariants(page) {
+function buildPinVariants(page, siteBaseUrl = defaultSiteBaseUrl) {
   const titleSurface = page.title.replace(/\?$/, '')
   const baseUrlPath = page.path || '/'
+  const destinationUrl = new URL(baseUrlPath, `${siteBaseUrl.replace(/\/+$/, '')}/`).toString()
   const variants = [
     {
-      angle: 'decision',
-      title: `${titleSurface}: DIY or Hire?`,
-      overlayText: ['DIY', 'Template', 'Hire'].join(' vs '),
-      description:
-        `Use this decision path before spending budget on AI video production. ${page.description}`,
-      visualBrief:
-        'Three-column decision board with checklist marks, simple cost/time labels, and a clear final branch.',
-    },
-    {
       angle: 'cost',
-      title: `What AI Video Really Costs`,
-      overlayText: 'Tool cost + retry cost + editing',
+      label: 'Cost',
+      title: `Cost Map: ${titleSurface}`,
+      imageHeadline: 'What AI Video Really Costs',
+      imageSubheadline: 'Tools, retries, editing, and quotes',
       description:
-        'Pin a cost breakdown that separates tool subscriptions, retries, voice-over, editing, and outsourced help.',
-      visualBrief:
-        'Clean cost-stack layout with line items, neutral colors, and a small note to verify current vendor pricing.',
+        'A cost-first pin that separates visible tool costs, retry risk, editing labor, and provider quotes before a buyer spends.',
+      imagePrompt:
+        'Vertical 2:3 editorial checklist graphic with four labeled cost blocks, crisp typography, neutral product-workflow styling, no income promises.',
     },
     {
-      angle: 'hiring',
-      title: `AI Video Hiring Checklist`,
-      overlayText: 'Scope, rights, revisions, delivery',
+      angle: 'red-flags',
+      label: 'Red flags',
+      title: `Red Flags: ${titleSurface}`,
+      imageHeadline: 'Stop Before You Order',
+      imageSubheadline: 'Scope, rights, revisions, delivery',
       description:
-        'Use this checklist before sending a brief to an AI video editor, motion designer, or voice-over freelancer.',
-      visualBrief:
-        'Checklist layout with brief materials, rights, revision plan, red flags, and delivery format callouts.',
+        'A caution-focused pin for buyers checking scope, rights, revision limits, and delivery format before hiring or outsourcing.',
+      imagePrompt:
+        'Vertical 2:3 red-flag checklist graphic for a video production buyer, clear warning labels, professional SaaS editorial style, no vendor logos.',
+    },
+    {
+      angle: 'diy-vs-hire',
+      label: 'DIY vs Hire',
+      title: `DIY vs Hire: ${titleSurface}`,
+      imageHeadline: 'DIY, Template, or Hire?',
+      imageSubheadline: 'Choose the next safe step',
+      description:
+        `A decision-path pin that helps AI video buyers choose DIY, templates, or hiring. ${page.description}`,
+      imagePrompt:
+        'Vertical 2:3 three-lane decision diagram with DIY, template, and hire columns, clean comparison layout, no affiliate URL or marketplace screenshot.',
     },
   ]
 
-  return variants.map((variant, index) => ({
+  return variants.map((variant) => ({
     id: `${page.slug}-${variant.angle}`,
     siteSlug: page.siteSlug,
     pageSlug: page.slug,
     pageType: page.pageType,
+    variant: variant.label,
     status: 'review_required',
+    destinationUrl,
     destinationPath: baseUrlPath,
-    utm: {
-      source: 'pinterest',
-      medium: 'organic_social',
-      campaign: `affiliate-commercial-${page.pageType}`,
-      content: variant.angle,
-    },
-    board: 'AI Video Workflow',
-    audience: fallbackAudience,
+    utmSource: 'pinterest',
+    utmMedium: 'organic',
+    utmCampaign: `affiliate-commercial-${page.pageType}`,
+    utmContent: variant.angle,
+    boardSuggestion: 'AI Video Workflow',
     title: variant.title,
-    overlayText: variant.overlayText,
     description: variant.description,
-    visualBrief: variant.visualBrief,
+    altText: `${variant.imageHeadline} checklist for ${page.title}`,
+    imageHeadline: variant.imageHeadline,
+    imageSubheadline: variant.imageSubheadline,
+    imagePrompt: variant.imagePrompt,
+    affiliateDisclosure:
+      'This destination page may contain affiliate links. Automiora may earn a commission at no additional cost to the buyer.',
+    audience: fallbackAudience,
     aspectRatio: '2:3',
-    priority: index === 0 ? 'high' : 'medium',
-    reviewNotes: [
-      'Confirm destination page passed Gate 2 before scheduling.',
-      'Do not include income, speed, or guaranteed-result claims.',
-      'Use only current screenshots or generated visuals that match the page content.',
-    ],
   }))
 }
 
-export function buildPinterestPack(pages, generatedAt = new Date().toISOString()) {
-  const pins = pages.flatMap(buildPinVariants)
+export function buildPinterestPack(pages, generatedAt = new Date().toISOString(), options = {}) {
+  const pins = pages.flatMap((page) => buildPinVariants(page, options.siteBaseUrl ?? defaultSiteBaseUrl))
   return {
     generatedAt,
-    status: 'review_required',
+    status: pins.length > 0 ? 'review_required' : 'no_eligible_pages',
     summary: {
       pageCount: pages.length,
       pinCount: pins.length,
@@ -152,11 +175,12 @@ export function renderPinterestMarkdown(pack) {
   for (const pin of pack.pins) {
     lines.push(`## ${pin.title}`)
     lines.push(`- ID: ${pin.id}`)
-    lines.push(`- Destination: ${pin.destinationPath}`)
-    lines.push(`- Overlay: ${pin.overlayText}`)
+    lines.push(`- Destination: ${pin.destinationUrl}`)
+    lines.push(`- Variant: ${pin.variant}`)
+    lines.push(`- Headline: ${pin.imageHeadline}`)
+    lines.push(`- Subheadline: ${pin.imageSubheadline}`)
     lines.push(`- Description: ${pin.description}`)
-    lines.push(`- Visual brief: ${pin.visualBrief}`)
-    lines.push(`- Priority: ${pin.priority}`)
+    lines.push(`- Image prompt: ${pin.imagePrompt}`)
     lines.push('')
   }
 

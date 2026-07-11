@@ -6,11 +6,13 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "use-cases"
 target_intent: "job_to_be_done"
 target_asset: "AI Video Workflow prompt pack"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.use-case.3c28df3f","claim.ai-video-workflow-short-form-demo.use-case.e0ff240d","claim.ai-video-workflow-short-form-demo.use-case.5d966843"]
+status: "active"
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.use-case.3c28df3f","claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a","claim.ai-video-workflow-short-form-demo.use-case.75d8602f"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.comparison.a1ed5086","claim.ai-video-workflow-short-form-demo.caveat.a9652179","claim.ai-video-workflow-short-form-demo.definition.67d157ed"]
 required_sections: ["Use case map","Example scenario","Workflow next step","CTA asset"]
 cta_strategy: "lead_with_asset"
 review_priority: "medium"
+workflow_steps: []
 completeness_score: 100
 ---
 ## Page goal
@@ -29,7 +31,7 @@ See whether this category fits my job, not a generic market segment.
 
 ## Required claims
 
-- AI Video Workflow prompt pack is the main conversion asset because it shortens the time from reading to the first test.
+- short-form product demo videos is a concrete entry point for ai video workflow.
 - short-form product demo videos is a concrete entry point for ai video workflow.
 - launch and product update videos is a concrete entry point for ai video workflow.
 - screenshot-to-video launch clips is a concrete entry point for ai video workflow.

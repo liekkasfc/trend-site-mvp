@@ -1,6 +1,6 @@
-# AI Video Workflow prompt pack
+# Prompt Pack
 
-A ready-to-run pack covering hooks, screenshots, transitions, and short-form demo prompts.
+A first-run prompt pack for turning one source asset into a short-form demo with a usable brief, sequence, CTA, and handoff note.
 
 ## Best-fit use cases
 - short-form product demo videos
@@ -8,7 +8,10 @@ A ready-to-run pack covering hooks, screenshots, transitions, and short-form dem
 - screenshot-to-video launch clips
 
 ## Why this asset exists
-- None yet.
+- First-pilot cost anchor: A visible public benchmark starts at $20 for a 3-12 min workflow. The prompt pack earns the click only if it shortens review waste on that first pilot.
+- Why a prompt pack matters later: AriaFlow sells workflow controls like autopilot, scheduling, and one workspace. That is the point where a reusable prompt pack matters more than another blank generation box.
+- Business-proof standard: Synthesia uses 160+ languages and up to 90% time-and-cost savings as buyer language. The pack should create cleaner inputs for that kind of business workflow, not just prettier prompts.
+- Operator pain signal: Operators are still comparing which workflow keeps quality stable as models change. The pack reduces trial-and-error by making the brief, prompt blocks, and review criteria explicit.
 
 ## What is inside
 - Brief intake block: A one-screen intake for source asset, target channel, conversion goal, reviewer, and publish-ready definition before prompting begins.
@@ -18,9 +21,9 @@ A ready-to-run pack covering hooks, screenshots, transitions, and short-form dem
 - Reuse notes: A fill-in handoff note to capture what changed between launch one and launch two, including the winning angle, reviewer note, and failure point.
 
 ## First 30 minutes
-- Copy the first prompt block: Start with the hook, screenshot, or transition starter that matches the first short-form demo you actually need to ship.
-- Run one narrow pilot: Keep the first pass scoped to one short output and one reviewer so the pack reveals what still needs manual work.
-- Save the delta: Fill the reuse notes with what changed between the first pass and the publish-ready version so the second run starts cleaner.
+- Lock the first job: Fill the intake block with one source asset, one target channel, one CTA, and one reviewer before you write anything else.
+- Run the first-pass prompt set: Generate one short brief, one 4-6 scene sequence, and one CTA line before adding decorative flourishes or extra workflow complexity.
+- Repair one failure and save the delta: Fix the first obvious failure mode, then save the winning hook, scene order, and review note so the second run starts cleaner.
 
 ## Use before you start
 - Have one source asset, one target channel, and one conversion goal before you touch the first prompt block.
@@ -82,14 +85,63 @@ A ready-to-run pack covering hooks, screenshots, transitions, and short-form dem
 - Conversion goal:
 - Reviewer:
 - Publish-ready definition:
+- Hard deadline:
+- Constraint to respect:
+
+## First-pass prompt set
+
+### 1. Brief builder
+Turn the following input into a short production brief for a short-form AI demo video.
+
+Input:
+- Source asset: [describe the screenshots, script, release note, or product clip]
+- Target channel: [X, LinkedIn, product page, ad, landing page, etc.]
+- Conversion goal: [click, signup, demo request, install, etc.]
+- Reviewer: [role or name]
+- Publish-ready definition: [what must be true before this can ship]
+- Constraint to respect: [brand, timing, compliance, aspect ratio, tone]
+
+Output:
+1. One-sentence audience + outcome
+2. One-sentence hook
+3. 4-6 scene sequence
+4. CTA line
+5. One biggest review risk
+
+### 2. Hook options
+Write 5 opening hook options for the same brief.
+
+Rules:
+- Each hook must name the workflow outcome or the visible before/after
+- Avoid generic hype
+- Keep each hook under 14 words
+- Include one safer option and one bolder option
+
+### 3. Screenshot-to-sequence prompt
+Turn this source asset into a short-form demo sequence.
+
+Requirements:
+- Use 4-6 scenes
+- Name what appears on screen in each scene
+- Add one motion cue per scene
+- Make the CTA feel earned, not tacked on
+- End with one reviewer note about where the sequence may still feel weak
+
+### 4. CTA framing prompt
+Rewrite the CTA section 3 ways:
+- low-friction version
+- urgency version
+- proof-led version
+
+Keep each version aligned with the same conversion goal.
 
 ## Prompt starters
 
-### ai video workflow prompt starter
-Goal: produce a ai video workflow asset for indie hackers, product marketers, and content operators shipping short-form product/demo videos. Input: one source asset, one target channel, one conversion goal. Output: a short brief, an execution checklist, and one recommended next step.
+### AI video workflow prompt starter
+Goal: produce a short-form demo workflow asset for indie hackers, product marketers, and content operators. Input: one source asset, one target channel, one conversion goal. Output: a short brief, an execution sequence, one CTA line, and one reviewer risk note.
 
-### AI Video Workflow evaluation prompt
-Compare 3 options for ai video workflow across time-to-value, workflow friction, pricing clarity, and reuse potential. End with one recommended choice and one fallback choice.
+### AI video workflow evaluation prompt
+Compare 3 options for AI video workflow across time-to-value, workflow friction, pricing clarity, and reuse potential. End with one recommended choice and one fallback choice.
 
 ## Repair prompts
 
@@ -99,9 +151,29 @@ Rewrite the opening 3 seconds to name the workflow outcome, the audience, and th
 ### If the CTA lands too late
 Tighten the sequence so the CTA is previewed earlier and the final beat feels like a decision, not a fade-out.
 
+### If the sequence feels like random screenshots
+Rebuild the scene order so each shot answers one job:
+1. problem
+2. proof
+3. product step
+4. outcome
+5. CTA
+
+### If the output still needs too much manual cleanup
+Reduce the ambition of the first pass. Keep the same use case, but remove decorative flourishes and optimize only for clarity, sequence, and CTA fit.
+
 ## Reviewer rubric
 
 - Clarity: can a reviewer understand the output without extra explanation?
 - Sequence: does the order of frames support the outcome instead of wandering?
 - CTA fit: does the CTA appear early enough and clearly enough for the channel?
 - Reuse value: can the next teammate run this again without rebuilding the brief?
+
+## Reuse handoff note
+
+- Winning hook:
+- Scene order that survived review:
+- CTA version used:
+- Main failure mode from run one:
+- Repair prompt that fixed it:
+- What the next operator should keep:

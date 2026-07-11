@@ -1,15 +1,16 @@
 ---
 id: "source.ai-video-workflow-short-form-demo.serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
-type: "source"
+type: "source_summary"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 source_kind: "serp"
+raw_source_id: "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
 title: "The Complete AI Video Workflow for Content Creators in 2026"
 url: "https://www.seedancev2ai.com/en/blog/complete-ai-video-workflow-content-creators-2026"
 domain: "seedancev2ai.com"
-published_at: "2026-01-01"
-captured_at: "2026-05-03T12:49:23.647Z"
-freshness_score: 92
+published_at: null
+captured_at: "2026-07-11T14:10:32.162Z"
+freshness_score: 72
 credibility_score: 70
 status: "active"
 ---
@@ -20,7 +21,7 @@ From concept to published video — here's the end-to-end workflow that professi
 ## Key facts extracted
 
 - The Complete AI Video Workflow for Content Creators in 2026
-- Intent: workflow
+- Intent: ai video workflow
 - Category: serp
 
 ## Buyer pain signals

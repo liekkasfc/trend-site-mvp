@@ -1,0 +1,62 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      PIPELINE_OFFLINE_FIXTURES: 'true'
+      SITE_BASE_URL: https://automiora.com
+      AFFILIATE_FEATURE_ENABLED: 'true'
+      AFFILIATE_OFFER_MAX_AGE_DAYS: '30'
+      AFFILIATE_ALLOW_TEST_URLS: 'true'
+      FIVERR_AI_VIDEO_EDITOR_URL: https://affiliate.example.test/ai-video-editor
+      FIVERR_SHORT_FORM_EDITOR_URL: https://affiliate.example.test/short-form-editor
+      FIVERR_PRODUCT_DEMO_VIDEO_URL: https://affiliate.example.test/product-demo
+      FIVERR_VIDEO_SCRIPTWRITER_URL: https://affiliate.example.test/scriptwriter
+      FIVERR_VOICE_OVER_URL: https://affiliate.example.test/voice-over
+      FIVERR_MOTION_GRAPHICS_URL: https://affiliate.example.test/motion-graphics
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate pipeline fixtures
+        run: pnpm run pipeline
+
+      - name: Validate source layer
+        run: pnpm run validate
+
+      - name: Upload validation diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-diagnostics
+          path: |
+            public/generated/pipeline-report.json
+            public/generated/review-queue.json
+            public/generated/affiliate-summary.json
+            public/generated/affiliate-release-check.json
+            public/generated/pinterest-pack.json
+            public/sitemap.xml
+            storage/affiliate-performance.json
+            storage/affiliate-release-check.md
+            storage/pinterest-pack.md
+          if-no-files-found: ignore

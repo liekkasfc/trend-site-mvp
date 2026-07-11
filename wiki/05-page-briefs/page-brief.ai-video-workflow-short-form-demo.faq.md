@@ -6,11 +6,13 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "faq"
 target_intent: "answer_to_next_step"
 target_asset: "AI Video Workflow prompt pack"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.definition.6bfd358e","claim.ai-video-workflow-short-form-demo.pricing.4a485d25"]
+status: "active"
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.definition.6bfd358e","claim.ai-video-workflow-short-form-demo.conversion.6b545884","claim.ai-video-workflow-short-form-demo.definition.58033449"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e"]
 required_sections: ["FAQ","One next step","Asset CTA"]
 cta_strategy: "low_friction_asset"
 review_priority: "medium"
+workflow_steps: []
 completeness_score: 88
 ---
 ## Page goal
@@ -30,7 +32,8 @@ Get a quick answer without losing the next step.
 
 - AI Video Workflow prompt pack is the main conversion asset because it shortens the time from reading to the first test.
 - ai video workflow works best as a decision surface that combines tools, workflow guidance, and a reusable asset.
-- Buyers should compare workflow cost and review overhead before they compare plan names.
+- Prompt Pack is the main conversion asset because it shortens the time from reading to the first test.
+- ai video workflow works best as a practical guide that combines tool selection, workflow guidance, and a reusable asset.
 
 ## Required examples
 

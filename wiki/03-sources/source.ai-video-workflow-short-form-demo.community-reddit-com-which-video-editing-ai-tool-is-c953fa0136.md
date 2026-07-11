@@ -1,14 +1,15 @@
 ---
 id: "source.ai-video-workflow-short-form-demo.community-reddit-com-which-video-editing-ai-tool-is-c953fa0136"
-type: "source"
+type: "source_summary"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 source_kind: "community"
+raw_source_id: "community-reddit-com-which-video-editing-ai-tool-is-c953fa0136"
 title: "Which video editing AI tool is the best? - Reddit"
 url: "https://www.reddit.com/r/ArtificialInteligence/comments/16779q1/which_video_editing_ai_tool_is_the_best/"
 domain: "reddit.com"
 published_at: null
-captured_at: "2026-05-03T12:49:23.647Z"
+captured_at: "2026-07-11T14:10:32.162Z"
 freshness_score: 72
 credibility_score: 58
 status: "active"
@@ -20,7 +21,7 @@ Here is the best AI video editor list and check out the insights from top global
 ## Key facts extracted
 
 - Which video editing AI tool is the best? - Reddit
-- Intent: comparison
+- Intent: ai video workflow
 - Category: community
 
 ## Buyer pain signals

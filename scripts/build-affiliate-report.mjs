@@ -3,7 +3,7 @@ import path from 'node:path'
 import {
   aggregateAffiliateRows,
   loadAffiliateConfig,
-  readFiverrImportRows,
+  readFiverrImportRowsWithMetadata,
   readJsonIfExists,
   safeArray,
   writeJson,
@@ -19,12 +19,16 @@ export const publicSummaryPath = path.join(projectRoot, 'public', 'generated', '
 function parseArgs(argv) {
   const options = {
     importDirectory: defaultImportDirectory,
+    allFiles: false,
   }
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index]
     if (value === '--import-dir' && argv[index + 1]) {
       options.importDirectory = path.resolve(argv[index + 1])
       index += 1
+    }
+    if (value === '--all-files') {
+      options.allFiles = true
     }
   }
   return options
@@ -77,6 +81,13 @@ export function buildAffiliateMarkdown(report) {
 
   lines.push('', '## Data Quality')
   lines.push(
+    report.importedFiles?.length > 0
+      ? `- Imported file(s): ${report.importedFiles.join(', ')}`
+      : '- Imported file(s): none',
+  )
+  lines.push(`- Duplicate row(s) skipped: ${report.duplicateRowsSkipped ?? 0}`)
+  lines.push(`- Overlapping row(s) replaced: ${report.overlappingRowsReplaced ?? 0}`)
+  lines.push(
     report.unmatchedTrackingCodes.length > 0
       ? `- Unmatched tracking code(s): ${report.unmatchedTrackingCodes.join(', ')}`
       : '- Unmatched tracking code(s): none',
@@ -101,9 +112,23 @@ export function buildAffiliatePublicSummary(report) {
     affiliateRegistrations: report.summary.registrations,
     affiliateFtbs: report.summary.ftb,
     affiliateCommission: report.summary.commission,
-    affiliateClickRate: report.summary.clickToRegistrationRate,
+    affiliateClickRate: null,
+    affiliateClickRateStatus: 'unknown',
+    affiliateClickToRegistrationRate: report.summary.clickToRegistrationRate,
+    affiliateClickToFtbRate: report.summary.clickToFtbRate,
+    affiliateRegistrationToFtbRate: report.summary.registrationToFtbRate,
+    affiliateCommissionPerClick: report.summary.commissionPerClick,
+    affiliateCommissionPerFtb: report.summary.commissionPerFtb,
+    deprecated: {
+      affiliateClickRate: 'Use affiliateClickToRegistrationRate. True affiliateClickRate requires commercial page session data.',
+      affiliateFtbRate: 'Use affiliateClickToFtbRate.',
+      affiliateRevenuePerClick: 'Use affiliateCommissionPerClick.',
+    },
     affiliateFtbRate: report.summary.clickToFtbRate,
     affiliateRevenuePerClick: report.summary.commissionPerClick,
+    importedFiles: report.importedFiles ?? [],
+    duplicateRowsSkipped: report.duplicateRowsSkipped ?? 0,
+    overlappingRowsReplaced: report.overlappingRowsReplaced ?? 0,
     topTrackingCodes: safeArray(report.byTrackingCode).slice(0, 10),
     anomalies: report.anomalies,
     unmatchedTrackingCodes: report.unmatchedTrackingCodes,
@@ -114,8 +139,24 @@ export async function buildAffiliateReport(options = {}) {
   const affiliateConfig = await loadAffiliateConfig(projectRoot)
   const trackingCodes = safeArray(affiliateConfig.offers).map((offer) => offer.trackingCode)
   const importDirectory = options.importDirectory ?? defaultImportDirectory
-  const rows = options.rows ?? await readFiverrImportRows(importDirectory)
-  const report = aggregateAffiliateRows(rows, trackingCodes)
+  const importResult = options.rows
+    ? {
+        rows: options.rows,
+        metadata: options.importMetadata ?? {
+          importedFiles: [],
+          duplicateRowsSkipped: 0,
+          overlappingRowsReplaced: 0,
+          allFiles: Boolean(options.allFiles),
+        },
+      }
+    : await readFiverrImportRowsWithMetadata(importDirectory, { allFiles: options.allFiles })
+  const report = {
+    ...aggregateAffiliateRows(importResult.rows, trackingCodes),
+    importedFiles: importResult.metadata.importedFiles,
+    duplicateRowsSkipped: importResult.metadata.duplicateRowsSkipped,
+    overlappingRowsReplaced: importResult.metadata.overlappingRowsReplaced,
+    importMode: importResult.metadata.allFiles ? 'all_files_deduped' : 'latest_file',
+  }
   const markdown = buildAffiliateMarkdown(report)
   const publicSummary = buildAffiliatePublicSummary(report)
 
