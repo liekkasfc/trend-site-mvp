@@ -25012,16 +25012,58 @@ function buildCanonicalSourcePackFromWiki(cluster, wikiSeed, fallbackSourcePack)
   const categories = Object.fromEntries(
     Object.entries(byKind).map(([key, value]) => [key, value]),
   )
-
-  return {
-    ...(fallbackSourcePack ?? {}),
-    keyword: cluster.primaryKeyword,
-    categories,
-    sourceCounts: Object.fromEntries(
+  const sourceCounts = {
+    official: 0,
+    competitive: 0,
+    community: 0,
+    workflow: 0,
+    product: 0,
+    video: 0,
+    serp: 0,
+    deepResearch: 0,
+    ...Object.fromEntries(
       Object.entries(categories).map(([key, value]) => [key, safeArray(value).length]),
     ),
-    firecrawlAgentDossier: null,
   }
+  const sourcePack = {
+    ...(fallbackSourcePack ?? {}),
+    generatedAt: fallbackSourcePack?.generatedAt ?? config.generatedAt,
+    keyword: cluster.primaryKeyword,
+    thesisKey: cluster.thesisKey,
+    theme: cluster.theme,
+    audience: cluster.audience,
+    categories,
+    sourceCounts,
+    liveSignals: fallbackSourcePack?.liveSignals ?? buildSourcePackLiveSignals(cluster),
+    searchSignals: fallbackSourcePack?.searchSignals ?? {
+      suggestions: [],
+      relatedQueries: [],
+      topIntents: [],
+      gapOpportunities: [],
+      productSignals: [],
+      communityThreads: [],
+      videoSignals: [],
+    },
+    coreToolSeedDebug: fallbackSourcePack?.coreToolSeedDebug ?? {
+      selectedTools: [],
+      rawResults: [],
+      normalizedResults: [],
+    },
+    firecrawlAgentDossier: fallbackSourcePack?.firecrawlAgentDossier ?? null,
+  }
+  sourcePack.qualitySummary =
+    fallbackSourcePack?.qualitySummary ?? buildSourcePackQualitySummary(sourcePack.categories)
+  sourcePack.coverageSummary =
+    fallbackSourcePack?.coverageSummary ??
+    buildSourcePackCoverageSummary(sourcePack.sourceCounts, {
+      suggestions: sourcePack.searchSignals.suggestions,
+      relatedQueries: sourcePack.searchSignals.relatedQueries,
+      gapSummary: {
+        gapOpportunities: sourcePack.searchSignals.gapOpportunities,
+      },
+    })
+
+  return sourcePack
 }
 
 function buildCanonicalResearchFromWiki(cluster, wikiSeed, fallbackResearch) {
@@ -26572,17 +26614,30 @@ async function runPipeline() {
     await mkdir(siteDir, { recursive: true })
     await mkdir(factsDir, { recursive: true })
 
+    const wikiSeed = await loadWikiSeedBundle(cluster)
     const offlineFixtures = config.offlineFixturesEnabled
       ? await loadOfflinePipelineFixtures(cluster.siteSlug)
       : null
-    if (config.offlineFixturesEnabled && !offlineFixtures) {
-      throw new Error(`Offline fixtures are enabled but missing for ${cluster.siteSlug}.`)
-    }
-    const research = offlineFixtures?.research ?? await fetchPublishResearch(cluster.primaryKeyword)
-    const rawSourcePack = offlineFixtures?.sourcePack ?? await buildSourcePack(cluster, research)
+    const wikiSourcePackFallback = config.offlineFixturesEnabled && !offlineFixtures
+      ? buildCanonicalSourcePackFromWiki(cluster, wikiSeed, null)
+      : null
+    const wikiResearchFallback = wikiSourcePackFallback
+      ? buildCanonicalResearchFromWiki(
+          cluster,
+          wikiSeed,
+          buildOfflineFixtureResearch(cluster.siteSlug, null, wikiSourcePackFallback),
+        )
+      : null
+    const research =
+      offlineFixtures?.research ??
+      wikiResearchFallback ??
+      await fetchPublishResearch(cluster.primaryKeyword)
+    const rawSourcePack =
+      offlineFixtures?.sourcePack ??
+      wikiSourcePackFallback ??
+      await buildSourcePack(cluster, research)
     const sourcePack = attachSourceAuthorityScores(rawSourcePack, cluster, 'comparison')
     await writeJson(path.join(siteArtifactsDir, 'source-pack.json'), sourcePack)
-    const wikiSeed = await loadWikiSeedBundle(cluster)
     const wikiMutationPlan = await buildPageModels(
       cluster,
       research,
