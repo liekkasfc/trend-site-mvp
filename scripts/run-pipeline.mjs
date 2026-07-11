@@ -14,6 +14,15 @@ if (typeof process.loadEnvFile === 'function') {
 }
 
 const { buildSiteVisualAssets } = await import('./site-visuals.mjs')
+const {
+  AFFILIATE_ALLOWED_PAGE_TYPES,
+  COMMERCIAL_PAGE_SPECS,
+  buildAffiliateGa4Payload,
+  getOfferFreshness,
+  loadAffiliateConfig,
+  scoreCommercialIntent,
+  selectAffiliateModulesForPage,
+} = await import('./affiliate-lib.mjs')
 
 const projectRoot = process.cwd()
 const publicDir = path.join(projectRoot, 'public')
@@ -22,6 +31,11 @@ const artifactsDir = path.join(generatedDir, 'content-artifacts')
 const sitesRoot = path.join(publicDir, 'generated-sites')
 const storageDir = path.join(projectRoot, 'storage')
 const wikiRoot = path.join(projectRoot, 'wiki')
+const contentUpdateStatePath = path.join(storageDir, 'content-update-state.json')
+const contentUpdateReportMarkdownPath = path.join(storageDir, 'content-update-report.md')
+const contentUpdateReportPath = path.join(generatedDir, 'content-update-report.json')
+const pageDependencyGraphPath = path.join(generatedDir, 'page-dependency-graph.json')
+const updateQueuePath = path.join(generatedDir, 'update-queue.json')
 const historyPath = path.join(storageDir, 'pipeline-history.json')
 const decisionLogPath = path.join(storageDir, 'decision-log.md')
 const reviewQueuePath = path.join(storageDir, 'review-queue.json')
@@ -37,6 +51,7 @@ const thesisRegistryPath = path.join(projectRoot, 'config', 'thesis-registry.jso
 const designProfilesPath = path.join(projectRoot, 'config', 'design-profiles.json')
 const routingRulesPath = path.join(projectRoot, 'config', 'routing-rules.json')
 const toolCatalogPath = path.join(projectRoot, 'config', 'tool-catalog.json')
+const affiliateConfig = await loadAffiliateConfig(projectRoot)
 const experiment = JSON.parse(await readFile(experimentPath, 'utf8'))
 const thesisRegistryConfig = JSON.parse(await readFile(thesisRegistryPath, 'utf8'))
 const designProfilesConfig = existsSync(designProfilesPath)
@@ -48,6 +63,8 @@ const toolCatalogConfig = existsSync(toolCatalogPath)
   : { version: 1, tools: [] }
 let designProfileRegistry = null
 const execFileAsync = promisify(execFile)
+const pipelineCliOptions = parsePipelineCliOptions(process.argv.slice(2))
+const pipelineRunMode = resolvePipelineRunMode(pipelineCliOptions.mode)
 
 const config = {
   runId: new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-'),
@@ -58,10 +75,15 @@ const config = {
   maxDiscoveredTopics: 12,
   maxSitesPerRun: experiment.maxSitesPerRun ?? 1,
   monitoringMode: process.env.MONITORING_MODE ?? 'auto',
-  preserveGeneratedOutputs: parseBooleanFlag(process.env.PIPELINE_PRESERVE_GENERATED_OUTPUTS, false),
+  preserveGeneratedOutputs:
+    parseBooleanFlag(process.env.PIPELINE_PRESERVE_GENERATED_OUTPUTS, false) ||
+    pipelineRunMode !== 'weekly-refresh' ||
+    pipelineCliOptions.selectedPages.size > 0 ||
+    pipelineCliOptions.selectedSites.size > 0,
   thesisKey: experiment.thesisKey,
   autoReleaseEnabled: parseBooleanFlag(process.env.AUTO_RELEASE_ENABLED, false),
   autoReleaseOnGatePass: parseBooleanFlag(process.env.AUTO_RELEASE_ON_GATE_PASS, false),
+  offlineFixturesEnabled: parseBooleanFlag(process.env.PIPELINE_OFFLINE_FIXTURES, false),
 }
 
 const googleConfig = {
@@ -83,7 +105,7 @@ const googleConfig = {
   ga4PropertyId: normalizeGa4PropertyId(process.env.GA4_PROPERTY_ID ?? ''),
   ga4MeasurementId: (process.env.GA4_MEASUREMENT_ID ?? '').trim(),
   ga4ConversionEvents: dedupe(
-    (process.env.GA4_CONVERSION_EVENTS ?? 'generate_lead,sign_up,purchase')
+    (process.env.GA4_CONVERSION_EVENTS ?? 'generate_lead,sign_up,purchase,affiliate_click')
       .split(',')
       .map((value) => value.trim())
       .filter(Boolean),
@@ -223,6 +245,7 @@ const wikiDirectoryMap = {
   assets: path.join(wikiRoot, '06-assets'),
   reviews: path.join(wikiRoot, '07-reviews'),
   experiments: path.join(wikiRoot, '08-experiments'),
+  rankings: path.join(wikiRoot, '09-rankings'),
 }
 
 const thesisRegistry = normalizeThesisRegistry(thesisRegistryConfig, experiment)
@@ -389,7 +412,7 @@ function indefiniteArticleFor(value) {
 }
 
 function escapeHtml(value) {
-  return value
+  return String(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -430,6 +453,55 @@ function parseBooleanFlag(value, fallback = false) {
   if (['1', 'true', 'yes', 'on'].includes(normalized)) return true
   if (['0', 'false', 'no', 'off'].includes(normalized)) return false
   return fallback
+}
+
+function parsePipelineCliOptions(argv = []) {
+  const options = {
+    mode: '',
+    selectedSites: new Set(),
+    selectedPages: new Set(),
+  }
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index]
+    if (!token.startsWith('--')) continue
+    const [flag, inlineValue = ''] = token.slice(2).split('=')
+    const nextValue = inlineValue || argv[index + 1] || ''
+    const consumesNext = !inlineValue && argv[index + 1] && !argv[index + 1].startsWith('--')
+
+    if (['mode', 'run-mode'].includes(flag)) {
+      options.mode = nextValue
+    }
+
+    if (['site', 'sites', 'site-slug', 'site-slugs'].includes(flag)) {
+      for (const value of nextValue.split(',').map((item) => meaningfulText(item)).filter(Boolean)) {
+        options.selectedSites.add(value)
+      }
+    }
+
+    if (['page', 'pages', 'page-key', 'page-keys'].includes(flag)) {
+      for (const value of nextValue.split(',').map((item) => meaningfulText(item)).filter(Boolean)) {
+        options.selectedPages.add(normalizePageSelectionKey(value))
+      }
+    }
+
+    if (consumesNext && ['mode', 'run-mode', 'site', 'sites', 'site-slug', 'site-slugs', 'page', 'pages', 'page-key', 'page-keys'].includes(flag)) {
+      index += 1
+    }
+  }
+
+  return options
+}
+
+function resolvePipelineRunMode(value) {
+  const normalized = meaningfulText(value).toLowerCase()
+  if (['daily', 'daily-check', 'update', 'update-check', 'incremental'].includes(normalized)) {
+    return 'daily-check'
+  }
+  if (['weekly', 'weekly-refresh', 'full-refresh'].includes(normalized)) {
+    return 'weekly-refresh'
+  }
+  return 'full'
 }
 
 function trimTrailingSlash(value) {
@@ -497,6 +569,38 @@ function meaningfulList(values) {
     .filter(Boolean)
 }
 
+function isPublishableWikiStatus(value) {
+  return ['active', 'accepted', ''].includes(meaningfulText(value).toLowerCase())
+}
+
+function filterReviewBacklogForPage(backlogItems, pageType) {
+  const normalizedPageType = normalizePageTemplateType(pageType)
+  return safeArray(backlogItems).filter(
+    (item) =>
+      safeArray(item?.relevantPageTypes).length === 0 ||
+      safeArray(item?.relevantPageTypes).includes(normalizedPageType) ||
+      safeArray(item?.relevantPageTypes).includes('hub'),
+  )
+}
+
+function buildSurfaceSectionProvenance({
+  sectionIds,
+  pageBriefId,
+  claimIds,
+  sourceIds,
+  assetOrOfferId,
+  rankingId,
+}) {
+  return dedupe(safeArray(sectionIds)).map((sectionId) => ({
+    section_id: sectionId,
+    page_brief_id: meaningfulText(pageBriefId),
+    claim_ids: meaningfulList(claimIds),
+    source_ids: meaningfulList(sourceIds),
+    asset_or_offer_id: meaningfulText(assetOrOfferId),
+    ranking_id: meaningfulText(rankingId),
+  }))
+}
+
 function preferMeaningfulText(...values) {
   for (const value of values) {
     const normalized = meaningfulText(value)
@@ -509,6 +613,10 @@ const publicCopyReplacementRules = [
   {
     pattern: /\bAi\b/g,
     replacement: 'AI',
+  },
+  {
+    pattern: /\bai video workflow\b/gi,
+    replacement: 'AI video workflow',
   },
   {
     pattern: /\ban ai\b/gi,
@@ -555,6 +663,30 @@ const publicCopyReplacementRules = [
     replacement: 'site dashboard',
   },
   {
+    pattern: /\bsource(?:-|\s)pack\b/gi,
+    replacement: 'research sources',
+  },
+  {
+    pattern: /\bconversion asset\b/gi,
+    replacement: 'downloadable template',
+  },
+  {
+    pattern: /\bresearch dossier\b/gi,
+    replacement: 'research brief',
+  },
+  {
+    pattern: /\bcluster\b/gi,
+    replacement: 'workflow path',
+  },
+  {
+    pattern: /\bpipelines\b/gi,
+    replacement: 'workflows',
+  },
+  {
+    pattern: /\bpipeline\b/gi,
+    replacement: 'workflow',
+  },
+  {
     pattern: /\brelease-ready\b/gi,
     replacement: 'live',
   },
@@ -581,6 +713,17 @@ const publicCopyAuditRules = {
     /\bworkflow refs\b/gi,
     /\bdecision surface\b/gi,
     /\bnext-best decision surface\b/gi,
+  ],
+  forbiddenTerms: [
+    /\bthesis\b/gi,
+    /\bcluster\b/gi,
+    /\bsource(?:-|\s)pack\b/gi,
+    /\bgate\b/gi,
+    /\bscore\b/gi,
+    /\boperator notes\b/gi,
+    /\bpipeline\b/gi,
+    /\bconversion asset\b/gi,
+    /\bresearch dossier\b/gi,
   ],
   dirtySource: [
     /As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft[\s\S]{0,220}?(?:best results so far\??|\.\.\.)/gi,
@@ -639,6 +782,20 @@ function sanitizePublicText(value) {
   return normalized
 }
 
+function cleanPublicEvidenceCopy(value, maxLength = 180) {
+  if (!meaningfulText(value)) return ''
+
+  return sanitizePublicText(
+    compactText(
+      String(value ?? '')
+        .replace(/https?:\/\/\S+/gi, '')
+        .replace(/\b[a-z0-9.-]+\.[a-z]{2,}(?:\/\S*)?\b/gi, '')
+        .trim(),
+      maxLength,
+    ),
+  )
+}
+
 function isStructuralPublicKey(key) {
   const normalized = String(key ?? '')
   if (!normalized) return false
@@ -677,6 +834,8 @@ function isStructuralPublicKey(key) {
     'key',
     'status',
     'provider',
+    'domain',
+    'domains',
   ]).has(normalized)
 }
 
@@ -713,6 +872,10 @@ function analyzePublicCopy(text) {
     (sum, pattern) => sum + countRegexMatches(normalized, pattern),
     0,
   )
+  const forbiddenTermCount = publicCopyAuditRules.forbiddenTerms.reduce(
+    (sum, pattern) => sum + countRegexMatches(normalized, pattern),
+    0,
+  )
   const dirtySourceCount = publicCopyAuditRules.dirtySource.reduce(
     (sum, pattern) => sum + countRegexMatches(normalized, pattern),
     0,
@@ -721,6 +884,7 @@ function analyzePublicCopy(text) {
 
   return {
     internalJargonCount,
+    forbiddenTermCount,
     dirtySourceCount,
     adjacentDuplicateWordCount,
   }
@@ -748,6 +912,64 @@ function pickDefined(entries) {
   return Object.fromEntries(
     Object.entries(entries).filter(([, value]) => value !== undefined),
   )
+}
+
+function normalizeIsoDate(value) {
+  const normalized = meaningfulText(value)
+  if (!normalized) return ''
+  const parsed = new Date(normalized)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString().slice(0, 10)
+}
+
+function diffDaysBetween(dateA, dateB = config.generatedAt) {
+  const normalizedA = normalizeIsoDate(dateA)
+  const normalizedB = normalizeIsoDate(dateB)
+  if (!normalizedA || !normalizedB) return 0
+  const first = new Date(`${normalizedA}T00:00:00.000Z`)
+  const second = new Date(`${normalizedB}T00:00:00.000Z`)
+  return Math.max(0, Math.floor((second.getTime() - first.getTime()) / (1000 * 60 * 60 * 24)))
+}
+
+function toStableJson(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => toStableJson(item)).join(',')}]`
+  }
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${toStableJson(value[key])}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value ?? null)
+}
+
+function fingerprintValue(value) {
+  return shortHash(toStableJson(value), 12)
+}
+
+function parseChangeTriggers(value, fallback = []) {
+  const list = Array.isArray(value)
+    ? value
+    : String(value ?? '')
+      .split(/\n|[.;]/g)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  const normalized = meaningfulList([...list, ...safeArray(fallback)])
+  return dedupe(normalized).slice(0, 8)
+}
+
+function normalizeRefreshPriority(value, fallback = 'medium') {
+  const normalized = meaningfulText(value).toLowerCase()
+  if (['high', 'medium', 'low'].includes(normalized)) return normalized
+  return fallback
+}
+
+function normalizePageSelectionKey(value) {
+  return meaningfulText(value)
+    .replace(':', '/')
+    .replace(/\/+/g, '/')
+    .toLowerCase()
 }
 
 function reusePriorityWeight(value) {
@@ -859,6 +1081,10 @@ function mergeClaimCard(generatedClaim, wikiClaim) {
   merged.counterpoint = preferMeaningfulText(wikiClaim?.counterpoint, generatedClaim?.counterpoint)
   merged.bestPageTypes = preferMeaningfulList(wikiClaim?.bestPageTypes, generatedClaim?.bestPageTypes, merged.pageTypes)
   merged.reusePriority = preferMeaningfulText(wikiClaim?.reusePriority, generatedClaim?.reusePriority, 'medium')
+  merged.refreshPriority = normalizeRefreshPriority(
+    wikiClaim?.refreshPriority,
+    generatedClaim?.refreshPriority || merged.reusePriority || 'medium',
+  )
   merged.performanceNote = preferMeaningfulText(wikiClaim?.performanceNote, generatedClaim?.performanceNote)
   merged.lifecycleDecision = preferMeaningfulText(
     wikiClaim?.lifecycleDecision,
@@ -868,6 +1094,15 @@ function mergeClaimCard(generatedClaim, wikiClaim) {
   merged.refreshCondition = preferMeaningfulText(
     wikiClaim?.refreshCondition,
     generatedClaim?.refreshCondition,
+  )
+  merged.lastVerified = normalizeIsoDate(wikiClaim?.lastVerified || generatedClaim?.lastVerified) || config.generatedAt.slice(0, 10)
+  merged.stalenessDays = Math.max(
+    1,
+    parsePositiveInt(wikiClaim?.stalenessDays, parsePositiveInt(generatedClaim?.stalenessDays, 14)),
+  )
+  merged.changeTriggers = parseChangeTriggers(
+    wikiClaim?.changeTriggers,
+    generatedClaim?.changeTriggers ?? [merged.refreshCondition],
   )
   merged.manualSource = wikiClaim?.manualSource ?? generatedClaim?.manualSource
   merged.qualityScore = computeClaimQualityScore(merged)
@@ -887,6 +1122,7 @@ function mergePageBriefCard(generatedBrief, wikiBrief) {
   merged.pageType = preferMeaningfulText(wikiBrief?.pageType, generatedBrief?.pageType)
   merged.targetIntent = preferMeaningfulText(wikiBrief?.targetIntent, generatedBrief?.targetIntent)
   merged.targetAsset = preferMeaningfulText(wikiBrief?.targetAsset, generatedBrief?.targetAsset)
+  merged.status = preferMeaningfulText(wikiBrief?.status, generatedBrief?.status, 'active')
   merged.primaryClaimIds = mergeAlignedClaimIds(
     generatedBrief?.primaryClaimIds,
     wikiBrief?.primaryClaimIds,
@@ -898,6 +1134,10 @@ function mergePageBriefCard(generatedBrief, wikiBrief) {
   merged.requiredSections = preferMeaningfulList(wikiBrief?.requiredSections, generatedBrief?.requiredSections)
   merged.ctaStrategy = preferMeaningfulText(wikiBrief?.ctaStrategy, generatedBrief?.ctaStrategy)
   merged.reviewPriority = preferMeaningfulText(wikiBrief?.reviewPriority, generatedBrief?.reviewPriority, 'medium')
+  merged.workflowSteps =
+    safeArray(wikiBrief?.workflowSteps).length > 0
+      ? safeArray(wikiBrief.workflowSteps)
+      : safeArray(generatedBrief?.workflowSteps)
   merged.pageGoal = preferMeaningfulText(wikiBrief?.pageGoal, generatedBrief?.pageGoal)
   merged.visitorIntent = preferMeaningfulText(wikiBrief?.visitorIntent, generatedBrief?.visitorIntent)
   merged.mustWinQuestions = preferMeaningfulList(wikiBrief?.mustWinQuestions, generatedBrief?.mustWinQuestions)
@@ -974,15 +1214,34 @@ function parseWikiCardMarkdown(markdown) {
   }
 
   const sections = []
-  const matches = [...body.matchAll(/^##\s+(.+)\n([\s\S]*?)(?=^##\s+.+\n|$)/gm)]
-  for (const match of matches) {
-    const heading = match[1]?.trim()
-    const content = match[2] ?? ''
-    const lines = content
-      .split('\n')
-      .map((line) => line.trimEnd())
-      .filter((line) => line.trim().length > 0)
-    sections.push({ heading, lines })
+  let currentSection = null
+
+  for (const rawLine of body.split('\n')) {
+    const headingMatch = rawLine.match(/^##\s+(.+?)\s*$/)
+    if (headingMatch) {
+      if (currentSection?.heading) {
+        sections.push({
+          heading: currentSection.heading,
+          lines: currentSection.lines.filter((line) => line.trim().length > 0),
+        })
+      }
+      currentSection = {
+        heading: headingMatch[1].trim(),
+        lines: [],
+      }
+      continue
+    }
+
+    if (currentSection) {
+      currentSection.lines.push(rawLine.trimEnd())
+    }
+  }
+
+  if (currentSection?.heading) {
+    sections.push({
+      heading: currentSection.heading,
+      lines: currentSection.lines.filter((line) => line.trim().length > 0),
+    })
   }
 
   return { frontmatter, sections, body }
@@ -1005,8 +1264,133 @@ function getWikiSectionList(sections, heading) {
     .filter(Boolean)
 }
 
+function getFirstWikiSectionText(sections, headings) {
+  for (const heading of safeArray(headings)) {
+    const value = getWikiSectionText(sections, heading)
+    if (meaningfulText(value)) return value
+  }
+  return ''
+}
+
+function getFirstWikiSectionList(sections, headings) {
+  for (const heading of safeArray(headings)) {
+    const value = getWikiSectionList(sections, heading)
+    if (value.length > 0) return value
+  }
+  return []
+}
+
+function normalizeWikiLookupKey(value) {
+  return String(value ?? '').trim().toLowerCase()
+}
+
+function normalizeRequiredSectionKey(value) {
+  const normalized = normalizeWikiLookupKey(value).replace(/[^a-z0-9]+/g, ' ').trim()
+  switch (normalized) {
+    case 'cta asset':
+    case 'asset cta':
+      return 'asset_cta'
+    case 'delivery cta':
+      return 'delivery_cta'
+    case 'reusable asset cta':
+      return 'reusable_asset_cta'
+    case 'cta asset or consult':
+      return 'cta_asset_or_consult'
+    case 'one next step':
+      return 'one_next_step'
+    case 'shortlist logic':
+      return 'shortlist_logic'
+    case 'workflow route':
+      return 'workflow_route'
+    case 'verdict table':
+      return 'verdict_table'
+    case 'ranking criteria':
+      return 'ranking_criteria'
+    case 'outbound click block':
+      return 'outbound_click_block'
+    case 'step cards':
+      return 'step_cards'
+    case 'prompt examples':
+      return 'prompt_examples'
+    case 'failure points':
+      return 'failure_points'
+    case 'ranked shortlist':
+      return 'ranked_shortlist'
+    case 'fit framing':
+      return 'fit_framing'
+    case 'pricing facts':
+      return 'pricing_facts'
+    case 'hidden cost':
+      return 'hidden_cost'
+    case 'upgrade trigger':
+      return 'upgrade_trigger'
+    case 'free path':
+      return 'free_path'
+    case 'paid path':
+      return 'paid_path'
+    case 'use case map':
+      return 'use_case_map'
+    case 'example scenario':
+      return 'example_scenario'
+    case 'workflow next step':
+      return 'workflow_next_step'
+    case 'asset inventory':
+      return 'asset_inventory'
+    case 'first run example':
+      return 'first_run_example'
+    case 'repeat run example':
+      return 'repeat_run_example'
+    default:
+      return normalized.replace(/\s+/g, '_')
+  }
+}
+
+function buildBacklogPageTypeHints(item) {
+  const text = [
+    item?.finding,
+    item?.action,
+    ...safeArray(item?.nextRunChange),
+    ...safeArray(item?.signalObserved),
+  ]
+    .join(' ')
+    .toLowerCase()
+
+  const pageTypes = new Set()
+  if (/\bindex|homepage|home\b/.test(text)) pageTypes.add('hub')
+  if (/\balternatives|compare|comparison\b/.test(text)) pageTypes.add('alternatives')
+  if (/\bworkflow\b/.test(text)) pageTypes.add('workflow')
+  if (/\bpricing\b/.test(text)) pageTypes.add('pricing')
+  if (/\bfree[-\s]?vs[-\s]?paid\b/.test(text)) pageTypes.add('free-vs-paid')
+  if (/\btemplate|templates|template-kit\b/.test(text)) pageTypes.add('template-kit')
+  if (/\bcase study|case-study\b/.test(text)) pageTypes.add('case-study')
+  if (/\baudit|consult\b/.test(text)) pageTypes.add('audit')
+  if (/\bfaq\b/.test(text)) pageTypes.add('faq')
+  return [...pageTypes]
+}
+
+function isDeferredBacklogDecision(value) {
+  const normalized = normalizeWikiLookupKey(value)
+  return ['watch', 'defer', 'deferred', 'pause', 'paused'].includes(normalized)
+}
+
+function isAuditWarningBacklogItem(item) {
+  const text = [
+    item?.finding,
+    item?.action,
+    ...safeArray(item?.nextRunChange),
+  ]
+    .join(' ')
+    .toLowerCase()
+  return /\baudit warning|audit warnings|audit issue|audit issues|clear audit warnings|blocked\b/.test(text)
+}
+
 function normalizeWikiSourceId(value, siteSlug) {
-  return String(value ?? '').replace(new RegExp(`^source\\.${slugify(siteSlug)}\\.`), '')
+  const prefix = `source.${slugify(siteSlug)}.`
+  let normalized = String(value ?? '').trim()
+  while (normalized.startsWith(prefix)) {
+    normalized = normalized.slice(prefix.length)
+  }
+  return normalized
 }
 
 function extractWikiAssetSlug(value) {
@@ -1557,10 +1941,26 @@ function normalizeCatalogDomain(value) {
 }
 
 function normalizeToolCatalog(config) {
+  const defaultUseCasesByCategory = {
+    video_model: ['Text-to-video and image-to-video creation', 'Fast concept validation'],
+    avatar_video: ['Avatar-led outreach and personalized video', 'Presenter-style delivery'],
+    editing_suite: ['End-to-end editing and generation workflows', 'Team review and production'],
+    education_site: ['Category education and tutorials', 'Reference learning before a tool decision'],
+  }
+  const categoryMap = {
+    video_generation_model: 'video_model',
+    video_generation_suite: 'editing_suite',
+    avatar_personalized_video: 'avatar_video',
+    education: 'education_site',
+  }
   return normalizeCollection(config?.tools)
     .map((entry) => {
       const id = slugify(entry.id || entry.name || '').trim()
       if (!id) return null
+      const normalizedCategory = categoryMap[entry.category] || entry.category || 'video_model'
+      const normalizedMarketTier = ['core', 'emerging', 'special'].includes(entry.market_tier)
+        ? entry.market_tier
+        : 'emerging'
 
       return {
         id,
@@ -1579,11 +1979,24 @@ function normalizeToolCatalog(config) {
             .map((value) => normalizeCatalogDomain(value))
             .filter(Boolean),
         ),
-        category: entry.category || 'video_generation_model',
-        marketTier: entry.market_tier || 'emerging',
-        defaultUseCases: compactLines(normalizeCollection(entry.default_use_cases), 6),
+        category: normalizedCategory,
+        marketTier: normalizedMarketTier,
+        defaultUseCases: compactLines(
+          normalizeCollection(entry.default_use_cases).length > 0
+            ? normalizeCollection(entry.default_use_cases)
+            : defaultUseCasesByCategory[normalizedCategory] ?? defaultUseCasesByCategory.video_model,
+          6,
+        ),
         editorialPrior: clamp(Number(entry.editorial_prior ?? 0.5), 0, 1),
         status: entry.status || 'active',
+        lastVerified: normalizeIsoDate(entry.last_verified) || config.generatedAt.slice(0, 10),
+        stalenessDays: Math.max(1, parsePositiveInt(entry.staleness_days, 14)),
+        refreshPriority: normalizeRefreshPriority(entry.refresh_priority, 'medium'),
+        changeTriggers: parseChangeTriggers(entry.change_triggers, [
+          'Official docs changed',
+          'Pricing changed',
+          'Changelog updated',
+        ]),
       }
     })
     .filter(Boolean)
@@ -1795,11 +2208,12 @@ function computeSourceAuthoritySnapshot(item, cluster, pageIntent = 'comparison'
 function inferToolCategoryFit(tool, cluster, pageIntent = 'comparison') {
   const keyword = cluster.primaryKeyword.toLowerCase()
   const wantsAvatar = /\b(avatar|personalized|sales video|ugc|outreach|localization)\b/.test(keyword)
-  if (tool.category === 'avatar_personalized_video') {
+  if (tool.category === 'education_site') return 0.08
+  if (tool.category === 'avatar_video') {
     return wantsAvatar || pageIntent === 'workflow' ? 0.62 : 0.34
   }
-  if (tool.category === 'video_generation_suite') return 0.92
-  if (tool.category === 'video_generation_model') return 0.95
+  if (tool.category === 'editing_suite') return 0.92
+  if (tool.category === 'video_model') return 0.95
   return 0.58
 }
 
@@ -2120,7 +2534,7 @@ function buildToolEvidenceSummary(tool, aggregate, sourceRefMap) {
       ...safeArray(aggregate.workflowEvidence).map((item) => item.detail),
     ]
       .filter(Boolean)
-      .map((detail) => compactText(detail, 200)),
+      .map((detail) => cleanPublicEvidenceCopy(detail, 200)),
   ).slice(0, 3)
 
   const sourceNames = dedupe(
@@ -2134,6 +2548,87 @@ function buildToolEvidenceSummary(tool, aggregate, sourceRefMap) {
     : [
         `${tool.name} is tracked in ${sourceNames.length || aggregate.mentionCount} evidence source(s), but the current run still needs clearer pricing or limitation proof.`,
       ]
+}
+
+function buildToolDecisionProfile({ tool, factsExtraction, rankingMode = 'recommended_starting_points', index = 0 }) {
+  const primaryPricingFact = safeArray(factsExtraction?.pricing_facts).find((fact) =>
+    safeArray(fact.tool_ids).includes(tool.tool_id),
+  )
+  const primaryLimitationFact = safeArray(factsExtraction?.limitation_facts).find((fact) =>
+    safeArray(fact.tool_ids).includes(tool.tool_id),
+  )
+  const pricingDetailText = cleanPublicEvidenceCopy(primaryPricingFact?.detail, 160)
+  const limitationFactText = cleanPublicEvidenceCopy(primaryLimitationFact?.detail, 160)
+  const bestForText =
+    tool.default_use_cases?.[0] ??
+    (tool.category === 'avatar_video'
+      ? 'Avatar-led or personalized video workflows'
+      : tool.category === 'editing_suite'
+        ? 'Teams that need generation plus editing in one stack'
+        : 'General-purpose AI video generation workflows')
+  const limitationText =
+    meaningfulText(limitationFactText) &&
+    !/\b(pricing page|pricing details|official .* pricing)\b/i.test(limitationFactText)
+      ? limitationFactText
+      : tool.pricing_evidence_available
+        ? 'Public pricing clarity is still uneven across tools, so confirm plan limits before rollout.'
+        : tool.category === 'avatar_video'
+          ? 'This tool solves a narrower job than a broad AI video stack.'
+          : 'Independent limitation evidence is still thin, so validate the weak point in a pilot.'
+  const whenNotToUseText =
+    tool.category === 'avatar_video'
+      ? 'Do not start here if you need broad text-to-video, image-to-video, or editing-suite coverage first.'
+      : tool.category === 'editing_suite'
+        ? 'Do not start here if the team only needs a quick one-model experiment and does not need editing or review workflow yet.'
+        : safeArray(tool.evidence_gap).includes('missing_pricing_evidence')
+          ? 'Do not standardize on this yet if budget approval depends on clear public pricing or predictable credit usage.'
+          : tool.market_tier === 'emerging'
+            ? 'Do not make this the default team choice until the evidence set is stronger and the workflow is more repeatable.'
+            : 'Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.'
+  const recommendationText =
+    rankingMode === 'ranked_shortlist'
+      ? index === 0
+        ? 'Start here for the first live evaluation'
+        : index === 1
+          ? 'Keep this as the strongest fallback'
+          : 'Use as a benchmark or niche fit'
+      : index === 0
+        ? 'Use as the safest starting point until evidence improves'
+        : 'Keep in view while gathering more proof'
+  const costText =
+    meaningfulText(pricingDetailText)
+      ? /\b(pricing page|official .* pricing)\b/i.test(pricingDetailText)
+        ? 'Check current plan limits and credits on the official site before rollout.'
+        : pricingDetailText
+      : tool.pricing_evidence_available
+        ? 'Check current pricing on the official site before rollout.'
+        : 'Pricing evidence is still thin, so confirm plan limits manually.'
+  const easeOfUseText =
+    tool.category === 'editing_suite'
+      ? 'Moderate'
+      : tool.category === 'avatar_video'
+        ? 'Easy for guided avatar use cases'
+        : index === 0
+          ? 'Easy to moderate'
+          : 'Moderate'
+  const badge =
+    index === 0
+      ? 'Best'
+      : tool.market_tier === 'emerging'
+        ? 'Fast mover'
+        : tool.market_tier === 'special'
+          ? 'Specialist'
+          : 'Trusted'
+
+  return {
+    best_for: bestForText,
+    limitation: limitationText,
+    estimated_cost: costText,
+    when_not_to_use: whenNotToUseText,
+    ease_of_use: easeOfUseText,
+    recommendation: recommendationText,
+    badge,
+  }
 }
 
 function buildToolRankingLayer({
@@ -2214,7 +2709,12 @@ function buildToolRankingLayer({
   }
 
   const scoredToolEntries = [...aggregates.values()]
-    .filter((aggregate) => aggregate.tool && aggregate.tool.status !== 'inactive')
+    .filter(
+      (aggregate) =>
+        aggregate.tool &&
+        aggregate.tool.status !== 'inactive' &&
+        aggregate.tool.category !== 'education_site',
+    )
     .map((aggregate) => {
       aggregate.sourceIds = dedupe(aggregate.sourceIds.filter(Boolean))
       const averageSourceScore = round(
@@ -2275,7 +2775,9 @@ function buildToolRankingLayer({
     })
   const knownToolIds = new Set(scoredToolEntries.map((tool) => tool.tool_id))
   const supplementalCatalogEntries = toolCatalog
-    .filter((tool) => !knownToolIds.has(tool.id) && tool.status !== 'inactive')
+    .filter(
+      (tool) => !knownToolIds.has(tool.id) && tool.status !== 'inactive' && tool.category !== 'education_site',
+    )
     .map((tool) => {
       const categoryFit = inferToolCategoryFit(tool, cluster, pageIntent)
       const evidenceGap = [
@@ -2353,16 +2855,22 @@ function buildToolRankingLayer({
       tool.final_tool_score >= 0.42 &&
       tool.category_fit >= 0.34,
   )
+  let emergingSelections = 0
   for (const tool of rankedAdditionalTools) {
     if (selectedTools.length >= 4) break
+    if (tool.market_tier === 'emerging' && emergingSelections >= 2) continue
+    if (tool.market_tier === 'special' && selectedTools.some((item) => item.market_tier === 'special')) continue
     selectedTools.push({
       ...tool,
       reason_for_inclusion:
         tool.market_tier === 'core'
           ? 'high evidence score after core coverage was satisfied'
-          : 'emerging or category-contrast option with enough evidence to keep in the shortlist',
+          : tool.market_tier === 'emerging'
+            ? 'emerging tool with enough evidence to deserve consideration beside the core set'
+            : 'specialized category option included for a distinct use case',
     })
     selectedIds.add(tool.tool_id)
+    if (tool.market_tier === 'emerging') emergingSelections += 1
   }
 
   for (const tool of scoredTools) {
@@ -2372,10 +2880,12 @@ function buildToolRankingLayer({
       reason_for_rejection:
         tool.status === 'sunset'
           ? 'tool status is sunset, so it should not lead a current shortlist'
+          : tool.category === 'education_site'
+            ? 'education sites can inform facts, but they cannot appear as comparison tools'
           : tool.category_fit < 0.34
-            ? 'category fit is too weak for this thesis'
+            ? 'category fit is too weak for this decision page'
             : tool.final_tool_score < 0.42
-              ? 'evidence and authority score stayed below the inclusion threshold'
+              ? 'evidence and authority stayed below the inclusion threshold'
               : 'display constraints favored stronger or more core coverage first',
     })
   }
@@ -2411,19 +2921,63 @@ function buildToolRankingLayer({
         ? 'ranked_shortlist'
         : 'recommended_starting_points'
 
+  if (selectedTools.filter((tool) => tool.market_tier === 'core').length < 2) {
+    for (const tool of rankedCoreTools) {
+      if (selectedIds.has(tool.tool_id)) continue
+      if (selectedTools.length >= 4) break
+      selectedTools.push({
+        ...tool,
+        reason_for_inclusion: 'core fallback added because the evidence set was too thin to support a narrower shortlist',
+      })
+      selectedIds.add(tool.tool_id)
+      if (selectedTools.filter((item) => item.market_tier === 'core').length >= 2) break
+    }
+  }
+
+  const enrichedSelectedTools = selectedTools.map((tool, index) => ({
+    ...tool,
+    ...buildToolDecisionProfile({
+      tool,
+      factsExtraction: facts,
+      rankingMode,
+      index,
+    }),
+  }))
+
+  const enrichedRejectedTools = rejectedTools.map((tool, index) => ({
+    ...tool,
+    ...buildToolDecisionProfile({
+      tool,
+      factsExtraction: facts,
+      rankingMode,
+      index,
+    }),
+  }))
+
+  const coreTools = rankedCoreTools.slice(0, 5).map((tool, index) => ({
+    ...tool,
+    ...buildToolDecisionProfile({
+      tool,
+      factsExtraction: facts,
+      rankingMode,
+      index,
+    }),
+  }))
+
   return {
-    selected_tools: selectedTools,
-    rejected_tools: rejectedTools,
+    selected_tools: enrichedSelectedTools,
+    rejected_tools: enrichedRejectedTools,
     rejected_entities: rejectedDomains.map((item) => item.domain),
     rejected_domains: rejectedDomains,
     tool_scores: scoredTools,
-    evidence_gaps: dedupe(selectedTools.flatMap((tool) => tool.evidence_gap)),
+    evidence_gaps: dedupe(enrichedSelectedTools.flatMap((tool) => tool.evidence_gap)),
     source_evidence: scoredTools.map((tool) => ({
       tool_id: tool.tool_id,
       name: tool.name,
       sources: tool.source_evidence,
     })),
     ranking_mode: rankingMode,
+    core_tools: coreTools,
   }
 }
 
@@ -2968,6 +3522,13 @@ function buildThesisRuntime(entry) {
     'template',
     'case-study',
   ]
+  const commercialPageTemplates = affiliateConfig.feature.enabled
+    ? dedupe([
+        ...safeArray(experiment.commercialPageTemplates),
+        ...safeArray(experiment.commercialPages).map((item) => item.pageType),
+        ...COMMERCIAL_PAGE_SPECS.map((item) => item.pageType),
+      ]).filter((pageType) => AFFILIATE_ALLOWED_PAGE_TYPES.includes(pageType)).slice(0, 3)
+    : []
 
   return {
     thesisKey: entry.thesisKey,
@@ -2999,7 +3560,10 @@ function buildThesisRuntime(entry) {
     conversionAssetSystem: assetCatalog,
     designProfileKey: designProfile.key,
     designProfile,
-    pageTemplates: defaultPageTemplates.slice(0, contentConfig.pageCountTarget),
+    pageTemplates: dedupe([
+      ...defaultPageTemplates.slice(0, contentConfig.pageCountTarget),
+      ...commercialPageTemplates,
+    ]),
   }
 }
 
@@ -3037,6 +3601,9 @@ async function fetchJson(url, init = {}, retries = 2) {
     })
 
     if (!response.ok) {
+      try {
+        await response.body?.cancel?.()
+      } catch {}
       throw new Error(`${response.status} ${response.statusText}`)
     }
 
@@ -3063,6 +3630,9 @@ async function fetchText(url, init = {}, retries = 2) {
     })
 
     if (!response.ok) {
+      try {
+        await response.body?.cancel?.()
+      } catch {}
       throw new Error(`${response.status} ${response.statusText}`)
     }
 
@@ -3501,22 +4071,18 @@ async function runFirecrawlJson(args, cache, cacheKey, timeoutMs = firecrawlConf
 
   const pending = (async () => {
     try {
-      const commandParts = []
       const resolvedApiKey = firecrawlConfig.apiKey || process.env.FIRECRAWL_API_KEY || ''
       const resolvedApiUrl = firecrawlConfig.apiUrl || process.env.FIRECRAWL_API_URL || ''
-      if (resolvedApiKey) {
-        commandParts.push(`FIRECRAWL_API_KEY=${shellEscape(resolvedApiKey)}`)
-      }
-      if (resolvedApiUrl) {
-        commandParts.push(`FIRECRAWL_API_URL=${shellEscape(resolvedApiUrl)}`)
-      }
-      commandParts.push('FIRECRAWL_NO_TELEMETRY=1')
-      commandParts.push([firecrawlConfig.bin, ...args].map(shellEscape).join(' '))
-      const command = commandParts.join(' ')
-      const { stdout } = await execFileAsync('/bin/zsh', ['-lc', command], {
+      const { stdout } = await execFileAsync(firecrawlConfig.bin, args, {
         timeout: timeoutMs,
         maxBuffer: 8 * 1024 * 1024,
-        env: process.env,
+        killSignal: 'SIGKILL',
+        env: {
+          ...process.env,
+          FIRECRAWL_NO_TELEMETRY: '1',
+          ...(resolvedApiKey ? { FIRECRAWL_API_KEY: resolvedApiKey } : {}),
+          ...(resolvedApiUrl ? { FIRECRAWL_API_URL: resolvedApiUrl } : {}),
+        },
       })
 
       const trimmed = stdout.trim()
@@ -3710,8 +4276,70 @@ function googleMonitoringEnabled() {
   return config.monitoringMode !== 'heuristic_forecast'
 }
 
-function getSitePathPrefix(site) {
-  return site.homePath.replace(/index\.html$/, '')
+function getGoogleAuthStrategies() {
+  const strategies = []
+  if (hasGoogleUserOAuthAuth()) strategies.push('oauth_user')
+  if (hasGoogleServiceAccountAuth()) strategies.push('service_account')
+  return strategies
+}
+
+function escapeRegex(value) {
+  return String(value ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function isLiveMonitoringPublicPath(routePath) {
+  const value = meaningfulText(routePath)
+  if (!value || !value.startsWith('/')) return false
+  if (value.startsWith('/generated-sites/')) return false
+  if (value.startsWith('/downloads/')) return false
+  if (value.startsWith('/ops/')) return false
+  return true
+}
+
+function getSiteMonitoringContentPaths(site) {
+  const allowedPublicPaths = new Set(['/', '/workflow/', '/compare/', '/prompt-pack/', '/audit/'])
+  return dedupe(
+    [
+      site?.publicHomePath || '/',
+      ...safeArray(site?.pages).map((page) => getPageHref(page)),
+      ...safeArray(site?.conversionAssets).map((asset) => asset?.landingPath),
+      site?.commercialOffer?.landingPath ?? '',
+    ].filter((routePath) => {
+      const normalizedPath = meaningfulText(routePath)
+      return isLiveMonitoringPublicPath(normalizedPath) && allowedPublicPaths.has(normalizedPath)
+    }),
+  )
+}
+
+function getSiteMonitoringEventPaths(site) {
+  return dedupe(
+    [
+      ...getSiteMonitoringContentPaths(site),
+      ...safeArray(site?.conversionAssets).flatMap((asset) => [
+        asset?.landingPath,
+        asset?.thankYouPath,
+      ]),
+      site?.commercialOffer?.landingPath ?? '',
+      site?.commercialOffer?.thankYouPath ?? '',
+    ].filter(isLiveMonitoringPublicPath),
+  )
+}
+
+function getSiteMonitoringContentUrls(site) {
+  return getSiteMonitoringContentPaths(site).map((routePath) =>
+    new URL(routePath, `${config.baseUrl}/`).toString(),
+  )
+}
+
+function buildGa4RouteRegex(routePaths, { allowQueryString = false } = {}) {
+  const patterns = dedupe(routePaths)
+    .filter(isLiveMonitoringPublicPath)
+    .map((routePath) => {
+      const escaped = escapeRegex(routePath)
+      return allowQueryString ? `${escaped}(?:\\?.*)?` : escaped
+    })
+  if (patterns.length === 0) return '^/$'
+  return `^(?:${patterns.join('|')})$`
 }
 
 function base64UrlEncode(value) {
@@ -3723,80 +4351,81 @@ async function getGoogleAccessToken(scopes) {
     throw new Error(getGoogleAuthMissingNote())
   }
 
-  const authMode = hasGoogleUserOAuthAuth() ? 'oauth_user' : 'service_account'
-  const scopeKey = [authMode, ...new Set(scopes)].sort().join(' ')
-  const cached = googleTokenCache.get(scopeKey)
-  if (cached && cached.expiresAt > Date.now() + 60_000) {
-    return cached.accessToken
-  }
-
   const normalizedScopes = [...new Set(scopes)].sort()
-  const form = hasGoogleUserOAuthAuth()
-    ? new URLSearchParams({
-        client_id: googleConfig.oauthClientId,
-        client_secret: googleConfig.oauthClientSecret,
-        refresh_token: googleConfig.oauthRefreshToken,
-        grant_type: 'refresh_token',
-      })
-    : (() => {
-        const now = Math.floor(Date.now() / 1000)
-        const header = base64UrlEncode(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
-        const payload = base64UrlEncode(
-          JSON.stringify({
-            iss: googleConfig.serviceAccountEmail,
-            scope: normalizedScopes.join(' '),
-            aud: 'https://oauth2.googleapis.com/token',
-            exp: now + 3600,
-            iat: now,
-          }),
-        )
-        const assertionBase = `${header}.${payload}`
-        const signature = crypto
-          .sign('RSA-SHA256', Buffer.from(assertionBase), googleConfig.serviceAccountPrivateKey)
-          .toString('base64url')
-
-        return new URLSearchParams({
-          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-          assertion: `${assertionBase}.${signature}`,
-        })
-      })()
-
   const tokenErrors = []
-  for (const tokenUrl of googleConfig.oauthTokenUrls) {
-    try {
-      const response = await fetch(tokenUrl, {
-        ...withTimeout({}, contentConfig.networkTimeoutMs),
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'TrendSitePipeline/1.0',
-        },
-        body: form.toString(),
-      })
+  for (const authMode of getGoogleAuthStrategies()) {
+    const scopeKey = [authMode, ...normalizedScopes].sort().join(' ')
+    const cached = googleTokenCache.get(scopeKey)
+    if (cached && cached.expiresAt > Date.now() + 60_000) {
+      return cached.accessToken
+    }
 
-      if (!response.ok) {
-        const detail = await response.text()
-        tokenErrors.push(`${tokenUrl} -> ${response.status} ${detail}`)
-        continue
+    const form = authMode === 'oauth_user'
+      ? new URLSearchParams({
+          client_id: googleConfig.oauthClientId,
+          client_secret: googleConfig.oauthClientSecret,
+          refresh_token: googleConfig.oauthRefreshToken,
+          grant_type: 'refresh_token',
+        })
+      : (() => {
+          const now = Math.floor(Date.now() / 1000)
+          const header = base64UrlEncode(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+          const payload = base64UrlEncode(
+            JSON.stringify({
+              iss: googleConfig.serviceAccountEmail,
+              scope: normalizedScopes.join(' '),
+              aud: 'https://oauth2.googleapis.com/token',
+              exp: now + 3600,
+              iat: now,
+            }),
+          )
+          const assertionBase = `${header}.${payload}`
+          const signature = crypto
+            .sign('RSA-SHA256', Buffer.from(assertionBase), googleConfig.serviceAccountPrivateKey)
+            .toString('base64url')
+
+          return new URLSearchParams({
+            grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            assertion: `${assertionBase}.${signature}`,
+          })
+        })()
+
+    for (const tokenUrl of googleConfig.oauthTokenUrls) {
+      try {
+        const response = await fetch(tokenUrl, {
+          ...withTimeout({}, contentConfig.networkTimeoutMs),
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'TrendSitePipeline/1.0',
+          },
+          body: form.toString(),
+        })
+
+        if (!response.ok) {
+          const detail = await response.text()
+          tokenErrors.push(`${authMode}:${tokenUrl} -> ${response.status} ${detail}`)
+          continue
+        }
+
+        const payloadJson = await response.json()
+        const expiresIn = Number(payloadJson.expires_in ?? 3600)
+        googleTokenCache.set(scopeKey, {
+          accessToken: payloadJson.access_token,
+          expiresAt: Date.now() + Math.max(expiresIn - 60, 60) * 1000,
+        })
+
+        return payloadJson.access_token
+      } catch (error) {
+        tokenErrors.push(
+          `${authMode}:${tokenUrl} -> ${error instanceof Error ? error.message : 'Unknown token error'}`,
+        )
       }
-
-      const payloadJson = await response.json()
-      const expiresIn = Number(payloadJson.expires_in ?? 3600)
-      googleTokenCache.set(scopeKey, {
-        accessToken: payloadJson.access_token,
-        expiresAt: Date.now() + Math.max(expiresIn - 60, 60) * 1000,
-      })
-
-      return payloadJson.access_token
-    } catch (error) {
-      tokenErrors.push(
-        `${tokenUrl} -> ${error instanceof Error ? error.message : 'Unknown token error'}`,
-      )
     }
   }
 
   throw new Error(
-    `Google OAuth token exchange failed across ${googleConfig.oauthTokenUrls.length} endpoint(s): ${tokenErrors.join(' | ')}`,
+    `Google OAuth token exchange failed across ${getGoogleAuthStrategies().length} auth mode(s) and ${googleConfig.oauthTokenUrls.length} endpoint(s): ${tokenErrors.join(' | ')}`,
   )
 }
 
@@ -3847,63 +4476,115 @@ async function fetchGscSiteMetrics(site) {
   }
 
   const range = buildDateRange(googleConfig.gscLookbackDays, 2)
-  const pagePrefix = getSitePathPrefix(site)
+  const monitoredUrls = getSiteMonitoringContentUrls(site)
   const endpoint = `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(
     googleConfig.gscSiteUrl,
   )}/searchAnalytics/query`
   const basePayload = {
     startDate: range.startDate,
     endDate: range.endDate,
-    dimensionFilterGroups: [
-      {
-        filters: [
-          {
-            dimension: 'page',
-            operator: 'contains',
-            expression: pagePrefix,
-          },
-        ],
-      },
-    ],
   }
 
   try {
-    const [totals, queries] = await Promise.all([
-      fetchGoogleJson(endpoint, basePayload, [
-        'https://www.googleapis.com/auth/webmasters.readonly',
-      ]),
-      fetchGoogleJson(
-        endpoint,
-        {
-          ...basePayload,
-          dimensions: ['query'],
-          rowLimit: 25000,
-        },
-        ['https://www.googleapis.com/auth/webmasters.readonly'],
-      ),
-    ])
+    const pageReports = await Promise.all(
+      monitoredUrls.map(async (pageUrl) => {
+        const dimensionFilterGroups = [
+          {
+            filters: [
+              {
+                dimension: 'page',
+                operator: 'equals',
+                expression: pageUrl,
+              },
+            ],
+          },
+        ]
+        const [totals, queries] = await Promise.all([
+          fetchGoogleJson(
+            endpoint,
+            {
+              ...basePayload,
+              dimensionFilterGroups,
+            },
+            ['https://www.googleapis.com/auth/webmasters.readonly'],
+          ),
+          fetchGoogleJson(
+            endpoint,
+            {
+              ...basePayload,
+              dimensionFilterGroups,
+              dimensions: ['query'],
+              rowLimit: 25000,
+            },
+            ['https://www.googleapis.com/auth/webmasters.readonly'],
+          ),
+        ])
+        return {
+          pageUrl,
+          totalsRow: totals.rows?.[0] ?? null,
+          queryRows: queries.rows ?? [],
+        }
+      }),
+    )
 
-    const totalsRow = totals.rows?.[0] ?? null
-    const queryRows = queries.rows ?? []
-    const status = totalsRow || queryRows.length > 0 ? 'live' : 'no_data'
+    let totalClicks = 0
+    let totalImpressions = 0
+    let weightedPositionSum = 0
+    const queryMap = new Map()
+
+    for (const report of pageReports) {
+      const impressions = Number(report.totalsRow?.impressions ?? 0)
+      const clicks = Number(report.totalsRow?.clicks ?? 0)
+      const position = Number(report.totalsRow?.position ?? 0)
+      totalImpressions += impressions
+      totalClicks += clicks
+      weightedPositionSum += impressions > 0 ? position * impressions : 0
+
+      for (const row of report.queryRows) {
+        const query = meaningfulText(row.keys?.[0] ?? '')
+        if (!query) continue
+        const rowImpressions = Number(row.impressions ?? 0)
+        const rowClicks = Number(row.clicks ?? 0)
+        const rowPosition = Number(row.position ?? 0)
+        const previous = queryMap.get(query) ?? {
+          impressions: 0,
+          clicks: 0,
+          weightedPositionSum: 0,
+        }
+        previous.impressions += rowImpressions
+        previous.clicks += rowClicks
+        previous.weightedPositionSum += rowPosition * rowImpressions
+        queryMap.set(query, previous)
+      }
+    }
+
+    const aggregatedQueries = [...queryMap.values()].map((entry) => ({
+      impressions: entry.impressions,
+      clicks: entry.clicks,
+      position:
+        entry.impressions > 0 ? entry.weightedPositionSum / entry.impressions : 100,
+    }))
+    const status =
+      totalImpressions > 0 || totalClicks > 0 || aggregatedQueries.length > 0
+        ? 'live'
+        : 'no_data'
 
     return {
       status,
-      impressions: Math.round(totalsRow?.impressions ?? 0),
-      clicks: Math.round(totalsRow?.clicks ?? 0),
-      ctr: round(totalsRow?.ctr ?? 0, 4),
-      avgPosition: round(totalsRow?.position ?? 100, 1),
-      queryCount: queryRows.length,
-      top50KeywordCount: queryRows.filter(
-        (row) => Number(row.position ?? 100) <= 50,
-      ).length,
-      top20KeywordCount: queryRows.filter(
-        (row) => Number(row.position ?? 100) <= 20,
-      ).length,
+      impressions: Math.round(totalImpressions),
+      clicks: Math.round(totalClicks),
+      ctr: totalImpressions > 0 ? round(totalClicks / totalImpressions, 4) : 0,
+      avgPosition:
+        totalImpressions > 0 ? round(weightedPositionSum / totalImpressions, 1) : 100,
+      queryCount: aggregatedQueries.length,
+      top50KeywordCount: aggregatedQueries.filter((row) => Number(row.position ?? 100) <= 50)
+        .length,
+      top20KeywordCount: aggregatedQueries.filter((row) => Number(row.position ?? 100) <= 20)
+        .length,
       notes:
         status === 'no_data'
           ? [
-              `GSC returned no rows for ${pagePrefix} across ${googleConfig.gscLookbackDays} days yet.`,
+              `GSC returned no rows for ${monitoredUrls.length} public page(s) across ${googleConfig.gscLookbackDays} days yet.`,
             ]
           : [],
     }
@@ -3912,7 +4593,7 @@ async function fetchGscSiteMetrics(site) {
       status: 'error',
       error: error instanceof Error ? error.message : 'Unknown GSC error',
       notes: [
-        `GSC request failed for ${pagePrefix}; Gate 3 is falling back to heuristic ranking signals.`,
+        `GSC request failed for ${monitoredUrls.length || 0} public page(s); Gate 3 is falling back to heuristic ranking signals.`,
       ],
     }
   }
@@ -3941,7 +4622,8 @@ async function fetchGa4SiteMetrics(site) {
   }
 
   const range = buildDateRange(googleConfig.ga4LookbackDays)
-  const pagePrefix = getSitePathPrefix(site)
+  const landingPaths = getSiteMonitoringContentPaths(site)
+  const eventPaths = getSiteMonitoringEventPaths(site)
   const endpoint = `https://analyticsdata.googleapis.com/v1beta/properties/${googleConfig.ga4PropertyId}:runReport`
 
   try {
@@ -3956,8 +4638,8 @@ async function fetchGa4SiteMetrics(site) {
             filter: {
               fieldName: 'landingPagePlusQueryString',
               stringFilter: {
-                matchType: 'BEGINS_WITH',
-                value: pagePrefix,
+                matchType: 'FULL_REGEXP',
+                value: buildGa4RouteRegex(landingPaths, { allowQueryString: true }),
               },
             },
           },
@@ -3978,8 +4660,8 @@ async function fetchGa4SiteMetrics(site) {
                   filter: {
                     fieldName: 'pagePath',
                     stringFilter: {
-                      matchType: 'BEGINS_WITH',
-                      value: pagePrefix,
+                      matchType: 'FULL_REGEXP',
+                      value: buildGa4RouteRegex(eventPaths),
                     },
                   },
                 },
@@ -4009,8 +4691,8 @@ async function fetchGa4SiteMetrics(site) {
             filter: {
               fieldName: 'pagePath',
               stringFilter: {
-                matchType: 'BEGINS_WITH',
-                value: pagePrefix,
+                matchType: 'FULL_REGEXP',
+                value: buildGa4RouteRegex(eventPaths),
               },
             },
           },
@@ -4034,7 +4716,7 @@ async function fetchGa4SiteMetrics(site) {
       notes:
         status === 'no_data'
           ? [
-              `GA4 returned no sessions or conversion events for ${pagePrefix} across ${googleConfig.ga4LookbackDays} days yet.`,
+              `GA4 returned no sessions or conversion events for ${landingPaths.length} landing path(s) and ${eventPaths.length} event path(s) across ${googleConfig.ga4LookbackDays} days yet.`,
             ]
           : [],
     }
@@ -4043,7 +4725,7 @@ async function fetchGa4SiteMetrics(site) {
       status: 'error',
       error: error instanceof Error ? error.message : 'Unknown GA4 error',
       notes: [
-        `GA4 request failed for ${pagePrefix}; Gate 3 is falling back to heuristic conversion signals.`,
+        `GA4 request failed for ${landingPaths.length || 0} landing path(s) and ${eventPaths.length || 0} event path(s); Gate 3 is falling back to heuristic conversion signals.`,
       ],
     }
   }
@@ -5367,20 +6049,12 @@ function normalizeFaqQuestionText(cluster, rawQuestion = '', source = '') {
     .replace(/[“”]/g, '"')
     .trim()
 
-  if (/which ai video generation workflow has given you the best/i.test(question)) {
-    return 'Which AI video workflow is best for repeatable short-form product videos?'
-  }
-
-  if (/^what\b/i.test(question) && /\banswer first\b/i.test(question)) {
-    return 'What should an AI video workflow homepage help me decide first?'
-  }
-
-  if (/^why is\b/i.test(question) && /\bworth a dedicated page\b/i.test(question)) {
-    return `Why does ${cluster.primaryKeyword} need a decision page instead of another generic explainer?`
-  }
-
-  if (/^what should a strong\b/i.test(question) && /\bsite answer first\b/i.test(question)) {
-    return `What should a strong ${cluster.label.toLowerCase()} homepage answer first?`
+  if (
+    /\b(homepage|site|dedicated page|generic explainer|answer first|worth a dedicated page)\b/i.test(
+      question,
+    )
+  ) {
+    return ''
   }
 
   if (/^how do teams use\b/i.test(question)) {
@@ -5393,7 +6067,20 @@ function normalizeFaqQuestionText(cluster, rawQuestion = '', source = '') {
     return ''
   }
 
-  if (/\b(topaz|comfy ui|flux ai|reddit|quora|forum|community)\b/i.test(`${question} ${source}`)) {
+  if (
+    /\b(topaz|comfy ui|flux ai|reddit|quora|forum|community|youtube|twitter|x|linkedin)\b/i.test(
+      `${question} ${source}`,
+    )
+  ) {
+    return ''
+  }
+
+  if (
+    !/^(how|what|which|when|can|should|is|are|do|does)\b/i.test(question) ||
+    /\b(best result|given you the best|what do teams use|strong .* site|site answer first)\b/i.test(
+      question,
+    )
+  ) {
     return ''
   }
 
@@ -5410,48 +6097,46 @@ function normalizeFaqQuestionText(cluster, rawQuestion = '', source = '') {
   return normalized
 }
 
-function buildFaqItems(cluster, research) {
-
-  const seededAnswers = {
-    workflow:
-      'Start with a narrow demo workflow: choose the source asset, choose the model, set the visual goal, and define the output format before you test prompts.',
-    comparison:
-      'Compare options on output quality, iteration speed, pricing clarity, and how easy they make prompt reuse for repeatable demo content.',
-    pricing:
-      'Pricing questions usually hide a workflow question underneath them, so answer both cost and operational fit instead of listing numbers alone.',
-    prompt:
-      'Prompt libraries become useful when they are tied to a real use case like product teasers, feature explainers, or screenshot-to-video sequences.',
-    overview:
-      'Most visitors need a quick map of the category first, then they want concrete tools, prompts, and a recommended first workflow to try.',
-  }
-
-  const fromQueries = research.faqCandidates
+function buildFaqItems(cluster, research, useCases = []) {
+  const normalizedQueries = research.faqCandidates
     .map((item) => {
       const question = normalizeFaqQuestionText(cluster, item.question, item.source)
       return question
         ? {
             question,
-            answer: seededAnswers[classifyIntent(question)] ?? seededAnswers.overview,
             source: item.source,
           }
         : null
     })
     .filter(Boolean)
 
-  const fallback = [
-    {
-      question: `Why is ${cluster.primaryKeyword} worth a dedicated page right now?`,
-      answer: 'Search demand is moving fast enough that people need a quick explanation, a shortlist of options, and a clearer next step before they bounce back to search.',
-      source: 'fallback',
-    },
-    {
-      question: `What should a strong ${cluster.label.toLowerCase()} site answer first?`,
-      answer: 'It should explain the category, compare the obvious choices, show how to start, and set expectations around pricing and setup cost.',
-      source: 'fallback',
-    },
-  ]
+  const useCaseQuestion = safeArray(useCases)
+    .map((item) => item.label)
+    .find((label) => /\bshort-form product demo videos\b/i.test(label))
 
-  return dedupeBy([...fromQueries, ...fallback].filter(Boolean), 'question').slice(0, 5)
+  const canonicalQuestions = [
+    `Which AI video tool should you test first for ${safeArray(useCases)[0]?.label ?? 'a short-form product demo'}?`,
+    'Which tool should I start with?',
+    'How much does AI video cost?',
+    'Why does AI video output fail?',
+    'Do I need API access to start?',
+    'Can I use prompts directly?',
+    `How do you start ${indefiniteArticleFor(cluster.primaryKeyword)} ${cluster.primaryKeyword} without wasting the first pilot?`,
+    `When should you pay for an AI video tool instead of staying on free plans?`,
+    `What should an AI video prompt include to avoid generic output?`,
+    `Which AI video tool is best for beginners?`,
+    `Runway vs Veo: which AI video tool should you compare first?`,
+    `Do you need an API to build an AI video workflow?`,
+    `How many AI video tools should you compare before picking one?`,
+    useCaseQuestion ? `How do you start an AI video workflow for short-form product demo videos?` : '',
+  ]
+    .filter(Boolean)
+    .map((question) => ({
+      question,
+      source: 'canonical',
+    }))
+
+  return dedupeBy([...normalizedQueries, ...canonicalQuestions], 'question').slice(0, 8)
 }
 
 function buildAlternativeRows(cluster, research) {
@@ -5737,7 +6422,7 @@ function selectCoreToolEvidenceSeeds(cluster) {
         !preferredIds.includes(tool.id) &&
         tool.status === 'active' &&
         tool.marketTier === 'core' &&
-        tool.category !== 'avatar_personalized_video' &&
+        tool.category !== 'avatar_video' &&
         inferToolCategoryFit(tool, cluster, 'comparison') >= 0.55,
     )
     .sort((left, right) => right.editorialPrior - left.editorialPrior)
@@ -5875,10 +6560,19 @@ async function resolveOfficialSeedFallback(tool, officialDomain, seededSourceTyp
           'User-Agent': 'TrendSitePipeline/1.0',
         },
       }))
-      if (!response.ok) continue
+      if (!response.ok) {
+        try {
+          await response.body?.cancel?.()
+        } catch {}
+        continue
+      }
       const title = `${tool.name} official ${seededSourceType}`
       const snippet =
         `${tool.name} official ${seededSourceType} page seeded from a common first-party path fallback when search results missed it.`
+
+      try {
+        await response.body?.cancel?.()
+      } catch {}
 
       return {
         title,
@@ -5903,67 +6597,41 @@ async function fetchCoreToolOfficialSeedResults(cluster) {
   const tools = selectCoreToolEvidenceSeeds(cluster)
 
   for (const tool of tools) {
-    seeds.push(...buildCuratedOfficialSeedEntries(tool))
+    const curatedEntries = buildCuratedOfficialSeedEntries(tool)
+    seeds.push(...curatedEntries)
     const primaryDomain = tool.officialDomains[0]
     if (!primaryDomain) continue
 
-    let matchedCount = 0
+    let matchedCount = curatedEntries.length
+    const coveredSeedTypes = new Set(curatedEntries.map((entry) => entry.seededSourceType))
     const officialDomains = dedupe(tool.officialDomains).slice(0, 2)
     for (const officialDomain of officialDomains) {
-      const evidenceQueries = [
+      const missingSeedTypes = [
         {
-          query: `site:${officialDomain} ${tool.name} pricing`,
-          keyword: tool.name,
           seededSourceType: 'pricing',
           seedPriority: 5,
         },
         {
-          query: `site:${officialDomain} ${tool.name} docs`,
-          keyword: tool.name,
           seededSourceType: 'docs',
           seedPriority: 4,
         },
         {
-          query: `site:${officialDomain} ${tool.name} changelog`,
-          keyword: tool.name,
           seededSourceType: 'changelog',
           seedPriority: 3,
         },
-      ]
+      ].filter((entry) => !coveredSeedTypes.has(entry.seededSourceType))
 
-      for (const evidenceQuery of evidenceQueries) {
-        const results = await fetchSearchResults(evidenceQuery.query, 2, evidenceQuery.keyword)
-        const officialResults = results
-          .filter((item) => {
-            const domain = normalizeCatalogDomain(item.domain || item.url)
-            return domain === officialDomain || domain.endsWith(`.${officialDomain}`)
-          })
-          .map((item, index) => ({
-            ...item,
-            intent:
-              evidenceQuery.seededSourceType === 'pricing'
-                ? 'pricing'
-                : evidenceQuery.seededSourceType === 'docs'
-                  ? 'workflow'
-                  : 'overview',
-            seededToolId: tool.id,
-            seededSourceType: evidenceQuery.seededSourceType,
-            seedPriority: evidenceQuery.seedPriority - index * 0.1,
-          }))
-
-        matchedCount += officialResults.length
-        seeds.push(...officialResults)
-        if (officialResults.length === 0) {
-          const fallbackResult = await resolveOfficialSeedFallback(
-            tool,
-            officialDomain,
-            evidenceQuery.seededSourceType,
-            evidenceQuery.seedPriority - 0.2,
-          )
-          if (fallbackResult) {
-            matchedCount += 1
-            seeds.push(fallbackResult)
-          }
+      for (const seedEntry of missingSeedTypes) {
+        const fallbackResult = await resolveOfficialSeedFallback(
+          tool,
+          officialDomain,
+          seedEntry.seededSourceType,
+          seedEntry.seedPriority - 0.2,
+        )
+        if (fallbackResult) {
+          matchedCount += 1
+          seeds.push(fallbackResult)
+          coveredSeedTypes.add(seedEntry.seededSourceType)
         }
         await sleep(100)
       }
@@ -6760,6 +7428,12 @@ async function maybeGenerateAiPageDraft(page, sourcePack) {
           requiredCaveats: page.pageBrief.requiredCaveats,
           failureConditions: page.pageBrief.failureConditions,
           ctaStrategy: page.pageBrief.ctaStrategy,
+          targetAsset: page.pageBrief.targetAsset,
+          reviewBacklog: safeArray(page.pageBrief.reviewBacklog).map((item) => ({
+            finding: item.finding,
+            action: item.action,
+            nextRunChange: item.nextRunChange,
+          })),
         }
       : null,
     claimCards: safeArray(page.claimCards).slice(0, 6).map((claim) => ({
@@ -6808,6 +7482,9 @@ async function maybeGenerateAiPageDraft(page, sourcePack) {
       'Prefer named tools, explicit workflow steps, dates, counts, or concrete use cases when the evidence provides them.',
       'Use the page brief and claim cards as the primary writing spine before falling back to raw source snippets.',
       'If the evidence is weak, state the limitation instead of smoothing it over with generic advice.',
+      'Write like an operator who has actually run the workflow, not like an analyst describing a category from a distance.',
+      'Name failure points, repair moves, not-for cases, and switch triggers whenever the page is comparison, workflow, or hub oriented.',
+      'Avoid generic phrases such as "depends on use case", "pricing clarity is uneven", "should include", or "run a pilot" unless a concrete failure or outcome follows immediately.',
       'Do not invent prices or product claims that are not grounded in the evidence.',
       'Output keys: intro, sectionNarratives, ctaCopy.',
     ],
@@ -6830,7 +7507,7 @@ async function maybeGenerateAiPageDraft(page, sourcePack) {
           {
             role: 'system',
             content:
-              'You are a senior SEO content strategist. Return compact JSON only and ground every conclusion in the provided evidence.',
+              'You are a senior SEO content strategist with operator-level product judgment. Return compact JSON only, ground every conclusion in the provided evidence, and write with direct, real-use language instead of generic analysis phrases.',
           },
           {
             role: 'user',
@@ -6841,6 +7518,9 @@ async function maybeGenerateAiPageDraft(page, sourcePack) {
     })
 
     if (!response.ok) {
+      try {
+        await response.body?.cancel?.()
+      } catch {}
       return null
     }
 
@@ -7583,31 +8263,136 @@ function applyContentPlaybook(page, pageRule, siteRule, context) {
   return nextPage
 }
 
-async function buildPageModels(cluster, research, sourcePack, reviewOverrideIndex, contentPlaybookIndex, wikiSeed = null) {
+async function buildPageModels(
+  cluster,
+  research,
+  sourcePack,
+  reviewOverrideIndex,
+  contentPlaybookIndex,
+  wikiSeed = null,
+  options = {},
+) {
+  const pipelineMode = meaningfulText(options.mode) || 'hybrid'
+  const canonicalMode = pipelineMode === 'wiki-first'
   const homePath = `/generated-sites/${cluster.siteSlug}/index.html`
   const originalAnchors = [
     ...buildOriginalAnchors(cluster, research),
     `Source pack coverage: official ${sourcePack.sourceCounts.official}, competitive ${sourcePack.sourceCounts.competitive}, community ${sourcePack.sourceCounts.community}, workflow ${sourcePack.sourceCounts.workflow}, product ${sourcePack.sourceCounts.product ?? 0}, video ${sourcePack.sourceCounts.video ?? 0}, deep research ${sourcePack.sourceCounts.deepResearch ?? 0}`,
   ]
+  const commercialPageSpecs = dedupeBy(
+    [
+      ...safeArray(experiment.commercialPages),
+      ...COMMERCIAL_PAGE_SPECS,
+    ]
+      .filter((item) => AFFILIATE_ALLOWED_PAGE_TYPES.includes(item.pageType))
+      .map((item) => ({
+        ...item,
+        type: item.pageType,
+      })),
+    'pageType',
+  )
+  const commercialPageSpecMap = new Map(
+    commercialPageSpecs.map((item) => [item.pageType, item]),
+  )
+  function getCommercialPageSpec(pageType) {
+    return commercialPageSpecMap.get(pageType) ?? null
+  }
   const wikiAssetMap = new Map(
     safeArray(wikiSeed?.assets).map((asset) => [asset.slug, asset]),
   )
+  function normalizeAssetLookupKey(value) {
+    let normalized = normalizeWikiLookupKey(value).replace(/[^a-z0-9]+/g, ' ').trim()
+    const removablePhrases = dedupe([
+      meaningfulText(cluster.label),
+      meaningfulText(cluster.primaryKeyword),
+      meaningfulText(cluster.thesisName),
+    ])
+      .map((item) => normalizeWikiLookupKey(item).replace(/[^a-z0-9]+/g, ' ').trim())
+      .filter(Boolean)
+      .toSorted((left, right) => right.length - left.length)
+
+    for (const phrase of removablePhrases) {
+      normalized = normalized
+        .replace(new RegExp(`\\b${escapeRegExp(phrase).replace(/\\ /g, '\\s+')}\\b`, 'g'), ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }
+
+    return normalized
+  }
+
+  function assetMatchesTarget(asset, targetAssetTitle) {
+    if (!asset || !meaningfulText(targetAssetTitle)) return false
+    const targetKey = normalizeAssetLookupKey(targetAssetTitle)
+    const assetTitleKey = normalizeAssetLookupKey(asset.title)
+    const assetSlugKey = normalizeAssetLookupKey(asset.slug)
+    const assetWikiKey = normalizeAssetLookupKey(toWikiId('asset', cluster.siteSlug, asset.slug))
+
+    return (
+      targetKey === assetTitleKey ||
+      targetKey === assetSlugKey ||
+      targetKey === assetWikiKey ||
+      assetTitleKey === targetKey ||
+      (targetKey && assetTitleKey && (targetKey.endsWith(assetTitleKey) || assetTitleKey.endsWith(targetKey))) ||
+      (targetKey && assetSlugKey && (targetKey.endsWith(assetSlugKey) || assetSlugKey.endsWith(targetKey)))
+    )
+  }
+
+  function buildUnresolvedAssetBinding(targetAssetTitle) {
+    const title = meaningfulText(targetAssetTitle) || 'Unresolved asset'
+    return {
+      slug: '',
+      title,
+      type: '',
+      event: '',
+      summary: '',
+      promise: '',
+      wikiId: '',
+      deliveryMode: '',
+      deliveryRules: [],
+      primaryPages: [],
+      bestPageTypes: [],
+      bestFitUseCases: [],
+      deeperAction: '',
+      performanceNote: '',
+      acceptanceStatus: '',
+      refreshPriority: 'high',
+      lastVerified: config.generatedAt.slice(0, 10),
+      stalenessDays: 1,
+      changeTriggers: ['Resolve the canonical asset card before publishing this page.'],
+      reuseScore: 0,
+      unresolvedWikiTarget: true,
+    }
+  }
+
   function applyWikiAssetOverride(asset) {
     const override = wikiAssetMap.get(asset.slug)
     const merged = {
       ...asset,
+      title: preferMeaningfulText(override?.title, asset.title),
       type: preferMeaningfulText(
         override?.assetKind === 'template_pack' ? 'template' : override?.assetKind,
         asset.type,
       ),
       event: preferMeaningfulText(override?.conversionEvent, asset.event),
       summary: preferMeaningfulText(override?.summary, override?.promise, asset.summary),
+      promise: preferMeaningfulText(override?.promise, asset.promise, override?.summary, asset.summary),
       wikiId: preferMeaningfulText(override?.id, asset.wikiId),
       deliveryMode: preferMeaningfulText(override?.deliveryMode, asset.deliveryMode),
+      deliveryRules: preferMeaningfulList(override?.deliveryRules, asset.deliveryRules),
       primaryPages: preferMeaningfulList(override?.primaryPages, asset.primaryPages),
       bestPageTypes: preferMeaningfulList(override?.bestPageTypes, asset.bestPageTypes),
+      bestFitUseCases: preferMeaningfulList(override?.bestFitUseCases, asset.bestFitUseCases),
+      deeperAction: preferMeaningfulText(override?.deeperAction, asset.deeperAction),
+      performanceNote: preferMeaningfulText(override?.performanceNote, asset.performanceNote),
       acceptanceStatus: preferMeaningfulText(override?.acceptanceStatus, asset.acceptanceStatus),
       refreshPriority: preferMeaningfulText(override?.refreshPriority, asset.refreshPriority, 'medium'),
+      lastVerified: normalizeIsoDate(override?.lastVerified || asset.lastVerified) || config.generatedAt.slice(0, 10),
+      stalenessDays: Math.max(
+        1,
+        parsePositiveInt(override?.stalenessDays, parsePositiveInt(asset.stalenessDays, 30)),
+      ),
+      changeTriggers: parseChangeTriggers(override?.changeTriggers, asset.changeTriggers),
     }
     merged.reuseScore = preferFiniteNumber(
       override?.reuseScore,
@@ -7620,6 +8405,91 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     primaryAsset: applyWikiAssetOverride(cluster.conversionAssetSystem.primaryAsset),
     secondaryAssets: cluster.conversionAssetSystem.secondaryAssets.map(applyWikiAssetOverride),
   })
+  const assetCatalog = [assetSystem.primaryAsset, ...assetSystem.secondaryAssets]
+  const assetByTitle = new Map()
+  for (const asset of assetCatalog) {
+    assetByTitle.set(normalizeWikiLookupKey(asset.title), asset)
+    assetByTitle.set(normalizeWikiLookupKey(asset.slug), asset)
+    assetByTitle.set(normalizeWikiLookupKey(toWikiId('asset', cluster.siteSlug, asset.slug)), asset)
+    assetByTitle.set(normalizeAssetLookupKey(asset.title), asset)
+    assetByTitle.set(normalizeAssetLookupKey(asset.slug), asset)
+    assetByTitle.set(normalizeAssetLookupKey(toWikiId('asset', cluster.siteSlug, asset.slug)), asset)
+  }
+  const wikiOfferMap = new Map(
+    safeArray(wikiSeed?.offers).map((offer) => [normalizeWikiLookupKey(offer.slug || offer.title), offer]),
+  )
+  const wikiProofCards = safeArray(wikiSeed?.proofs)
+  const wikiScenarioPacks = safeArray(wikiSeed?.scenarioPacks)
+  const wikiSourceSummaryMap = new Map(
+    safeArray(wikiSeed?.sourceSummaries).map((source) => [normalizeWikiSourceId(source.id, cluster.siteSlug), source]),
+  )
+  const wikiToolRankingMap = new Map(
+    safeArray(wikiSeed?.toolRankings).map((card) => [normalizePageTemplateType(card.pageType), card]),
+  )
+  const wikiRankingNotesMap = new Map(
+    safeArray(wikiSeed?.rankingNotes).map((card) => [normalizePageTemplateType(card.pageType), card]),
+  )
+  const wikiReviewCards = safeArray(wikiSeed?.reviews).toSorted(
+    (left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime(),
+  )
+  const wikiExperimentCards = safeArray(wikiSeed?.experiments).toSorted(
+    (left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime(),
+  )
+  const backlogCandidates = dedupeBy(
+    [...wikiReviewCards.slice(0, 1), ...wikiExperimentCards.slice(0, 2)],
+    'id',
+  )
+  const wikiBacklogItems = backlogCandidates.map((item) => ({
+    ...item,
+    relevantPageTypes:
+      item.pageTypeHints?.length > 0 ? item.pageTypeHints : ['hub', 'alternatives', 'workflow'],
+  }))
+
+  function findAssetByTargetTitle(targetAssetTitle) {
+    const exactMatch =
+      assetByTitle.get(normalizeWikiLookupKey(targetAssetTitle)) ??
+      assetByTitle.get(normalizeAssetLookupKey(targetAssetTitle)) ??
+      null
+    if (exactMatch) return exactMatch
+    return assetCatalog.find((asset) => assetMatchesTarget(asset, targetAssetTitle)) ?? null
+  }
+
+  function findOfferBySlugOrTitle(value) {
+    return wikiOfferMap.get(normalizeWikiLookupKey(value)) ?? null
+  }
+
+  function getRenderableWikiClaims() {
+    return safeArray(wikiSeed?.claims).filter((claim) => {
+      const status = meaningfulText(claim?.status).toLowerCase()
+      const type = meaningfulText(claim?.type).toLowerCase()
+      return !type.includes('draft') && ['active', 'accepted', ''].includes(status)
+    })
+  }
+
+  function buildReviewBacklogForPage(pageType) {
+    return filterReviewBacklogForPage(wikiBacklogItems, pageType)
+  }
+
+  function findProofCardsForAsset(assetSlug) {
+    const asset = assetCatalog.find((entry) => entry.slug === assetSlug) ?? null
+    const assetSlugKey = normalizeWikiLookupKey(assetSlug)
+    const assetTitleKey = normalizeWikiLookupKey(asset?.title)
+    return wikiProofCards.filter(
+      (item) =>
+        normalizeWikiLookupKey(item.linkedAsset) === assetSlugKey ||
+        normalizeWikiLookupKey(item.linkedAsset) === assetTitleKey,
+    )
+  }
+
+  function findScenarioPacksForAsset(assetSlug) {
+    const asset = assetCatalog.find((entry) => entry.slug === assetSlug) ?? null
+    const titleKey = normalizeWikiLookupKey(asset?.title)
+    return wikiScenarioPacks.filter(
+      (item) =>
+        normalizeWikiLookupKey(item.bestAsset) === normalizeWikiLookupKey(assetSlug) ||
+        normalizeWikiLookupKey(item.bestAsset) === titleKey,
+    )
+  }
   const deepResearchPages = safeArray(sourcePack.categories.deepResearch)
   const sourceReferences = [
     ...sourcePack.categories.official,
@@ -7661,7 +8531,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       researchGradeFirecrawlPool
         .flatMap((item) =>
           safeArray(item.firecrawl?.signals?.[signalKey]).map((detail) => ({
-            label: item.domain || item.title,
+            label: item.title || item.domain,
             title: item.title,
             detail,
             sourceIds: [item.id],
@@ -7743,7 +8613,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
             ),
         )
         .map((item) => ({
-          label: item.domain,
+          label: item.title || item.domain,
           value:
             safeArray(item.firecrawl?.signals?.pricing).find((detail) =>
               looksLikeConcretePricingLine(detail),
@@ -7890,52 +8760,64 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     useCaseModels,
     topCommunity,
   })
-  const toolRanking = buildToolRankingLayer({
+  const runtimeToolRanking = buildToolRankingLayer({
     cluster,
     pageIntent: 'comparison',
     facts: factsExtraction,
     sourceReferences,
   })
+  const wikiToolRankingCard = wikiToolRankingMap.get('alternatives') ?? wikiToolRankingMap.get('best-tools') ?? null
+  const toolRanking = canonicalMode
+    ? sanitizePublicModel({
+        ...(wikiToolRankingCard
+          ? {
+              id: wikiToolRankingCard.id,
+              ranking_mode: 'wiki_canonical',
+              selected_tools: safeArray(wikiToolRankingCard.selectedTools),
+              rejected_tools: safeArray(wikiToolRankingCard.rejectedTools),
+              tool_scores: safeArray(wikiToolRankingCard.toolScores),
+              source_evidence: safeArray(wikiToolRankingCard.sourceEvidence),
+              evidence_gaps: safeArray(wikiToolRankingCard.evidenceGaps),
+              updated_at: wikiToolRankingCard.updatedAt,
+              notes: safeArray(wikiToolRankingCard.notes),
+            }
+          : {
+              id: '',
+              ranking_mode: 'missing_wiki_tool_ranking',
+              selected_tools: [],
+              rejected_tools: [],
+              tool_scores: [],
+              source_evidence: [],
+              evidence_gaps: ['missing_tool_ranking_card'],
+              updated_at: config.generatedAt,
+              notes: [],
+            }),
+      })
+    : runtimeToolRanking
   const shortlistRows = toolRanking.selected_tools.map((tool, index) => {
     const catalogTool = toolCatalogById.get(tool.tool_id)
-    const primaryPricingFact = safeArray(factsExtraction.pricing_facts).find((fact) =>
-      safeArray(fact.tool_ids).includes(tool.tool_id),
-    )
-    const primaryLimitationFact = safeArray(factsExtraction.limitation_facts).find((fact) =>
-      safeArray(fact.tool_ids).includes(tool.tool_id),
-    )
-    const bestForText =
-      tool.default_use_cases?.[0] ??
-      (tool.category === 'avatar_personalized_video'
-        ? 'Avatar-led or personalized video workflows'
-        : 'General-purpose AI video generation workflows')
-    const notForText =
-      primaryLimitationFact?.detail ??
-      (tool.category === 'avatar_personalized_video'
-        ? 'Teams comparing broad text-to-video or image-to-video model stacks first'
-        : 'Visitors who only need category education and are not ready to compare tools')
-    const verdictLabel =
-      toolRanking.ranking_mode === 'ranked_shortlist'
-        ? index === 0
-          ? 'Recommended first shortlist review'
-          : index === 1
-            ? 'Good second option'
-            : 'Useful benchmark or fallback'
-        : index === 0
-          ? 'Recommended starting point'
-          : 'Evidence-backed starting point'
+    const decisionProfile = buildToolDecisionProfile({
+      tool,
+      factsExtraction,
+      rankingMode: toolRanking.ranking_mode,
+      index,
+    })
 
     return {
       name: tool.name,
       toolId: tool.tool_id,
       category: tool.category,
       marketTier: tool.market_tier,
-      bestFor: bestForText,
-      notFor: notForText,
-      verdict: verdictLabel,
-      pricingSignal:
-        primaryPricingFact?.detail ??
-        'Pricing evidence is still thin in the current run, so compare with a manual checklist.',
+      bestFor: tool.best_for ?? decisionProfile.best_for,
+      limitation: tool.limitation ?? decisionProfile.limitation,
+      whenNotToUse: tool.when_not_to_use ?? decisionProfile.when_not_to_use,
+      notFor: tool.when_not_to_use ?? decisionProfile.when_not_to_use,
+      estimatedCost: tool.estimated_cost ?? decisionProfile.estimated_cost,
+      pricingSignal: tool.estimated_cost ?? decisionProfile.estimated_cost,
+      easeOfUse: tool.ease_of_use ?? decisionProfile.ease_of_use,
+      recommendation: tool.recommendation ?? decisionProfile.recommendation,
+      verdict: tool.recommendation ?? decisionProfile.recommendation,
+      badge: tool.badge ?? decisionProfile.badge,
       sourceIds: safeArray(tool.source_ids).slice(0, 3),
       officialUrl: catalogTool?.officialDomains?.[0]
         ? `https://${catalogTool.officialDomains[0]}`
@@ -7945,6 +8827,181 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       finalToolScore: tool.final_tool_score,
       officialSourceAvailable: tool.official_source_available,
       reasonForInclusion: tool.reason_for_inclusion,
+    }
+  })
+  const knownToolExperience = {
+    runway: {
+      badge: 'Best',
+      bestFor: 'Fast short demos, product clips, and first-week testing.',
+      notFor: 'Long scenes, continuity-heavy edits, or one giant prompt that tries to cover the whole story.',
+      hiddenCost: 'Credits disappear quickly once you regenerate long shots and cleanup passes.',
+      whenToSwitch: 'Switch to Pika when you need punchier motion, or move to Veo once the concept is proven and polish matters more than speed.',
+      quickVerdict: 'Best first tool when you need a usable result fast, not perfect continuity.',
+      typicalFirstRunResult: 'You usually get one usable short clip fast, then spend the second pass fixing timing or consistency.',
+      commonMistake: 'People cram hook, demo, and CTA into one prompt, then blame the tool when the output turns mushy.',
+      teamUsage: 'Teams use Runway for fast exploration, then keep only the best 5 to 8 second shots.',
+      failures: [
+        {
+          problem: 'Long clips lose consistency after the first few seconds.',
+          why: 'Too many actions, camera moves, or scene changes are packed into one generation.',
+          fix: 'Break the idea into shorter 5 to 8 second shots and lock one action per prompt.',
+        },
+        {
+          problem: 'Credits burn fast on re-runs.',
+          why: 'The first pass often looks close enough to tempt multiple cleanup generations.',
+          fix: 'Write the shot list first, then regenerate only the broken shot instead of the whole clip.',
+        },
+        {
+          problem: 'Motion can feel flat on ad-style clips.',
+          why: 'The prompt is descriptive but not specific about pace or camera energy.',
+          fix: 'Ask for one clear motion beat and fewer visual ideas per shot.',
+        },
+      ],
+    },
+    pika: {
+      badge: 'Fast',
+      bestFor: 'Punchy short ads, energetic motion tests, and quick concept variations.',
+      notFor: 'Long tutorials, UI-heavy demos, or multi-shot sequences that must stay visually stable.',
+      hiddenCost: 'You spend time re-running the same shot until the motion feels clean enough to keep.',
+      whenToSwitch: 'Go back to Runway for more control and editing, or move to Veo when the final output needs higher-end polish.',
+      quickVerdict: 'Best fallback when you need motion energy fast, not full-scene reliability.',
+      typicalFirstRunResult: 'The first clip usually looks exciting, but one or two moments wobble when you watch it twice.',
+      commonMistake: 'People accept fast output without checking frame-to-frame stability or text legibility.',
+      teamUsage: 'Teams use Pika for fast concept motion and keep the prompt narrow to one visual beat.',
+      failures: [
+        {
+          problem: 'Consecutive shots drift in style or subject stability.',
+          why: 'The model prioritizes motion punch over strong long-scene memory.',
+          fix: 'Generate each shot separately and keep visual direction simpler.',
+        },
+        {
+          problem: 'Text or interface details wobble in demos.',
+          why: 'Fine-detail control is weaker when the shot includes too many moving parts.',
+          fix: 'Use cleaner compositions and add precise UI overlays in editing instead of in generation.',
+        },
+        {
+          problem: 'Fast outputs hide broken motion.',
+          why: 'Speed makes it easy to review only the first impression instead of the full clip.',
+          fix: 'Pause on the weak second, note the failure, and rerun only that beat.',
+        },
+      ],
+    },
+    veo: {
+      badge: 'Premium',
+      bestFor: 'Higher-end hero shots once the hook, message, and shot order are already proven.',
+      notFor: 'Speed-first testing, beginner exploration, or cheap iteration on a rough idea.',
+      hiddenCost: 'The real cost is slower review loops and polishing shots you may still cut.',
+      whenToSwitch: 'Switch here after a cheaper tool already proved the script, shot order, and CTA.',
+      quickVerdict: 'Best for final-polish output after the workflow is already stable.',
+      typicalFirstRunResult: 'The visual quality looks strong, but the slower loop makes bad prompts feel expensive immediately.',
+      commonMistake: 'Teams use Veo too early, before they know which shot actually deserves premium treatment.',
+      teamUsage: 'Teams usually reserve Veo for the final hero shot or the version that goes to stakeholders.',
+      failures: [
+        {
+          problem: 'Iteration feels slow compared with the rest of the stack.',
+          why: 'Higher-end output rewards fewer, better prompts instead of constant brute-force retries.',
+          fix: 'Prototype structure in Runway or Pika first, then bring only the winning shots here.',
+        },
+        {
+          problem: 'A weak prompt wastes more team time than it does on faster tools.',
+          why: 'The slower cycle makes every vague revision more painful.',
+          fix: 'Lock the hook, subject, and CTA before you run the polished version.',
+        },
+        {
+          problem: 'Teams overproduce polished shots they never publish.',
+          why: 'Once the quality is high, it is tempting to keep making alternates.',
+          fix: 'Limit Veo to the one or two shots that actually carry the video.',
+        },
+      ],
+    },
+    seedance: {
+      badge: 'Fallback',
+      bestFor: 'Benchmarking another model after you already know the main failure pattern.',
+      notFor: 'The first tool you hand to a beginner, or the default choice for the main workflow.',
+      hiddenCost: 'Every extra benchmark tool adds another prompt rewrite and another review standard.',
+      whenToSwitch: 'Only bring it in after Runway or Pika already failed and you need a benchmark result, not a fresh tool rabbit hole.',
+      quickVerdict: 'Useful niche backup, not the first recommendation.',
+      typicalFirstRunResult: 'The output may show a useful contrast, but it usually adds decision work instead of removing it.',
+      commonMistake: 'People compare too many tools before they even know why the first run failed.',
+      teamUsage: 'Teams keep Seedance as a benchmark lane, not the main production lane.',
+      failures: [
+        {
+          problem: 'Benchmarking slows the decision instead of clarifying it.',
+          why: 'Each new tool changes prompt behavior and review criteria.',
+          fix: 'Score it against an existing Runway or Pika output instead of starting from scratch.',
+        },
+        {
+          problem: 'Beginners treat it like a primary choice.',
+          why: 'More options feel safer when the failure mode is still unclear.',
+          fix: 'Use it only after the main pair already showed the exact limitation.',
+        },
+        {
+          problem: 'Public proof is thinner than the core shortlist tools.',
+          why: 'The operating knowledge is not as widely shared across teams.',
+          fix: 'Keep it as a backup benchmark and document the reason before switching.',
+        },
+      ],
+    },
+  }
+
+  function normalizeToolExperienceKey(value) {
+    return String(value ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+  }
+
+  function getToolExperienceProfile(row, index = 0) {
+    const key = normalizeToolExperienceKey(row?.toolId || row?.name)
+    const exact = Object.entries(knownToolExperience).find(([toolKey]) => key.includes(toolKey))
+    const profile = exact?.[1]
+    if (profile) return profile
+
+    return {
+      badge: index === 0 ? 'Best' : index === 1 ? 'Fallback' : 'Backup',
+      bestFor: row?.bestFor ?? 'Short AI video testing once the team has one concrete use case.',
+      notFor: row?.notFor ?? 'Broad workflows without a single output target or review bar.',
+      hiddenCost: row?.estimatedCost ?? 'The hidden cost usually appears in re-runs and reviewer time, not just the visible plan.',
+      whenToSwitch: index === 0
+        ? `Switch when ${row?.name ?? 'this tool'} keeps breaking on the same failure pattern after two short retries.`
+        : `Switch back to the primary tool if ${row?.name ?? 'this tool'} adds more comparison work than clarity.`,
+      quickVerdict: row?.verdict ?? row?.recommendation ?? 'Use as a scoped test, not a blanket recommendation.',
+      typicalFirstRunResult: 'The first run usually shows one promising shot and one obvious failure to repair.',
+      commonMistake: 'People change tools before they write down what actually failed in the first run.',
+      teamUsage: 'Teams use this as one lane inside a workflow, not as the answer to every shot.',
+      failures: [
+        {
+          problem: 'The first prompt tries to do too much in one pass.',
+          why: 'Scope is still broad and success criteria are not locked.',
+          fix: 'Reduce it to one shot, one action, and one CTA.',
+        },
+        {
+          problem: 'The team compares tools before documenting the failure.',
+          why: 'It feels faster to switch tools than to diagnose the shot.',
+          fix: 'Log the broken frame, why it failed, and what changed in the next run.',
+        },
+      ],
+    }
+  }
+
+  const enrichedShortlistRows = shortlistRows.map((row, index) => {
+    const profile = getToolExperienceProfile(row, index)
+    return {
+      ...row,
+      badge: profile.badge ?? row.badge,
+      bestFor: profile.bestFor ?? row.bestFor,
+      notFor: profile.notFor ?? row.notFor,
+      whenNotToUse: profile.notFor ?? row.whenNotToUse,
+      hiddenCost: profile.hiddenCost ?? row.estimatedCost,
+      whenToSwitch: profile.whenToSwitch,
+      quickVerdict: profile.quickVerdict ?? row.verdict,
+      recommendation: profile.quickVerdict ?? row.recommendation,
+      verdict: profile.quickVerdict ?? row.verdict,
+      highlight: index === 0 ? 'primary' : index === 1 ? 'fallback' : 'backup',
+      typicalFirstRunResult: profile.typicalFirstRunResult,
+      commonMistake: profile.commonMistake,
+      teamUsage: profile.teamUsage,
+      failures: profile.failures,
     }
   })
   const comparisonDebugReport = {
@@ -7968,6 +9025,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     ranking_mode: toolRanking.ranking_mode,
   }
   const softComparisonLanguage = toolRanking.ranking_mode === 'recommended_starting_points'
+  const primaryTool = enrichedShortlistRows[0] ?? shortlistRows[0] ?? null
+  const fallbackTool = enrichedShortlistRows[1] ?? shortlistRows[1] ?? null
   const bestFor = [
     `Teams shipping ${cluster.primaryKeyword} content on a recurring basis`,
     `Operators who need ${cluster.offer} before they buy or build`,
@@ -7978,14 +9037,109 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     'Teams without a clear output format, owner, or review loop',
   ]
 
+  function buildPromptGeneratorConfig() {
+    return {
+      title: 'Quick Prompt Generator',
+      intro: 'Choose the video type, style, and duration. The output stays local, is copyable, and is structured to avoid the usual first-run failure of cramming too much into one shot.',
+      buttonLabel: 'Generate prompt',
+      copyLabel: 'Copy prompt',
+      options: {
+        videoTypes: [
+          { value: 'product-demo', label: 'Product demo' },
+          { value: 'ad', label: 'Ad' },
+          { value: 'tutorial', label: 'Tutorial' },
+        ],
+        styles: [
+          { value: 'cinematic', label: 'Cinematic' },
+          { value: 'fast', label: 'Fast' },
+          { value: 'minimal', label: 'Minimal' },
+        ],
+        durations: [
+          { value: '5s', label: '5s' },
+          { value: '15s', label: '15s' },
+          { value: '30s', label: '30s' },
+        ],
+      },
+    }
+  }
+
+  function buildFailureFixCards(limit = 5) {
+    return [
+      {
+        problem: 'The output looks unstable or generic.',
+        why: 'The prompt is trying to cover hook, product action, and CTA in the same generation.',
+        fix: 'Split the scene into short shots and give each prompt one job only.',
+        prompt: 'Rewrite this as three separate 5-second shots with one action and one camera move per shot.',
+      },
+      {
+        problem: 'The product or subject changes between shots.',
+        why: 'The clip is too long and the visual anchors are weak.',
+        fix: 'Reuse the same subject wording, shorten the sequence, and regenerate only the broken shot.',
+        prompt: 'Keep the same product, same angle, and same background. Regenerate only the second shot with one camera move.',
+      },
+      {
+        problem: 'Motion feels flat even when the clip is technically correct.',
+        why: 'The prompt describes visuals but not pacing.',
+        fix: 'Ask for one explicit movement beat and reduce extra adjectives.',
+        prompt: 'Add one clear motion beat: fast push-in on the problem, then quick reveal of the solution.',
+      },
+      {
+        problem: 'Credits disappear before the team gets one publishable result.',
+        why: 'Too many full re-runs happen before the shot list is locked.',
+        fix: 'Approve the structure on a low-cost short version first, then upgrade the winning shots only.',
+        prompt: 'Create a low-cost 5-second proof version of this idea before generating the polished final clip.',
+      },
+      {
+        problem: 'The CTA shot feels tacked on or visually unrelated.',
+        why: 'The CTA is added after the generation instead of planned into the shot sequence.',
+        fix: 'Write the CTA as the final shot from the start and keep it visually simpler than the hook.',
+        prompt: 'End with one clean CTA shot: product on screen, one message, one action, minimal background motion.',
+      },
+    ].slice(0, limit)
+  }
+
+  function buildExperienceSignals(pageType = 'hub') {
+    if (pageType === 'workflow') {
+      return [
+        {
+          label: 'Typical first run result',
+          detail: 'One shot works, one shot breaks, and the real win is naming the failure before the team starts arguing about models.',
+        },
+        {
+          label: 'What most people get wrong',
+          detail: 'They try to fix the whole workflow at once instead of repairing the exact broken shot and saving that fix.',
+        },
+        {
+          label: 'How teams actually use this',
+          detail: 'Teams lock a short prompt, keep one primary tool plus one fallback, and save the working fix into the next run.',
+        },
+      ]
+    }
+
+    return [
+      {
+        label: 'Typical first run result',
+        detail: primaryTool?.typicalFirstRunResult ?? 'The first run usually produces one usable idea and one obvious failure to repair.',
+      },
+      {
+        label: 'What most people get wrong',
+        detail: primaryTool?.commonMistake ?? 'Most people switch tools before they write down what actually failed.',
+      },
+      {
+        label: 'How teams actually use this',
+        detail: primaryTool?.teamUsage ?? 'Teams keep one primary tool, one fallback, and one documented reason to switch.',
+      },
+    ]
+  }
+
   function buildOutcomeHeadline(pageType) {
     switch (pageType) {
       case 'hub':
-        return `Choose an ${cluster.primaryKeyword} workflow your team can actually reuse`
+        return `Pick the ${cluster.primaryKeyword} tool and next step before the first run drifts`
       case 'alternatives':
-        return `Pick the ${cluster.primaryKeyword} path worth testing first`
+        return `Choose the ${cluster.primaryKeyword} tool worth testing first`
       case 'workflow':
-        return `Run one ${cluster.primaryKeyword} pilot that survives review`
+        return `Run one ${cluster.primaryKeyword} workflow that survives the messy first pass`
       case 'best-of':
         return `Find the best ${cluster.primaryKeyword} tool for the job in front of you`
       case 'pricing':
@@ -8000,6 +9154,12 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         return `See how a scattered ${cluster.primaryKeyword} process becomes repeatable`
       case 'faq':
         return `Get the narrow ${cluster.primaryKeyword} answers that unblock the next move`
+      case 'diy-vs-hire':
+        return 'Decide when to DIY AI video and when to hire help'
+      case 'cost-guide':
+        return 'Estimate AI video production cost without fake averages'
+      case 'hire-service':
+        return 'Hire an AI video editor with a clearer scope and fewer surprises'
       default:
         return `${cluster.primaryKeyword} ${titleCase(pageType.replaceAll('-', ' '))}`
     }
@@ -8010,11 +9170,11 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
 
     switch (pageType) {
       case 'hub':
-        return `Decide whether ${cluster.primaryKeyword} belongs in your stack, which of the ${Math.max(shortlistRows.length, 2)} shortlist paths to review first, and when ${primaryAssetTitle.toLowerCase()} is the smarter next move than another round of tabs.`
+        return `${primaryTool?.name ?? 'The leading tool'} is the fastest place to start if you need one short publishable test this week. The first run usually fails on consistency or pacing, so this page shows the fallback tool, the failure pattern to expect, and the prompt asset that gets you moving in minutes instead of another day of tabs.`
       case 'alternatives':
-        return `Collapse the field into one first click, one fallback, and one asset-backed decision record before ${Math.max(shortlistRows.length, 2)} visible options turn into another week of loose tabs.`
+        return `${primaryTool?.name ?? 'The lead tool'} should be your first click, ${fallbackTool?.name ?? 'the fallback tool'} should stay in reserve, and the rest of the field should earn attention only if the first short run fails for a clear reason. This page is here to cut the shortlist fast, not to say "it depends."`
       case 'workflow':
-        return `Run a ${workflowSteps.length}-step pilot that names the input, owner, review bar, and failure point before anyone argues about models or style.`
+        return `The first AI video run usually breaks because the prompt is too long, the shot list is too vague, or nobody names the broken shot. Use this workflow to run one short clip, repair the exact failure, and save the fix before the next cycle starts guessing again.`
       case 'best-of':
         return `Use the shortlist to self-select fast by buyer fit and workflow maturity instead of giving every visible option the same review depth.`
       case 'pricing':
@@ -8029,6 +9189,12 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         return `See the before, the intervention, and the reusable asset system that makes the second cycle faster once one shortlist, one workflow, and one handoff asset replace ad hoc research.`
       case 'faq':
         return `Get the one pricing, workflow, or prompt answer that still stands between the visitor and the next concrete move.`
+      case 'diy-vs-hire':
+        return 'Use this page when the real decision is not which AI video tool to try, but whether the team should keep the project in-house, use a reusable template, or hand a scoped brief to a specialist. The useful answer depends on source material, revision tolerance, consistency needs, and how much review time the team can absorb.'
+      case 'cost-guide':
+        return 'AI video cost is not one market average. It is a stack of tool subscriptions, generation attempts, failed retries, voice-over, editing, motion polish, review time, and sometimes outside labor. This guide separates sourced cost anchors from estimates so the visitor can budget the project without pretending every job prices the same.'
+      case 'hire-service':
+        return 'Hiring works best when the brief is narrow enough for a freelancer to quote, produce, revise, and deliver cleanly. Use this checklist to prepare assets, define rights and formats, ask better pre-order questions, and spot red flags before money or timeline is committed.'
       default:
         return `Answer the next ${cluster.primaryKeyword} decision without losing the workflow thread.`
     }
@@ -8131,6 +9297,25 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
   }
 
   function buildAssetEvidenceCards(asset) {
+    const proofCards = findProofCardsForAsset(asset.slug)
+    if (proofCards.length > 0) {
+      return dedupeBy(
+        [
+          ...proofCards.map((item) => ({
+            label: item.scenario || 'Result example',
+            detail: `${item.beforeState} Intervention: ${item.intervention} Final output: ${item.finalOutput}`,
+          })),
+          ...proofCards
+            .filter((item) => meaningfulText(item.lesson))
+            .map((item) => ({
+              label: 'What the proof teaches',
+              detail: item.lesson,
+            })),
+        ],
+        'label',
+      ).slice(0, 4)
+    }
+
     if (asset.slug === 'prompt-pack') {
       return [
         assetPricingAnchorSnapshot.price
@@ -8210,6 +9395,14 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
   }
 
   function buildAssetScenarioCards(asset) {
+    const scenarioPacks = findScenarioPacksForAsset(asset.slug)
+    if (scenarioPacks.length > 0) {
+      return scenarioPacks.slice(0, 3).map((item) => ({
+        title: item.scenario,
+        detail: `${item.input} Expected output: ${item.expectedOutput} Repair move: ${item.repairPrompt}`,
+      }))
+    }
+
     if (asset.slug === 'prompt-pack') {
       return [
         {
@@ -8267,22 +9460,41 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     }))
   }
 
+  function buildAssetProofCards(asset) {
+    return findProofCardsForAsset(asset.slug).slice(0, 2).map((item) => ({
+      title: item.scenario || 'Proof',
+      before: item.beforeState,
+      intervention: item.intervention,
+      outcome: item.finalOutput,
+      reusableArtifact: item.reusableArtifact || item.linkedAsset,
+      lesson: item.lesson,
+    }))
+  }
+
   function buildAssetFirstActionCards(asset) {
     if (asset.slug === 'prompt-pack') {
       return [
         {
-          title: 'Copy the first prompt block',
-          detail: 'Start with the hook, screenshot, or transition starter that matches the first short-form demo you actually need to ship.',
+          title: 'Lock the first job',
+          detail: 'Fill the intake block with one source asset, one target channel, one CTA, and one reviewer before you write anything else.',
         },
         {
-          title: 'Run one narrow pilot',
-          detail: `Keep the first pass scoped to one ${assetPricingAnchorSnapshot.duration || 'short'} output and one reviewer so the pack reveals what still needs manual work.`,
+          title: 'Run the first-pass prompt set',
+          detail: 'Generate one short brief, one 4-6 scene sequence, and one CTA line before adding decorative flourishes or extra workflow complexity.',
         },
         {
-          title: 'Save the delta',
-          detail: 'Fill the reuse notes with what changed between the first pass and the publish-ready version so the second run starts cleaner.',
+          title: 'Repair one failure and save the delta',
+          detail: 'Fix the first obvious failure mode, then save the winning hook, scene order, and review note so the second run starts cleaner.',
         },
       ]
+    }
+
+    const scenarioPacks = findScenarioPacksForAsset(asset.slug)
+    if (scenarioPacks.length > 0) {
+      return scenarioPacks.slice(0, 3).map((item) => ({
+        title: item.scenario,
+        detail: `${item.commonFailure} Fix with: ${item.repairPrompt}`,
+      }))
     }
 
     if (asset.slug === 'workflow-checklist' || asset.slug === 'benchmark-checklist') {
@@ -8459,8 +9671,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     if (asset.slug === 'comparison-worksheet' || asset.slug === 'evaluation-worksheet') {
       return [
         {
-          label: 'Weighted scoring grid',
-          detail: 'Score shortlist options on time-to-value, workflow friction, pricing clarity, review drag, and reuse potential with a visible weighting model.',
+          label: 'Weighted evaluation grid',
+          detail: 'Rate shortlist options on time-to-value, workflow friction, pricing clarity, review drag, and reuse potential with a visible weighting model.',
         },
         {
           label: 'Decision log',
@@ -8928,10 +10140,64 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         '- Conversion goal:',
         '- Reviewer:',
         '- Publish-ready definition:',
+        '- Hard deadline:',
+        '- Constraint to respect:',
+        '',
+        '## First-pass prompt set',
+        '',
+        '### 1. Brief builder',
+        'Turn the following input into a short production brief for a short-form AI demo video.',
+        '',
+        'Input:',
+        '- Source asset: [describe the screenshots, script, release note, or product clip]',
+        '- Target channel: [X, LinkedIn, product page, ad, landing page, etc.]',
+        '- Conversion goal: [click, signup, demo request, install, etc.]',
+        '- Reviewer: [role or name]',
+        '- Publish-ready definition: [what must be true before this can ship]',
+        '- Constraint to respect: [brand, timing, compliance, aspect ratio, tone]',
+        '',
+        'Output:',
+        '1. One-sentence audience + outcome',
+        '2. One-sentence hook',
+        '3. 4-6 scene sequence',
+        '4. CTA line',
+        '5. One biggest review risk',
+        '',
+        '### 2. Hook options',
+        'Write 5 opening hook options for the same brief.',
+        '',
+        'Rules:',
+        '- Each hook must name the workflow outcome or the visible before/after',
+        '- Avoid generic hype',
+        '- Keep each hook under 14 words',
+        '- Include one safer option and one bolder option',
+        '',
+        '### 3. Screenshot-to-sequence prompt',
+        'Turn this source asset into a short-form demo sequence.',
+        '',
+        'Requirements:',
+        '- Use 4-6 scenes',
+        '- Name what appears on screen in each scene',
+        '- Add one motion cue per scene',
+        '- Make the CTA feel earned, not tacked on',
+        '- End with one reviewer note about where the sequence may still feel weak',
+        '',
+        '### 4. CTA framing prompt',
+        'Rewrite the CTA section 3 ways:',
+        '- low-friction version',
+        '- urgency version',
+        '- proof-led version',
+        '',
+        'Keep each version aligned with the same conversion goal.',
         '',
         '## Prompt starters',
         '',
-        ...promptExamples.map((item) => `### ${item.title}\n${item.body}\n`),
+        '### AI video workflow prompt starter',
+        'Goal: produce a short-form demo workflow asset for indie hackers, product marketers, and content operators. Input: one source asset, one target channel, one conversion goal. Output: a short brief, an execution sequence, one CTA line, and one reviewer risk note.',
+        '',
+        ...promptExamples
+          .filter((item) => !/workflow prompt starter/i.test(item.title))
+          .map((item) => `### ${item.title}\n${item.body}\n`),
         '## Repair prompts',
         '',
         '### If the hook is generic',
@@ -8940,12 +10206,32 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         '### If the CTA lands too late',
         'Tighten the sequence so the CTA is previewed earlier and the final beat feels like a decision, not a fade-out.',
         '',
+        '### If the sequence feels like random screenshots',
+        'Rebuild the scene order so each shot answers one job:',
+        '1. problem',
+        '2. proof',
+        '3. product step',
+        '4. outcome',
+        '5. CTA',
+        '',
+        '### If the output still needs too much manual cleanup',
+        'Reduce the ambition of the first pass. Keep the same use case, but remove decorative flourishes and optimize only for clarity, sequence, and CTA fit.',
+        '',
         '## Reviewer rubric',
         '',
         '- Clarity: can a reviewer understand the output without extra explanation?',
         '- Sequence: does the order of frames support the outcome instead of wandering?',
         '- CTA fit: does the CTA appear early enough and clearly enough for the channel?',
         '- Reuse value: can the next teammate run this again without rebuilding the brief?',
+        '',
+        '## Reuse handoff note',
+        '',
+        '- Winning hook:',
+        '- Scene order that survived review:',
+        '- CTA version used:',
+        '- Main failure mode from run one:',
+        '- Repair prompt that fixed it:',
+        '- What the next operator should keep:',
       )
     } else if (asset.slug === 'workflow-checklist' || asset.slug === 'benchmark-checklist') {
       lines.push(
@@ -9234,7 +10520,10 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       const baseRecord = {
         slug: asset.slug,
         title: asset.title,
-        summary: asset.summary,
+        summary:
+          asset.slug === 'prompt-pack'
+            ? 'A first-run prompt pack for turning one source asset into a short-form demo with a usable brief, sequence, CTA, and handoff note.'
+            : asset.summary,
         type: asset.type,
         assetKind:
           asset.type === 'template'
@@ -9265,6 +10554,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         landingIntro: buildAssetLandingIntro(asset),
         evidenceCards: buildAssetEvidenceCards(asset),
         scenarioCards: buildAssetScenarioCards(asset),
+        proofCards: buildAssetProofCards(asset),
         firstActionCards: buildAssetFirstActionCards(asset),
         prerequisites: buildAssetPrerequisites(asset),
         operatingModes: buildAssetOperatingModes(asset),
@@ -9340,39 +10630,83 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
 
   function buildFaqAnswer(question) {
     const intent = classifyIntent(question)
+    const leadTool = shortlistRows[0]?.name ?? 'the strongest shortlist tool'
+    const fallbackTool = shortlistRows[1]?.name ?? 'a fallback tool'
+    const contrastTool = shortlistRows[2]?.name ?? fallbackTool
+    if (/which tool should i start with/i.test(question)) {
+      return `${leadTool} is the right first click for most teams because it gets you to a usable short test faster than a broad comparison loop. Keep ${fallbackTool} as the fallback, not a parallel rabbit hole.`
+    }
+    if (/which ai video tool should you test first/i.test(question)) {
+      return `${leadTool} is the best first test when you want one usable pilot quickly. Keep ${fallbackTool} as the fallback instead of expanding the shortlist too early.`
+    }
+    if (/which ai video tool is best for beginners/i.test(question)) {
+      return `${leadTool} is the easiest place to start when you need a fast first result and a cleaner path to review. Keep ${fallbackTool} as backup rather than trying to learn the whole category at once.`
+    }
+    if (/runway vs veo/i.test(question)) {
+      return `Start with ${leadTool} if you need the fastest end-to-end evaluation path, then compare it against ${fallbackTool === leadTool ? contrastTool : fallbackTool} on output quality, review speed, and how repeatable the workflow feels after one pilot.`
+    }
+    if (/do you need an api/i.test(question)) {
+      return `No. Most teams should prove the workflow manually first with one owner, one use case, and one publish target. Add the API only when the workflow already works and the bottleneck becomes scale, automation, or product integration.`
+    }
+    if (/do i need api access to start/i.test(question)) {
+      return `No. Start in the product UI, run one short clip, and save the working prompt first. Add API access only after the team has a repeatable workflow worth automating.`
+    }
+    if (/how much does ai video cost/i.test(question)) {
+      return `${leadTool} can look cheap on the pricing page and still become expensive once failed generations, regenerations, and review time pile up. Budget for credits plus rework, not only the headline plan price.`
+    }
+    if (/why does ai video output fail/i.test(question)) {
+      return `Most first runs fail because the prompt asks for too many shots, too much motion, or too much style direction at once. Shorten the clip, cut it into separate scenes, and regenerate only the broken part.`
+    }
+    if (/can i use prompts directly/i.test(question)) {
+      return `Yes, but use them as starting structure instead of magic text. A prompt works fastest when you already know the video type, duration, and the one action you want in each shot.`
+    }
+    if (/how many ai video tools should you compare/i.test(question)) {
+      return `Compare two or three tools, not ten. One lead option, one fallback, and one rejection reason is usually enough to run a real pilot without stalling.`
+    }
     if (intent === 'pricing') {
-      return `Treat pricing as an operating-fit question, not just a number. Compare cost, review overhead, and how quickly a team can reuse the output.`
+      return `Pay once the team is running repeated pilots, not one-off experiments. The real decision is total workflow cost: plan limits, review drag, and whether the output can be reused next week.`
     }
     if (intent === 'comparison') {
-      return `Shortlist a few options, compare them on time-to-value and workflow friction, and then recommend one primary choice plus one fallback instead of listing every tool equally.`
+      return `Start with a shortlist, not a giant tool list. Pick one lead option and one fallback, then judge them on output quality, review speed, and how easy they are to rerun.`
     }
     if (intent === 'workflow') {
-      return `Start with one narrow pilot, capture the baseline effort, and turn the winning path into a reusable checklist or template so the next run is faster.`
+      return `Start with one narrow pilot: one use case, one owner, and one publish target. If the first run works, turn that path into a reusable workflow before you widen scope.`
     }
     if (intent === 'prompt') {
-      return `Tie prompts to a concrete input, output, and success metric. A prompt is only useful when it maps to a repeatable job-to-be-done.`
+      return `A strong prompt should name the input, the output format, and the success bar. If those are missing, the result usually feels generic no matter which tool you use.`
     }
-    return `Explain the category quickly, name who it is for, and point the visitor to the next best page: shortlist, workflow, or template.`
+    return `Use the category page to make one concrete decision quickly. If the question is still broad, narrow it to tool choice, workflow setup, pricing, or prompt structure first.`
   }
 
   function buildAssetBinding(pageType) {
     const normalizedPageType = normalizePageTemplateType(pageType)
-    const primary = assetSystem.primaryAsset
-    const secondary = assetSystem.secondaryAssets[0]
+    const briefTargetAsset = wikiPageBriefMap.get(normalizedPageType)?.targetAsset ?? ''
+    const resolvedPrimary = findAssetByTargetTitle(briefTargetAsset)
+    const primary =
+      canonicalMode && meaningfulText(briefTargetAsset)
+        ? resolvedPrimary ?? buildUnresolvedAssetBinding(briefTargetAsset)
+        : resolvedPrimary ?? assetSystem.primaryAsset
+    const secondaryDefault =
+      assetSystem.secondaryAssets.find((asset) => asset.slug && asset.slug !== primary.slug) ?? assetSystem.primaryAsset
+    const secondary = secondaryDefault
     if (normalizedPageType === 'alternatives') {
       return {
-        primary: secondary,
-        secondary: assetSystem.secondaryAssets[1] ?? primary,
-        title: `Need a faster shortlist?`,
-        copy: `Convert comparison-stage visitors with ${secondary.title.toLowerCase()} so they can score options instead of reopening search.`,
+        primary,
+        secondary:
+          assetSystem.secondaryAssets.find((asset) => asset.slug !== primary.slug && /worksheet/i.test(asset.title)) ??
+          secondary,
+        title: `Get ${primary.title}`,
+        copy: `Use ${primary.title.toLowerCase()} to lock the first shortlist, name the fallback, and stop reopening comparison tabs.`,
       }
     }
     if (normalizedPageType === 'workflow') {
       return {
-        primary: assetSystem.secondaryAssets[1] ?? primary,
-        secondary: primary,
-        title: `Ship the workflow with a reusable asset`,
-        copy: `Use ${assetSystem.secondaryAssets[1]?.title.toLowerCase() ?? primary.title.toLowerCase()} to remove implementation friction after the first pilot.`,
+        primary,
+        secondary:
+          assetSystem.secondaryAssets.find((asset) => asset.slug !== primary.slug && /prompt pack|checklist/i.test(asset.title)) ??
+          secondary,
+        title: `Get ${primary.title}`,
+        copy: `Use ${primary.title.toLowerCase()} to document the first working run, the hidden cost, and the exact trigger for switching tools.`,
       }
     }
     if (normalizedPageType === 'faq') {
@@ -9386,8 +10720,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     return {
       primary,
       secondary,
-      title: primary.title,
-      copy: `Use ${primary.title.toLowerCase()} as the main asset that carries visitors from reading into action.`,
+      title: `Get ${primary.title}`,
+      copy: `Use ${primary.title.toLowerCase()} as the fastest move from reading into a real first test.`,
     }
   }
 
@@ -9397,7 +10731,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       label: row.name,
       url: sourceRefMap.get(row.sourceIds[0])?.url ?? row.officialUrl ?? '#',
       note: row.verdict,
-      event: 'affiliate_click',
+      event: 'tool_clickout',
       actionTier: 'high_intent_clickout',
     }))
     const assetLinks = assetDeliveryRecords.slice(0, 3).map((asset) => ({
@@ -9488,7 +10822,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         title: 'Evidence sources',
         type: 'sources',
         items: baseRefs.map((item) => ({
-          label: item.domain,
+          label: item.label || item.title || item.domain,
           detail: item.reason || item.label,
           url: item.url,
         })),
@@ -9506,7 +10840,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       })
     }
 
-    if (['pricing', 'free-vs-paid', 'alternatives'].includes(normalizedPageType)) {
+    if (['pricing', 'free-vs-paid', 'alternatives', 'cost-guide', 'diy-vs-hire', 'hire-service'].includes(normalizedPageType)) {
       slots.push({
         title: 'Pricing notes',
         type: 'pricing',
@@ -9517,7 +10851,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       })
     }
 
-    if (['pricing', 'free-vs-paid'].includes(normalizedPageType)) {
+    if (['pricing', 'free-vs-paid', 'cost-guide', 'diy-vs-hire'].includes(normalizedPageType)) {
       slots.push({
         title: 'Upgrade signals',
         type: 'upgrade-signals',
@@ -9601,9 +10935,13 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       counterpoint,
       bestPageTypes: dedupe(pageTypes),
       reusePriority,
+      refreshPriority: reusePriority,
       performanceNote: `Used in ${dedupe(pageTypes).length} page type(s), backed by ${dedupe(sourceIds).length} source anchor(s), confidence ${confidence}.`,
       lifecycleDecision,
       refreshCondition: 'Refresh when pricing, rankings, or community complaints change materially.',
+      lastVerified: config.generatedAt.slice(0, 10),
+      stalenessDays: ['pricing', 'comparison', 'recommendation'].includes(claimKind) ? 7 : 14,
+      changeTriggers: ['Pricing changed', 'Community pain shifted', 'Tool ranking changed'],
     }
   }
 
@@ -9726,14 +11064,19 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     ],
     'id',
   )
-  const wikiClaims = safeArray(wikiSeed?.claims)
+  const wikiClaims = getRenderableWikiClaims()
   const claimById = new Map()
-  for (const generatedClaim of generatedClaimLibrary) {
-    claimById.set(generatedClaim.id, mergeClaimCard(generatedClaim, null))
+  if (!canonicalMode) {
+    for (const generatedClaim of generatedClaimLibrary) {
+      claimById.set(generatedClaim.id, mergeClaimCard(generatedClaim, null))
+    }
   }
   for (const wikiClaim of wikiClaims) {
     if (!wikiClaim?.id) continue
-    claimById.set(wikiClaim.id, mergeClaimCard(claimById.get(wikiClaim.id) ?? null, wikiClaim))
+    claimById.set(
+      wikiClaim.id,
+      mergeClaimCard(canonicalMode ? null : claimById.get(wikiClaim.id) ?? null, wikiClaim),
+    )
   }
   function ensureClaimNarrative(claim) {
     const sourceCount = safeArray(claim?.sourceIds).length
@@ -10114,10 +11457,109 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       reviewPriority: 'high',
       internalLinkRole: 'proof-page',
     },
+    'diy-vs-hire': {
+      targetIntent: 'commercial_outsource_decision',
+      primaryKinds: ['pricing', 'workflow', 'caveat', 'recommendation'],
+      secondaryKinds: ['failure_mode', 'conversion'],
+      pageGoal: 'Help visitors decide whether to create AI video in-house, use a template, or hire a scoped freelancer.',
+      visitorIntent: 'Compare DIY effort, time cost, rework risk, consistency needs, and outsourcing fit before clicking out.',
+      mustWinQuestions: [
+        'When is DIY enough?',
+        'When should the work be outsourced?',
+        'What makes Fiverr or another marketplace a bad fit?',
+      ],
+      requiredSections: [
+        'DIY cost and time',
+        'Hiring trigger',
+        'Decision table',
+        'Who should not outsource',
+        'Affiliate disclosure',
+      ],
+      requiredExamples: ['Simple launch clip', 'Product demo with review risk', 'Final-edit handoff'],
+      requiredCaveats: [
+        'Marketplace providers are not a fit for unclear scope, missing rights, or projects without a review owner.',
+      ],
+      failureConditions: ['Only contains CTA links', 'Pretends hiring is always better than DIY'],
+      ctaStrategy: 'affiliate_decision_path',
+      reviewPriority: 'high',
+      internalLinkRole: 'commercial-page',
+    },
+    'cost-guide': {
+      targetIntent: 'commercial_cost_evaluation',
+      primaryKinds: ['pricing', 'caveat', 'workflow'],
+      secondaryKinds: ['comparison', 'failure_mode'],
+      pageGoal: 'Break down AI video production cost into tool, retry, voice-over, editing, and outsourced labor components.',
+      visitorIntent: 'Understand which costs are official-source anchors, which are estimates, and which require a provider quote.',
+      mustWinQuestions: [
+        'What cost lines should I budget?',
+        'Which numbers are sourced and which are estimates?',
+        'When does a quote beat another DIY retry?',
+      ],
+      requiredSections: [
+        'Tool subscription cost',
+        'Retry cost',
+        'Voice-over and editing cost',
+        'Outsourcing cost',
+        'Price source note',
+        'Affiliate disclosure',
+      ],
+      requiredExamples: ['Simple short video', 'Product demo', 'Polish or revision-heavy project'],
+      requiredCaveats: ['Do not publish a single invented market average for all AI video work.'],
+      failureConditions: ['Claims unsupported price averages', 'Does not separate sourced facts from estimates'],
+      ctaStrategy: 'affiliate_cost_path',
+      reviewPriority: 'high',
+      internalLinkRole: 'commercial-page',
+    },
+    'hire-service': {
+      targetIntent: 'transactional_hiring_checklist',
+      primaryKinds: ['workflow', 'recommendation', 'caveat'],
+      secondaryKinds: ['pricing', 'failure_mode'],
+      pageGoal: 'Give visitors a concrete hiring checklist before they contact or order from an AI video editor.',
+      visitorIntent: 'Prepare scope, source materials, rights, formats, revisions, and red-flag questions before hiring.',
+      mustWinQuestions: [
+        'What should I prepare before ordering?',
+        'What questions should I ask before paying?',
+        'What red flags should stop the purchase?',
+      ],
+      requiredSections: [
+        'Materials to prepare',
+        'Scope checklist',
+        'Rights and delivery format',
+        'Revision plan',
+        'Red flags',
+        'Affiliate disclosure',
+      ],
+      requiredExamples: ['Trial order', 'Short-form edit', 'Product demo edit'],
+      requiredCaveats: [
+        'Do not order until commercial rights, source material, revision count, and delivery format are clear.',
+      ],
+      failureConditions: ['Reads like a thin Fiverr link page', 'Missing pre-order questions'],
+      ctaStrategy: 'affiliate_hire_path',
+      reviewPriority: 'high',
+      internalLinkRole: 'commercial-page',
+    },
+    audit: {
+      targetIntent: 'commercial_resolution',
+      primaryKinds: ['workflow', 'recommendation', 'conversion'],
+      secondaryKinds: ['failure_mode', 'pricing'],
+      pageGoal: 'Turn a live workflow bottleneck into a scoped commercial audit with a clear promise and next step.',
+      visitorIntent: 'Know whether this audit fits the team, what it requires, and what happens after the request.',
+      mustWinQuestions: ['Who is this for?', 'What does the user receive?', 'What is the next commercial step?'],
+      requiredSections: ['Who it is for', 'Who it is not for', 'What the user receives', 'CTA asset or consult'],
+      requiredExamples: ['Expected outcome', 'Response SLA'],
+      requiredCaveats: ['This is not for broad category curiosity or teams without a named workflow bottleneck.'],
+      failureConditions: ['Audit page reads like a generic contact form', 'No commercial next step is defined'],
+      ctaStrategy: 'consult_offer',
+      reviewPriority: 'high',
+      internalLinkRole: 'commercial-page',
+    },
   }
   const wikiPageBriefMap = new Map(
     safeArray(wikiSeed?.pageBriefs).map((brief) => [brief.pageType, brief]),
   )
+  if (canonicalMode && safeArray(wikiPageBriefMap.get('workflow')?.workflowSteps).length > 0) {
+    workflowSteps.splice(0, workflowSteps.length, ...safeArray(wikiPageBriefMap.get('workflow')?.workflowSteps))
+  }
 
   function buildPageBrief(pageType, assetBinding) {
     const normalizedPageType = normalizePageTemplateType(pageType)
@@ -10147,9 +11589,24 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       requiredExamples: profile.requiredExamples,
       requiredCaveats: profile.requiredCaveats,
       failureConditions: profile.failureConditions,
+      reviewBacklog: buildReviewBacklogForPage(normalizedPageType),
+      workflowSteps: normalizedPageType === 'workflow' ? workflowSteps : [],
     }
-
-    return mergePageBriefCard(generatedBrief, wikiPageBriefMap.get(normalizedPageType) ?? null)
+    const wikiBrief = wikiPageBriefMap.get(normalizedPageType) ?? null
+    if (canonicalMode) {
+      return mergePageBriefCard(
+        null,
+        wikiBrief ?? {
+          ...generatedBrief,
+          status: 'draft',
+          workflowSteps: [],
+          requiredSections: [],
+          primaryClaimIds: [],
+          secondaryClaimIds: [],
+        },
+      )
+    }
+    return mergePageBriefCard(generatedBrief, wikiBrief)
   }
 
   const primaryAssetFlow = assetRouteMap.get(assetSystem.primaryAsset.slug)
@@ -10507,8 +11964,48 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
   }
 
   function buildPageSpec(pageType, assetBinding, pageBrief) {
-    const pageSourceRefs =
-      pageType === 'faq'
+    const primaryClaimIds = meaningfulList(pageBrief.primaryClaimIds).filter((id) => claimMap.has(id))
+    const secondaryClaimIds = meaningfulList(pageBrief.secondaryClaimIds).filter((id) => claimMap.has(id))
+    const claimIds = dedupe([
+      ...primaryClaimIds,
+      ...secondaryClaimIds,
+    ])
+    const claimCards = claimIds.map((id) => claimMap.get(id)).filter(Boolean)
+    const pageSourceRefs = canonicalMode
+      ? dedupeBy(
+          [
+            ...claimCards.flatMap((claim) =>
+              safeArray(claim.sourceIds)
+                .map((sourceId) => wikiSourceSummaryMap.get(normalizeWikiSourceId(sourceId, cluster.siteSlug)))
+                .filter(Boolean)
+                .map((source) => ({
+                  id: meaningfulText(source.rawSourceId) || source.id,
+                  title: source.title,
+                  url: source.url,
+                  domain: source.domain,
+                  snippet: source.sourceSummary || source.keyFacts[0] || '',
+                  reason: source.sourceSummary || source.keyFacts[0] || '',
+                  category: source.sourceKind,
+                })),
+            ),
+            ...safeArray(toolRanking.selected_tools).flatMap((tool) =>
+              safeArray(tool.source_ids)
+                .map((sourceId) => wikiSourceSummaryMap.get(normalizeWikiSourceId(sourceId, cluster.siteSlug)))
+                .filter(Boolean)
+                .map((source) => ({
+                  id: meaningfulText(source.rawSourceId) || source.id,
+                  title: source.title,
+                  url: source.url,
+                  domain: source.domain,
+                  snippet: source.sourceSummary || source.keyFacts[0] || '',
+                  reason: source.sourceSummary || source.keyFacts[0] || '',
+                  category: source.sourceKind,
+                })),
+            ),
+          ],
+          'id',
+        )
+      : pageType === 'faq'
         ? selectRefs([
             ...sourcePack.categories.serp,
             ...sourcePack.categories.community,
@@ -10520,6 +12017,15 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
               ...sourcePack.categories.community,
               ...deepResearchPages,
             ])
+          : AFFILIATE_ALLOWED_PAGE_TYPES.includes(pageType)
+            ? selectRefs([
+                ...sourcePack.categories.official,
+                ...sourcePack.categories.workflow,
+                ...sourcePack.categories.community,
+                ...sourcePack.categories.competitive,
+                ...sourcePack.categories.serp,
+                ...deepResearchPages,
+              ], 8)
           : ['pricing', 'free-vs-paid'].includes(pageType)
             ? selectRefs([
                 ...sourcePack.categories.official,
@@ -10535,13 +12041,6 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
               ...sourcePack.categories.serp,
               ...deepResearchPages,
             ])
-    const primaryClaimIds = meaningfulList(pageBrief.primaryClaimIds).filter((id) => claimMap.has(id))
-    const secondaryClaimIds = meaningfulList(pageBrief.secondaryClaimIds).filter((id) => claimMap.has(id))
-    const claimIds = dedupe([
-      ...primaryClaimIds,
-      ...secondaryClaimIds,
-    ])
-    const claimCards = claimIds.map((id) => claimMap.get(id)).filter(Boolean)
     const designHighValuePageTypes = safeArray(cluster.designProfile?.review?.highValuePageTypes)
     const needsSpotCheck = designHighValuePageTypes.includes(pageType)
     const common = {
@@ -10552,6 +12051,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       publicPath: resolvePublicPagePath({ type: pageType }),
       originalAnchors: originalAnchors.slice(0, 4),
       sourceReferences: pageSourceRefs,
+      sourceIds: dedupe(pageSourceRefs.map((ref) => meaningfulText(ref.id)).filter(Boolean)),
       materialSlots: buildMaterialSlots(pageType, pageSourceRefs.map((ref) => sourceRefMap.get(ref.id))),
       commercialModules: buildCommercialModules(pageType),
       assetBinding,
@@ -10645,24 +12145,11 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     }
 
     if (pageType === 'faq') {
-      const faqItems = dedupeBy(
-        [
-          ...research.faqCandidates,
-          ...useCases.map((item) => ({ question: toQuestion(item), source: 'use-case' })),
-        ]
-          .map((item) => {
-            const question = normalizeFaqQuestionText(cluster, item.question, item.source)
-            return question
-              ? {
-                  question,
-                  answer: buildFaqAnswer(question),
-                  source: item.source,
-                }
-              : null
-          })
-          .filter(Boolean),
-        'question',
-      ).slice(0, 6)
+      const faqItems = buildFaqItems(cluster, research, useCases).map((item) => ({
+        question: item.question,
+        answer: buildFaqAnswer(item.question),
+        source: item.source,
+      }))
 
       return {
         ...common,
@@ -10718,40 +12205,73 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         type: 'alternatives',
         fileName: 'alternatives.html',
         path: `/generated-sites/${cluster.siteSlug}/alternatives.html`,
-        title: `${cluster.primaryKeyword} alternatives: shortlist and tradeoffs`,
-        metaDescription: `Compare ${cluster.primaryKeyword} alternatives with verdicts, best-for / not-for guidance, pricing clarity notes, and click-out next steps.`,
+        title: `${cluster.primaryKeyword} alternatives: pick the right tool fast`,
+        metaDescription: `Compare ${cluster.primaryKeyword} alternatives with direct recommendations, real failure points, copy-ready prompts, and clear switch rules.`,
         h1: buildOutcomeHeadline('alternatives'),
         intro: buildOutcomeIntro('alternatives', assetBinding),
         coveredIntents: ['comparison', 'pricing', 'overview'],
-        verdicts: shortlistRows.slice(0, 2).map((row) => ({
+        verdicts: enrichedShortlistRows.slice(0, 4).map((row) => ({
           title: row.name,
-          detail: `${row.verdict}. Best for ${row.bestFor.toLowerCase()}. ${row.evidenceGap.length > 0 ? 'Evidence gaps remain, so treat this as a starting point, not a final ranking.' : row.evidenceSummary[0] ?? ''}`.trim(),
+          detail: `${row.quickVerdict} Best for ${row.bestFor.toLowerCase()} NOT FOR ${row.notFor.toLowerCase()} Switch when ${row.whenToSwitch.toLowerCase()}`.trim(),
           sourceIds: row.sourceIds,
         })),
         decisionPaths: buildDecisionPaths(),
         evidenceCards: buildAlternativesEvidenceCards(),
-        keyFacts: shortlistRows.slice(0, 3).map((row) => ({
-          label: row.name,
-          value: `${row.bestFor}. Watch-out: ${row.notFor}. Evidence: ${row.evidenceSummary[0] ?? 'Needs more pricing and limitation proof.'}`,
-          sourceIds: row.sourceIds,
-        })),
-        comparisonRows: shortlistRows,
-        sections: [
+        keyFacts: [
           {
-            heading: 'How to rank the shortlist',
-            paragraphs: [
-              toolRanking.ranking_mode === 'ranked_shortlist'
-                ? `Collapse ${cluster.primaryKeyword} into one first click, one fallback, and one asset path for each serious buyer job.`
-                : `Use these rows as recommended starting points while public evidence is still uneven; the point is to narrow the field without pretending the current run proves a perfect rank order.`,
-              softComparisonLanguage
-                ? `Use ${shortlistRows[0]?.name ?? 'the first option'}, ${shortlistRows[1]?.name ?? 'the fallback'}, and the remaining field as evidence-backed starting points, then let buyer fit, implementation burden, and missing proof decide the final order.`
-                : `Rank ${shortlistRows[0]?.name ?? 'the first option'}, ${shortlistRows[1]?.name ?? 'the fallback'}, and the remaining field by buyer fit, implementation burden, and how quickly the visitor can turn the comparison into a repeatable decision record.`,
-            ],
-            bullets: ['Time-to-value', 'Workflow friction', 'Pricing clarity', 'Reusable output quality'],
+            label: 'Primary pick',
+            value: `${primaryTool?.name ?? 'The lead tool'} is the first test because it gets you to a usable short clip quickly and gives you a cleaner failure signal.`,
+            sourceIds: primaryTool?.sourceIds ?? idsFromRefs(pageSourceRefs, 2),
+          },
+          {
+            label: 'Fallback',
+            value: `${fallbackTool?.name ?? 'The fallback tool'} stays second so the team has one clear switch path instead of four half-tested options.`,
+            sourceIds: fallbackTool?.sourceIds ?? idsFromRefs(pageSourceRefs, 2),
+          },
+          {
+            label: 'Typical first run result',
+            value: primaryTool?.typicalFirstRunResult ?? 'The first short test usually gives one usable shot and one obvious failure to repair.',
+            sourceIds: primaryTool?.sourceIds ?? idsFromRefs(pageSourceRefs, 2),
+          },
+          {
+            label: 'What most people get wrong',
+            value: primaryTool?.commonMistake ?? 'Most people switch tools before they write down what actually failed.',
+            sourceIds: primaryTool?.sourceIds ?? idsFromRefs(pageSourceRefs, 2),
+          },
+          {
+            label: 'How teams actually use this',
+            value: primaryTool?.teamUsage ?? 'Teams keep one primary tool, one fallback, and one saved prompt instead of four active options.',
+            sourceIds: primaryTool?.sourceIds ?? idsFromRefs(pageSourceRefs, 2),
           },
         ],
-        ctaTitle: assetBinding.title,
-        ctaCopy: assetBinding.copy,
+        comparisonRows: enrichedShortlistRows,
+        promptGenerator: buildPromptGeneratorConfig(),
+        faqItems: buildFaqItems(cluster, research, useCases).map((item) => ({
+          question: item.question,
+          answer: buildFaqAnswer(item.question),
+          source: item.source,
+        })),
+        sections: [
+          {
+            heading: 'How to make the first tool decision fast',
+            paragraphs: [
+              `${primaryTool?.name ?? 'The primary tool'} should be the first live test because it gets you to a usable short result faster than a broad comparison loop. ${fallbackTool?.name ?? 'The fallback tool'} stays in reserve for the exact moment the same failure repeats.`,
+              `The useful comparison question is not "which tool has the longest feature list?" It is "did the first clip fail because the prompt was too broad, the motion was unstable, or the tool is simply the wrong fit for this shot?"`,
+            ],
+            bullets: [
+              `${primaryTool?.name ?? 'Primary tool'} = start here first`,
+              `${fallbackTool?.name ?? 'Fallback tool'} = switch only after the failure repeats`,
+              'Do not add a third tool until the failure reason is written down',
+            ],
+          },
+        ],
+        toolExperienceSignals: buildExperienceSignals('alternatives'),
+        ctaTitle: 'Get Prompt Pack -> Create your first AI video in 10 minutes',
+        ctaButtonLabel: 'Get Prompt Pack -> Create your first AI video in 10 minutes',
+        ctaCopy: 'For beginners, marketers, and fast testers: copy the starter prompt, run one short clip, and skip another round of trial-and-error.',
+        secondaryCtaTitle: 'Get Workflow Audit -> Fix your pipeline in 30 minutes',
+        secondaryCtaButtonLabel: 'Get Workflow Audit -> Fix your pipeline in 30 minutes',
+        secondaryCtaCopy: 'Use the audit path when the workflow is already live and you need a narrower tool recommendation, not more comparison reading.',
         ctaEvent: assetBinding.primary.event,
         schemaType: 'ItemList',
       }
@@ -10765,8 +12285,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         type: 'workflow',
         fileName: 'workflow.html',
         path: `/generated-sites/${cluster.siteSlug}/workflow.html`,
-        title: `${cluster.primaryKeyword} workflow: steps, prompts and pitfalls`,
-        metaDescription: `A practical ${cluster.primaryKeyword} workflow with steps, prompt examples, pitfalls, and the asset visitors can use after the first pilot.`,
+        title: `${cluster.primaryKeyword} workflow: steps, prompts, and failure fixes`,
+        metaDescription: `A practical ${cluster.primaryKeyword} workflow with real failure points, repair prompts, and the next step teams can use after the first test.`,
         h1: buildOutcomeHeadline('workflow'),
         intro: buildOutcomeIntro('workflow', assetBinding),
         coveredIntents: ['workflow', 'prompt', 'overview'],
@@ -10794,23 +12314,44 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         ],
         verdicts: [
           {
-            title: 'Start with one pilot, not the whole workflow',
-            detail: 'The fastest way to learn is to run one production-shaped pilot and turn the result into a repeatable asset.',
+            title: 'Start with one short clip, not a full campaign',
+            detail: 'The first useful workflow is the one that gets one 5 to 15 second result, names the failure, and saves the repair before the team widens scope.',
+            sourceIds: pageSourceRefs.slice(0, 2).map((item) => item.id),
+          },
+          {
+            title: 'Primary tool first, fallback second',
+            detail: `${primaryTool?.name ?? 'The lead tool'} should handle the first pass. ${fallbackTool?.name ?? 'The fallback tool'} only comes in when the same failure repeats after a short repair.`,
+            sourceIds: primaryTool?.sourceIds ?? pageSourceRefs.slice(0, 2).map((item) => item.id),
+          },
+          {
+            title: 'Repair the broken shot before you change the whole stack',
+            detail: 'Most bad first runs come from a long prompt, vague shot order, or unstable motion. Fix the exact scene before you assume the whole workflow is wrong.',
             sourceIds: pageSourceRefs.slice(0, 2).map((item) => item.id),
           },
         ],
+        failureFixes: buildFailureFixCards(5),
+        faqItems: buildFaqItems(cluster, research, useCases).map((item) => ({
+          question: item.question,
+          answer: buildFaqAnswer(item.question),
+          source: item.source,
+        })),
         sections: [
           {
-            heading: 'What a real workflow page must cover',
+            heading: 'What a real first pass looks like',
             paragraphs: [
-              `Trust comes from naming the operating handoff, the review owner, and the first failure point inside a ${workflowSteps.length}-step workflow before the team argues about tools or style.`,
-              `By the end of the page, the reader should know the pilot to run, the failure sign to watch for, and whether ${assetBinding.primary.title.toLowerCase()} or ${assetBinding.secondary?.title?.toLowerCase() ?? 'the prompt pack'} makes the second run cleaner.`,
+              `The first run usually comes back with one shot that is close and one shot that breaks. That is normal. The mistake is rerunning the whole workflow without naming why the broken shot failed.`,
+              `By the end of this page, the team should know the pilot to run, the failure sign to watch for, the repair prompt to use, and the one asset that makes the second run cleaner.`,
             ],
             bullets: workflowSteps.map((item) => item.title),
           },
         ],
-        ctaTitle: assetBinding.title,
-        ctaCopy: assetBinding.copy,
+        toolExperienceSignals: buildExperienceSignals('workflow'),
+        ctaTitle: 'Get Prompt Pack -> Create your first AI video in 10 minutes',
+        ctaButtonLabel: 'Get Prompt Pack -> Create your first AI video in 10 minutes',
+        ctaCopy: 'For beginners and product marketers: copy the starter prompt, run one short clip, and save the repair path before your next launch.',
+        secondaryCtaTitle: 'Get Workflow Audit -> Fix your pipeline in 30 minutes',
+        secondaryCtaButtonLabel: 'Get Workflow Audit -> Fix your pipeline in 30 minutes',
+        secondaryCtaCopy: 'Use the audit path when the workflow is already live, the team has a real bottleneck, and you need a tighter implementation answer.',
         ctaEvent: assetBinding.primary.event,
         schemaType: 'HowTo',
       }
@@ -11096,6 +12637,446 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         ],
         ctaTitle: assetBinding.title,
         ctaCopy: `Use ${assetBinding.primary.title.toLowerCase()} to document the real upgrade trigger instead of guessing from plan names alone.`,
+        ctaEvent: assetBinding.primary.event,
+        schemaType: 'WebPage',
+      }
+    }
+
+    if (AFFILIATE_ALLOWED_PAGE_TYPES.includes(pageType)) {
+      const commercialSpec = getCommercialPageSpec(pageType) ?? {
+        slug: pageType,
+        navLabel: titleCase(pageType.replaceAll('-', ' ')),
+        publicPath: '',
+      }
+      const pageSlug = commercialSpec.slug
+      const publicPath = commercialSpec.publicPath || resolvePublicPagePath({ type: pageType })
+      const fileName = `${pageSlug}.html`
+      const assetHref = assetRouteMap.get(assetBinding.primary.slug)?.landingPath ?? primaryAssetFlow?.landingPath ?? ''
+      const commercialIntentScore = preferFiniteNumber(
+        commercialSpec.commercialIntentScore,
+        scoreCommercialIntent(
+          `${commercialSpec.title ?? ''} ${commercialSpec.metaDescription ?? ''} ${buildOutcomeIntro(pageType, assetBinding)}`,
+          pageType,
+        ),
+      )
+      const decisionPaths = [
+        {
+          title: 'Do it yourself',
+          audience: 'Good for one short validation clip, a loose creative test, or a project where speed matters more than polish.',
+          trigger: 'Use this path when the team already has the script, source asset, brand context, and a reviewer who can accept rough edges.',
+          workflow: 'Start with the workflow guide, run one narrow pilot, and record the failed shots before paying anyone.',
+          recommendation: 'AI tools and workflow guide',
+          watchOut: 'DIY gets expensive when failed generations, inconsistent shots, and review time pile up.',
+          ctaTitle: 'Open workflow guide',
+          ctaHref: '/workflow/',
+        },
+        {
+          title: 'Use a template',
+          audience: 'Good when the team can execute but needs a brief, prompt structure, or comparison worksheet before the first run.',
+          trigger: 'Use this path when the bottleneck is scope clarity, not production labor.',
+          workflow: 'Use Automiora assets to define source material, output format, success bar, and review notes.',
+          recommendation: 'Automiora prompt pack',
+          watchOut: 'A template will not fix missing source material, unclear rights, or a reviewer who cannot give concrete feedback.',
+          ctaTitle: assetBinding.primary.title,
+          ctaHref: assetHref,
+        },
+        {
+          title: 'Outsource the work',
+          audience: 'Good when the project needs final editing, voice-over, delivery formats, or consistency across multiple shots.',
+          trigger: 'Use this path only after the brief, assets, rights, and revision expectations are clear enough to quote.',
+          workflow: 'Compare professional service providers with a scoped brief and a small trial before a larger order.',
+          recommendation: 'Professional service provider',
+          watchOut: 'Not suitable for vague creative exploration, missing brand assets, or projects where commercial rights are unclear.',
+          ctaTitle: 'Compare service options',
+          ctaHref: '',
+        },
+      ]
+
+      if (pageType === 'diy-vs-hire') {
+        return {
+          ...common,
+          slug: pageSlug,
+          navLabel: commercialSpec.navLabel ?? 'DIY vs Hire',
+          type: pageType,
+          fileName,
+          path: `/generated-sites/${cluster.siteSlug}/${fileName}`,
+          publicPath,
+          title: commercialSpec.title ?? 'AI Video DIY vs Hiring a Freelancer',
+          metaDescription: commercialSpec.metaDescription ?? 'Decide when to make AI video yourself and when to hire a scoped professional.',
+          h1: buildOutcomeHeadline(pageType),
+          intro: buildOutcomeIntro(pageType, assetBinding),
+          coveredIntents: ['commercial', 'workflow', 'pricing', 'transactional'],
+          commercialIntentScore,
+          affiliateOfferIds: commercialSpec.primaryOfferIds ?? [],
+          decisionPaths,
+          verdicts: [
+            {
+              title: 'DIY is best while the project is still a narrow learning loop',
+              detail: 'Keep the work in-house when a rough test is acceptable, the source asset is ready, and the team needs to learn where the first generation fails before buying outside help.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              title: 'Hire when review cost matters more than another generation attempt',
+              detail: 'Outsourcing becomes rational when consistency, subtitles, voice-over, final edit, delivery format, or stakeholder polish are the real bottlenecks.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              title: 'Do not use a marketplace for an unclear brief',
+              detail: 'If the buyer cannot provide source material, rights requirements, aspect ratio, revision expectations, or examples of acceptable quality, hiring usually creates rework instead of speed.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+          ],
+          keyFacts: [
+            {
+              label: 'DIY cost components',
+              value: 'Tool subscription, failed generations, prompt rewriting, manual editing, captions, voice-over, and reviewer time.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              label: 'Hiring trigger',
+              value: 'Hire when final quality, handoff speed, and revision control are more important than learning the tool yourself.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              label: 'Not suitable for Fiverr',
+              value: 'Avoid marketplace hiring when scope, source rights, brand assets, or acceptance criteria are still undefined.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+          ],
+          comparisonRows: [
+            {
+              name: 'Do it yourself',
+              bestFor: 'One short validation clip, first-run learning, and projects where rough output is acceptable.',
+              notFor: 'Polished client delivery, multiple aspect ratios, unclear reviewer feedback, or tight launch deadlines.',
+              verdict: 'Start here when learning matters more than final polish.',
+              pricingSignal: 'Budget for tool fees, failed retries, editing time, and review time.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              name: 'Use a template',
+              bestFor: 'Teams that can execute but need a brief, prompt structure, scope checklist, or review rubric.',
+              notFor: 'Projects that still need a specialist editor, narrator, motion designer, or final delivery package.',
+              verdict: 'Use this before hiring so the scope is quote-ready.',
+              pricingSignal: 'Lowest-risk middle path when scope clarity is the bottleneck.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              name: 'Hire a professional',
+              bestFor: 'Product demos, final editing, captioning, voice-over, motion graphics, and stakeholder-ready polish.',
+              notFor: 'Vague exploration, missing assets, unclear commercial rights, or projects with no review owner.',
+              verdict: 'Hire after the brief is concrete enough for a small paid trial.',
+              pricingSignal: 'Requires provider quote; do not infer a universal market average.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+          ],
+          examples: [
+            {
+              title: 'Simple launch clip',
+              body: 'DIY is usually enough when one founder needs a rough 5 to 15 second product update and can accept visible iteration.',
+            },
+            {
+              title: 'Product demo with review risk',
+              body: 'Hiring is safer when the video has to survive stakeholder review, consistent product shots, captions, and a clean final edit.',
+            },
+            {
+              title: 'Final-edit handoff',
+              body: 'Use a template first, then hire for polish once the source material, aspect ratio, voice-over, and revision count are defined.',
+            },
+          ],
+          sections: [
+            {
+              heading: 'DIY cost and time',
+              paragraphs: [
+                'DIY cost includes the visible tool plan plus retries, prompt rewriting, manual cleanup, captioning, export checks, and the time spent deciding whether a failed shot is fixable.',
+                'The first pass is valuable when it teaches the team what fails: subject consistency, voice timing, captions, final edit, or stakeholder approval.',
+              ],
+              bullets: ['Tool subscription or credits', 'Failed generation retries', 'Manual edit and caption time', 'Reviewer time and rework'],
+            },
+            {
+              heading: 'When hiring is the better path',
+              paragraphs: [
+                'Hire when the job has a clear output, deadline, source package, revision limit, and quality bar. A freelancer can help most when the work is production-shaped, not when the idea is still undefined.',
+                'The strongest hiring trigger is not laziness. It is when consistency, delivery polish, or rework risk costs more than a scoped service order.',
+              ],
+              bullets: ['Multiple shots need consistency', 'Voice-over or subtitles matter', 'A final edit must be delivered', 'Stakeholders need review-ready polish'],
+            },
+            {
+              heading: 'Who should not outsource yet',
+              paragraphs: [
+                'Do not hire when the team cannot explain the target audience, source material, usage rights, aspect ratio, revision expectations, or what counts as done.',
+                'A small trial order is safer than a large package when the provider has not yet seen the source assets or brand expectations.',
+              ],
+              bullets: ['No script or shot list', 'No source assets', 'Unclear commercial use rights', 'No reviewer owner', 'No acceptance criteria'],
+            },
+          ],
+          ctaTitle: assetBinding.title,
+          ctaCopy: 'Use the prompt pack or worksheet to make the brief concrete before you decide whether to hire.',
+          ctaHref: assetHref,
+          ctaEvent: assetBinding.primary.event,
+          schemaType: 'WebPage',
+        }
+      }
+
+      if (pageType === 'cost-guide') {
+        return {
+          ...common,
+          slug: pageSlug,
+          navLabel: commercialSpec.navLabel ?? 'Cost Guide',
+          type: pageType,
+          fileName,
+          path: `/generated-sites/${cluster.siteSlug}/${fileName}`,
+          publicPath,
+          title: commercialSpec.title ?? 'How Much Does AI Video Production Cost?',
+          metaDescription: commercialSpec.metaDescription ?? 'Break down AI video production cost without inventing a universal market average.',
+          h1: buildOutcomeHeadline(pageType),
+          intro: buildOutcomeIntro(pageType, assetBinding),
+          coveredIntents: ['pricing', 'commercial', 'transactional'],
+          commercialIntentScore,
+          affiliateOfferIds: commercialSpec.primaryOfferIds ?? [],
+          decisionPaths,
+          verdicts: [
+            {
+              title: 'Do not model AI video cost as one average price',
+              detail: 'The honest budget separates official tool pricing from estimates for failed retries, voice-over, editing, motion polish, review time, and outsourced labor.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              title: 'Retries are part of the budget',
+              detail: 'A cheap tool path can become expensive when the team regenerates full clips because shot consistency, caption timing, or final edit quality keeps failing.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              title: 'Provider quotes are required for labor-heavy work',
+              detail: 'Editing, voice-over, and motion graphics vary by scope, rights, format, revision count, and turnaround, so a quote is safer than a made-up market rate.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+          ],
+          keyFacts: [
+            ...(pricingAnchor
+              ? [
+                  {
+                    label: 'Official-source anchor',
+                    value: pricingAnchorSnapshot.price
+                      ? `${pricingAnchor.label}: ${pricingAnchorSnapshot.price}${pricingAnchorSnapshot.duration ? ` for ${pricingAnchorSnapshot.duration}` : ''}${pricingAnchorSnapshot.oneTime ? ', one-time payment' : ''}.`
+                      : compactText(pricingAnchor.value, 140),
+                    sourceIds: pricingAnchor.sourceIds,
+                  },
+                ]
+              : []),
+            {
+              label: 'Estimate bucket',
+              value: 'Retries, manual cleanup, captions, voice-over, editing, motion polish, and review time should be estimated separately.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              label: 'Updated',
+              value: `Price source note updated ${config.generatedAt.slice(0, 10)}. Verify official tool pages and provider quotes before purchase.`,
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+          ],
+          comparisonRows: [
+            {
+              name: 'AI tool subscription or credits',
+              bestFor: 'First-pass generation and rough validation.',
+              notFor: 'Final editing, rights review, voice-over, or stakeholder-ready polish.',
+              verdict: 'Use official pricing pages as source anchors.',
+              pricingSignal: pricingAnchorSnapshot.price ? `Current sourced anchor: ${pricingAnchorSnapshot.price}` : 'Source from official tool pricing before publishing a number.',
+              sourceIds: pricingAnchor?.sourceIds ?? idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              name: 'Generation retries',
+              bestFor: 'Budgeting the real cost of failed shots and inconsistent outputs.',
+              notFor: 'A fixed public price claim; retry rates vary by prompt, tool, and quality bar.',
+              verdict: 'Estimate as a risk bucket, not as a universal average.',
+              pricingSignal: 'Use project assumptions and document the estimate.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              name: 'Voice-over and editing',
+              bestFor: 'Projects that need narration, captions, trimming, timing, and final delivery formats.',
+              notFor: 'A tool-only budget model.',
+              verdict: 'Quote separately when quality or rights matter.',
+              pricingSignal: 'Requires provider quote; do not invent a market-wide average.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+            {
+              name: 'Outsourced production help',
+              bestFor: 'Product demos, polished short-form edits, motion graphics, or revision-heavy handoff.',
+              notFor: 'Undefined creative exploration or missing source assets.',
+              verdict: 'Worth quoting when rework risk is the main cost.',
+              pricingSignal: 'Quote depends on length, assets, rights, revisions, and turnaround.',
+              sourceIds: idsFromRefs(pageSourceRefs, 2),
+            },
+          ],
+          examples: [
+            {
+              title: 'Simple short video',
+              body: 'Budget for the tool path, a few failed generations, light captioning, and one review pass before considering outside labor.',
+            },
+            {
+              title: 'Product demo',
+              body: 'Add script prep, product screenshots, shot consistency checks, final edit, captions, usage rights, and export formats.',
+            },
+            {
+              title: 'Revision-heavy project',
+              body: 'Outsourcing can be cheaper than repeated DIY retries once stakeholder feedback, voice-over timing, and motion polish dominate the work.',
+            },
+          ],
+          sections: [
+            {
+              heading: 'Which numbers are sourced',
+              paragraphs: [
+                pricingAnchor
+                  ? `The sourced anchor in this run is ${pricingAnchor.label}: ${pricingAnchorSnapshot.price ? pricingAnchorSnapshot.price : compactText(pricingAnchor.value, 140)}. Treat it as an input, not as the total project cost.`
+                  : 'This run does not have enough official price anchors to publish hard numbers beyond a cost checklist. Verify official pricing pages before adding exact figures.',
+                'Any labor, revision, voice-over, editing, or motion graphics number should come from a provider quote or be labeled as an estimate with the assumptions attached.',
+              ],
+              bullets: ['Official tool pages = source anchors', 'Retry count = estimate', 'Freelancer labor = quote', 'Review time = internal cost'],
+            },
+            {
+              heading: 'Cost lines to include',
+              paragraphs: [
+                'A realistic budget includes tool access, failed generations, source preparation, script work, captions, voice-over, editing, motion polish, rights, and delivery formats.',
+                'Short social clips usually have fewer moving parts than product demos because product demos need clearer sequence, brand accuracy, and stakeholder review.',
+              ],
+              bullets: ['Tool subscription', 'Generation attempts', 'Voice-over', 'Edit and captions', 'Motion polish', 'Revision cycles'],
+            },
+            {
+              heading: 'Price source note',
+              paragraphs: [
+                `This page was generated with source checks dated ${config.generatedAt.slice(0, 10)}. Recheck official tool pages and provider quotes before treating any number as current.`,
+                'Do not use this guide to claim a universal AI video production average. The right number depends on scope, assets, rights, revision count, and delivery format.',
+              ],
+              bullets: ['Official sources can change', 'Provider quotes vary', 'Estimates need assumptions', 'Commission reports are not price evidence'],
+            },
+          ],
+          ctaTitle: assetBinding.title,
+          ctaCopy: 'Use the worksheet to separate official prices, estimates, and provider quotes before you commit budget.',
+          ctaHref: assetHref,
+          ctaEvent: assetBinding.primary.event,
+          schemaType: 'WebPage',
+        }
+      }
+
+      return {
+        ...common,
+        slug: pageSlug,
+        navLabel: commercialSpec.navLabel ?? 'Hire Editor',
+        type: pageType,
+        fileName,
+        path: `/generated-sites/${cluster.siteSlug}/${fileName}`,
+        publicPath,
+        title: commercialSpec.title ?? 'How to Hire an AI Video Editor',
+        metaDescription: commercialSpec.metaDescription ?? 'Prepare scope, materials, rights, revisions, and questions before hiring an AI video editor.',
+        h1: buildOutcomeHeadline(pageType),
+        intro: buildOutcomeIntro(pageType, assetBinding),
+        coveredIntents: ['transactional', 'commercial', 'workflow'],
+        commercialIntentScore,
+        affiliateOfferIds: commercialSpec.primaryOfferIds ?? [],
+        decisionPaths,
+        verdicts: [
+          {
+            title: 'A hireable project has a source package, not just an idea',
+            detail: 'Prepare the script, product screenshots, brand references, target aspect ratio, desired length, commercial use needs, and examples before asking for a quote.',
+            sourceIds: idsFromRefs(pageSourceRefs, 2),
+          },
+          {
+            title: 'Start with a trial order when the provider is new',
+            detail: 'A small scoped edit exposes communication speed, revision quality, and format fit before the team commits a larger launch package.',
+            sourceIds: idsFromRefs(pageSourceRefs, 2),
+          },
+          {
+            title: 'Red flags should stop the order before payment',
+            detail: 'Avoid providers who cannot explain revision limits, commercial usage rights, delivery format, source-file policy, timeline, or what happens when AI output breaks.',
+            sourceIds: idsFromRefs(pageSourceRefs, 2),
+          },
+        ],
+        keyFacts: [
+          {
+            label: 'Materials to prepare',
+            value: 'Script, source assets, brand rules, examples, target length, aspect ratio, usage rights, and delivery deadline.',
+            sourceIds: idsFromRefs(pageSourceRefs, 2),
+          },
+          {
+            label: 'Scope fields',
+            value: 'Final length, format, subtitles, voice-over, number of revisions, source-file delivery, and commercial use rights.',
+            sourceIds: idsFromRefs(pageSourceRefs, 2),
+          },
+          {
+            label: 'Trial order',
+            value: 'Use a small first order when the project is high-risk or the provider has not yet handled your source material.',
+            sourceIds: idsFromRefs(pageSourceRefs, 2),
+          },
+        ],
+        comparisonRows: [
+          {
+            name: 'Before you order',
+            bestFor: 'Briefing and quote accuracy.',
+            notFor: 'Vague creative exploration with no source material.',
+            verdict: 'Prepare the source package first.',
+            pricingSignal: 'The clearer the scope, the cleaner the quote.',
+            sourceIds: idsFromRefs(pageSourceRefs, 2),
+          },
+          {
+            name: 'During provider selection',
+            bestFor: 'Filtering editors by fit, rights, revisions, and communication.',
+            notFor: 'Choosing only from price or fast delivery labels.',
+            verdict: 'Ask pre-order questions before payment.',
+            pricingSignal: 'Price should reflect length, assets, revisions, and delivery format.',
+            sourceIds: idsFromRefs(pageSourceRefs, 2),
+          },
+          {
+            name: 'Trial order',
+            bestFor: 'Checking quality before a larger product demo or launch package.',
+            notFor: 'Skipping discovery when the final video has brand or rights risk.',
+            verdict: 'Start small when quality risk is still unknown.',
+            pricingSignal: 'Treat the trial as risk reduction, not just a cheaper final output.',
+            sourceIds: idsFromRefs(pageSourceRefs, 2),
+          },
+        ],
+        examples: [
+          {
+            title: 'Pre-order question',
+            body: 'Ask: what source files do you need, how many revisions are included, can I use the final video commercially, and what formats will you deliver?',
+          },
+          {
+            title: 'Trial order',
+            body: 'Start with one 10 to 20 second segment before ordering a full product demo, especially if shot consistency or brand polish matters.',
+          },
+          {
+            title: 'Red flag',
+            body: 'Pause if the provider promises guaranteed results, refuses to define revision scope, or cannot explain rights and delivery format.',
+          },
+        ],
+        sections: [
+          {
+            heading: 'Materials to prepare',
+            paragraphs: [
+              'A strong hiring brief starts with source material: script, screenshots, brand assets, voice direction, examples, target length, aspect ratio, and delivery deadline.',
+              'If the project needs commercial use, say so before ordering. Usage rights, source files, and licensed assets should be explicit, not assumed.',
+            ],
+            bullets: ['Script or outline', 'Product screenshots or footage', 'Brand assets', 'Aspect ratio', 'Target length', 'Usage rights'],
+          },
+          {
+            heading: 'Scope checklist',
+            paragraphs: [
+              'Define the output before price shopping. The same "AI video edit" can mean a rough social clip, a product walkthrough, voice-over timing, subtitle pass, or motion graphics polish.',
+              'The quote should name revision count, turnaround, delivery format, source-file policy, and what happens if generated footage needs to be replaced.',
+            ],
+            bullets: ['Length', 'Format', 'Subtitles', 'Voice-over', 'Revision count', 'Source files', 'Timeline'],
+          },
+          {
+            heading: 'Red flags before payment',
+            paragraphs: [
+              'Avoid vague guarantees, unclear rights, no revision policy, no questions about source material, or pressure to order before the provider understands the job.',
+              'A good provider should ask clarifying questions. If they do not, the buyer needs to reduce scope or start with a trial order.',
+            ],
+            bullets: ['Guaranteed results', 'No revision limit', 'Unclear rights', 'No source-file policy', 'No questions about scope', 'Pressure to buy fast'],
+          },
+        ],
+        ctaTitle: assetBinding.title,
+        ctaCopy: 'Use the worksheet to make the project quote-ready before you browse providers.',
+        ctaHref: assetHref,
         ctaEvent: assetBinding.primary.event,
         schemaType: 'WebPage',
       }
@@ -11414,12 +13395,225 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     comparisonDebugReport,
     useCases,
     useCaseModels,
-    shortlistRows,
+    shortlistRows: enrichedShortlistRows,
     pricingSignals,
     caveats,
     promptExamples,
     workflowSteps,
     signalFacts: buildSignalFacts(3),
+  }
+
+  function applyWikiFirstPageDirectives(page) {
+    const nextPage = sanitizePublicModel({ ...page })
+    const primaryAssetRoute = assetRouteMap.get(nextPage.assetBinding?.primary?.slug) ?? null
+    const auditOffer = findOfferBySlugOrTitle('audit')
+    const pageBriefPublishable = isPublishableWikiStatus(nextPage.pageBrief?.status)
+    const activeClaimIds = meaningfulList(nextPage.claimIds)
+    const hasCanonicalClaims = activeClaimIds.length > 0
+    const rankingRequired = ['alternatives', 'best-tools'].includes(nextPage.type)
+    const hasCanonicalToolRanking =
+      !rankingRequired ||
+      (
+        meaningfulText(toolRanking.id) &&
+        toolRanking.ranking_mode === 'wiki_canonical' &&
+        safeArray(toolRanking.selected_tools).length > 0
+      )
+    const claimVerdicts = safeArray(nextPage.claimCards)
+      .filter((claim) => meaningfulText(claim.statement))
+      .slice(0, 4)
+      .map((claim) => ({
+        title: claim.statement,
+        detail: claim.whyItMatters || claim.evidence?.[0] || claim.counterpoint || '',
+        sourceIds: safeArray(claim.sourceIds),
+      }))
+
+    function appendCanonicalFact(facts, label, value, sourceIds = []) {
+      if (!meaningfulText(label) || !meaningfulText(value)) return
+      if (
+        safeArray(facts).some(
+          (item) =>
+            normalizeWikiLookupKey(item?.label) === normalizeWikiLookupKey(label) ||
+            normalizeWikiLookupKey(item?.value) === normalizeWikiLookupKey(value),
+        )
+      ) {
+        return
+      }
+      facts.push({
+        label,
+        value,
+        sourceIds: meaningfulList(sourceIds),
+      })
+    }
+
+    function topUpCanonicalKeyFacts() {
+      const minimumFactCount = {
+        alternatives: 6,
+        workflow: 6,
+        pricing: 6,
+        'template-kit': 6,
+      }[nextPage.type]
+      if (!minimumFactCount) return
+
+      const facts = safeArray(nextPage.keyFacts).map((item) => ({
+        ...item,
+        sourceIds: meaningfulList(item?.sourceIds),
+      }))
+      const stepCards = safeArray(nextPage.pageBrief?.workflowSteps)
+      const comparisonRows = safeArray(nextPage.comparisonRows)
+      const canonicalSourceIds = meaningfulList(nextPage.sourceIds).slice(0, 3)
+      const primaryClaim = safeArray(nextPage.claimCards)[0] ?? null
+
+      if (nextPage.type === 'alternatives') {
+        appendCanonicalFact(
+          facts,
+          'Shortlist size',
+          `${comparisonRows.length} ranked tools survived the canonical shortlist for this page.`,
+          canonicalSourceIds,
+        )
+        appendCanonicalFact(
+          facts,
+          'Recommended fit',
+          comparisonRows[0]?.bestFor || comparisonRows[0]?.quickVerdict || comparisonRows[0]?.verdict || '',
+          comparisonRows[0]?.sourceIds,
+        )
+      }
+
+      if (nextPage.type === 'workflow') {
+        appendCanonicalFact(
+          facts,
+          'Named workflow steps',
+          stepCards.length > 0
+            ? `${stepCards.length} steps now name the owner, success bar, and first failure checkpoint.`
+            : '',
+          canonicalSourceIds,
+        )
+        appendCanonicalFact(
+          facts,
+          'First owner',
+          stepCards[0]?.owner ? `Step 1 owner: ${stepCards[0].owner}.` : '',
+          canonicalSourceIds,
+        )
+        appendCanonicalFact(
+          facts,
+          'First failure checkpoint',
+          stepCards[0]?.failurePoint || safeArray(nextPage.claimCards).find((claim) => meaningfulText(claim.counterpoint))?.counterpoint || '',
+          canonicalSourceIds,
+        )
+      }
+
+      if (nextPage.type === 'pricing') {
+        appendCanonicalFact(
+          facts,
+          'Visible pricing note',
+          comparisonRows[0]?.pricingSignal || safeArray(nextPage.evidenceCards)[0]?.detail || '',
+          comparisonRows[0]?.sourceIds,
+        )
+        appendCanonicalFact(
+          facts,
+          'Hidden workflow cost',
+          comparisonRows[1]?.pricingSignal || safeArray(nextPage.evidenceCards)[1]?.detail || primaryClaim?.whyItMatters || '',
+          comparisonRows[1]?.sourceIds ?? canonicalSourceIds,
+        )
+      }
+
+      if (nextPage.type === 'template-kit') {
+        appendCanonicalFact(
+          facts,
+          'Repeat-run support',
+          safeArray(nextPage.assetPreview).length > 0
+            ? `${safeArray(nextPage.assetPreview).length} kit components are already packaged for first-run and repeat-run reuse.`
+            : '',
+          canonicalSourceIds,
+        )
+      }
+
+      nextPage.keyFacts = facts.slice(0, Math.max(facts.length, minimumFactCount))
+    }
+
+    if (nextPage.type === 'workflow') {
+      nextPage.stepItems = pageBriefPublishable ? safeArray(nextPage.pageBrief?.workflowSteps) : []
+    }
+
+    if (['hub', 'faq', 'workflow', 'pricing', 'free-vs-paid', 'use-cases', 'template-kit', 'case-study'].includes(nextPage.type)) {
+      nextPage.verdicts = hasCanonicalClaims ? claimVerdicts : []
+    }
+
+    if (['alternatives', 'best-tools'].includes(nextPage.type)) {
+      nextPage.comparisonRows = hasCanonicalToolRanking ? safeArray(nextPage.comparisonRows) : []
+      nextPage.verdicts = safeArray(nextPage.comparisonRows).slice(0, 4).map((row) => ({
+        title: row.name,
+        detail: row.quickVerdict || row.recommendation || row.verdict || row.bestFor || '',
+        sourceIds: safeArray(row.sourceIds),
+      }))
+    }
+
+    nextPage.ctaTitle = ''
+    nextPage.ctaButtonLabel = ''
+    nextPage.ctaCopy = ''
+    nextPage.ctaHref = ''
+    nextPage.ctaEvent = ''
+
+    if (pageBriefPublishable && nextPage.pageBrief?.ctaStrategy === 'consult_offer' && auditOffer) {
+      nextPage.ctaTitle = auditOffer.title
+      nextPage.ctaButtonLabel = auditOffer.title
+      nextPage.ctaCopy = auditOffer.ctaPromise || auditOffer.summary || nextPage.ctaCopy
+      nextPage.ctaHref = auditOffer.landingPath || nextPage.ctaHref
+      nextPage.ctaEvent = auditOffer.conversionEvent || nextPage.ctaEvent
+    } else if (pageBriefPublishable && /asset/.test(meaningfulText(nextPage.pageBrief?.ctaStrategy)) && primaryAssetRoute) {
+      nextPage.ctaTitle = nextPage.assetBinding?.primary?.title || nextPage.ctaTitle
+      nextPage.ctaButtonLabel = nextPage.ctaTitle
+      nextPage.ctaCopy = primaryAssetRoute.summary || primaryAssetRoute.promise || nextPage.ctaCopy
+      nextPage.ctaHref = primaryAssetRoute.landingPath || nextPage.ctaHref
+      nextPage.ctaEvent = primaryAssetRoute.clickEvent || nextPage.ctaEvent
+    }
+
+    topUpCanonicalKeyFacts()
+
+    nextPage.rankingId = meaningfulText(toolRanking.id)
+    nextPage.wikiFirstRender = {
+      pageBriefPublishable,
+      hasCanonicalClaims,
+      hasCanonicalToolRanking,
+      rawSourceFallbackUsed: false,
+    }
+    return nextPage
+  }
+
+  function attachAffiliateData(page) {
+    if (!affiliateConfig.feature.enabled) return page
+    const preferredOfferIds = meaningfulList(page.affiliateOfferIds)
+    const affiliateSelection = selectAffiliateModulesForPage({
+      page,
+      config: affiliateConfig,
+      generatedAt: config.generatedAt,
+      preferredOfferIds,
+    })
+    const commercialIntentScore = preferFiniteNumber(
+      affiliateSelection.commercialIntentScore,
+      page.commercialIntentScore,
+      scoreCommercialIntent(`${page.title} ${page.metaDescription} ${page.intro}`, page.type),
+    )
+    const affiliateModules = safeArray(affiliateSelection.modules)
+    return {
+      ...page,
+      affiliateModules,
+      affiliateDisclosureRequired: affiliateSelection.disclosureRequired,
+      affiliateChecks: affiliateSelection.checks,
+      commercialIntentScore,
+      commercialModules: safeArray(page.commercialModules),
+      reviewSignals: {
+        ...(page.reviewSignals ?? {}),
+        needsSpotCheck:
+          page.reviewSignals?.needsSpotCheck ||
+          (AFFILIATE_ALLOWED_PAGE_TYPES.includes(page.type) && affiliateModules.length > 0),
+        reasons: dedupe([
+          ...safeArray(page.reviewSignals?.reasons),
+          ...(AFFILIATE_ALLOWED_PAGE_TYPES.includes(page.type)
+            ? ['Commercial affiliate page requires a quick offer, disclosure, and scope-value review.']
+            : []),
+        ]),
+      },
+    }
   }
 
   const pages = []
@@ -11429,8 +13623,11 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     const pageBrief = buildPageBrief(pageType, assetBinding)
     pageBriefs.push(pageBrief)
     let page = buildPageSpec(pageType, assetBinding, pageBrief)
+    if (canonicalMode) {
+      page = applyWikiFirstPageDirectives(page)
+    }
     page.publicPath = page.publicPath || resolvePublicPagePath(page)
-    const aiDraft = await maybeGenerateAiPageDraft(page, sourcePack)
+    const aiDraft = canonicalMode ? null : await maybeGenerateAiPageDraft(page, sourcePack)
     if (aiDraft?.intro) page.intro = aiDraft.intro
     if (Array.isArray(aiDraft?.sectionNarratives)) {
       page.sections = page.sections.map((section, index) => ({
@@ -11439,11 +13636,14 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
           aiDraft.sectionNarratives[index]?.paragraphs?.length > 0
             ? aiDraft.sectionNarratives[index].paragraphs
             : section.paragraphs,
-        }))
+      }))
     }
     if (aiDraft?.ctaCopy) page.ctaCopy = aiDraft.ctaCopy
-    const pagePlaybookRule = contentPlaybookIndex?.pageTypeRuleMap?.get(page.type) ?? null
-    page = applyContentPlaybook(page, pagePlaybookRule, sitePlaybookRule, sharedPlaybookContext)
+    if (!canonicalMode) {
+      const pagePlaybookRule = contentPlaybookIndex?.pageTypeRuleMap?.get(page.type) ?? null
+      page = applyContentPlaybook(page, pagePlaybookRule, sitePlaybookRule, sharedPlaybookContext)
+    }
+    page = attachAffiliateData(page)
     const override = reviewOverrideIndex?.get(`${cluster.siteSlug}/${page.slug}`)
     pages.push(applyReviewOverride(page, override))
   }
@@ -11452,10 +13652,221 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     slug: page.slug,
     type: page.type,
     label: page.navLabel,
-    path: page.path,
+    path: page.publicPath || (page.slug === 'index' || page.type === 'hub' ? '/' : ''),
     fileName: page.fileName,
     publicPath: page.publicPath || '',
   }))
+
+  function buildSectionAuditSurface(page) {
+    return [
+      page.intro,
+      ...safeArray(page.sections).flatMap((section) => [section.heading, ...safeArray(section.paragraphs), ...safeArray(section.bullets)]),
+      ...safeArray(page.examples).flatMap((item) => [item.title, item.body]),
+      ...safeArray(page.keyFacts).flatMap((item) => [item.label, item.value]),
+      ...safeArray(page.beforeAfter).flatMap((item) => [item.label, item.detail]),
+      ...safeArray(page.deliveryFlow).flatMap((item) => [item.title, item.detail]),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+  }
+
+  function hasRequiredSection(page, requiredSection) {
+    const sectionKey = normalizeRequiredSectionKey(requiredSection)
+    const surface = buildSectionAuditSurface(page)
+    const comparisonRows = safeArray(page.comparisonRows)
+    switch (sectionKey) {
+      case 'verdicts':
+        return safeArray(page.verdicts).length > 0
+      case 'shortlist_logic':
+      case 'ranked_shortlist':
+      case 'verdict_table':
+        return comparisonRows.length > 0 || (page.type === 'hub' && safeArray(page.verdicts).length > 0)
+      case 'workflow_route':
+      case 'workflow_next_step':
+      case 'step_cards':
+        return (
+          safeArray(page.stepItems).length > 0 ||
+          (
+            meaningfulText(page.ctaHref) &&
+            (
+              page.type === 'hub' ||
+              (page.type === 'use-cases' && safeArray(page.useCaseCards).length > 0)
+            )
+          )
+        )
+      case 'asset_cta':
+      case 'cta_asset':
+      case 'delivery_cta':
+      case 'reusable_asset_cta':
+        return meaningfulText(page.ctaHref) && meaningfulText(page.assetBinding?.primary?.slug)
+      case 'cta_asset_or_consult':
+        return meaningfulText(page.ctaHref) || meaningfulText(page.secondaryCtaTitle)
+      case 'ranking_criteria':
+        return safeArray(page.evidenceCards).length > 0 || /\brank|criteria|score\b/.test(surface)
+      case 'outbound_click_block':
+        return safeArray(page.commercialModules).some((module) => module.type === 'tool-shortlist')
+      case 'prompt_examples':
+        return Boolean(page.promptGenerator) || safeArray(page.examples).length > 0
+      case 'failure_points':
+        return (
+          safeArray(page.failureFixes).length > 0 ||
+          safeArray(page.stepItems).some((item) => meaningfulText(item.failurePoint)) ||
+          safeArray(page.toolExperienceSignals).length > 0
+        )
+      case 'faq':
+        return safeArray(page.faqItems).length > 0
+      case 'one_next_step':
+        return meaningfulText(page.ctaHref) || safeArray(page.nextPageCards).length > 0
+      case 'affiliate_disclosure':
+        return Boolean(page.affiliateDisclosureRequired) && safeArray(page.affiliateModules).length > 0
+      case 'diy_cost_and_time':
+      case 'tool_subscription_cost':
+      case 'retry_cost':
+      case 'voice_over_and_editing_cost':
+      case 'outsourcing_cost':
+      case 'price_source_note':
+      case 'hiring_trigger':
+      case 'who_should_not_outsource':
+      case 'materials_to_prepare':
+      case 'scope_checklist':
+      case 'rights_and_delivery_format':
+      case 'revision_plan':
+      case 'red_flags':
+        return surface.includes(sectionKey.replace(/_/g, ' '))
+      case 'fit_framing':
+      case 'use_case_map':
+        return (
+          safeArray(page.useCaseCards).length > 0 ||
+          safeArray(page.decisionPaths).length > 0 ||
+          comparisonRows.some((row) => meaningfulText(row.bestFor) || meaningfulText(row.notFor))
+        )
+      case 'pricing_facts':
+        return (
+          safeArray(page.keyFacts).some((item) => /\bprice|cost|pricing\b/i.test(`${item.label} ${item.value}`)) ||
+          comparisonRows.some((row) => meaningfulText(row.pricingSignal))
+        )
+      case 'hidden_cost':
+        return comparisonRows.some((row) => meaningfulText(row.hiddenCost)) || /\bhidden cost\b/.test(surface)
+      case 'upgrade_trigger':
+        return /\bupgrade\b/.test(surface)
+      case 'free_path':
+        return /\bfree path\b/.test(surface)
+      case 'paid_path':
+        return /\bpaid path\b/.test(surface)
+      case 'example_scenario':
+        return safeArray(page.examples).length > 0 || safeArray(page.beforeAfter).length > 0
+      case 'asset_inventory':
+        return safeArray(page.assetPreview).length > 0
+      case 'first_run_example':
+        return /\bfirst run\b/.test(surface)
+      case 'repeat_run_example':
+        return /\brepeat run|second run\b/.test(surface)
+      case 'before':
+        return safeArray(page.beforeAfter).some((item) => /\bbefore\b/i.test(item.label))
+      case 'intervention':
+        return /\bintervention\b/.test(surface)
+      case 'outcome':
+        return /\boutcome\b/.test(surface) || safeArray(page.beforeAfter).some((item) => /\bafter\b/i.test(item.label))
+      default:
+        return surface.includes(sectionKey.replace(/_/g, ' '))
+    }
+  }
+
+  function buildPageWikiGate(page) {
+    const requiredSections = meaningfulList(page.pageBrief?.requiredSections)
+    const missingRequiredSections = requiredSections.filter((section) => !hasRequiredSection(page, section))
+    const targetAsset = page.pageBrief?.targetAsset ?? ''
+    const pageBriefStatus = meaningfulText(page.pageBrief?.status).toLowerCase()
+    const targetAssetMatches =
+      !meaningfulText(targetAsset) ||
+      assetMatchesTarget(page.assetBinding?.primary, targetAsset)
+    const ctaStrategy = normalizeWikiLookupKey(page.pageBrief?.ctaStrategy)
+    const isAffiliateCtaStrategy = ctaStrategy.startsWith('affiliate')
+    const ctaStrategyMatches =
+      !ctaStrategy ||
+      ctaStrategy === 'consult_offer' ||
+      (
+        isAffiliateCtaStrategy &&
+        safeArray(page.affiliateModules).length > 0
+      ) ||
+      (
+        /asset/.test(ctaStrategy) &&
+        meaningfulText(page.ctaHref) &&
+        meaningfulText(page.assetBinding?.primary?.slug) &&
+        targetAssetMatches
+      )
+    const hasCanonicalToolRanking = meaningfulText(page.rankingId || page.toolRanking?.id)
+    const activeClaimIds = new Set(getRenderableWikiClaims().map((claim) => claim.id))
+    const pageClaimIds = meaningfulList(page.claimIds)
+    const hasActiveClaimSet = pageClaimIds.length > 0
+    const expectedAssetHref = assetRouteMap.get(page.assetBinding?.primary?.slug)?.landingPath ?? ''
+    const ctaHrefMatches =
+      !meaningfulText(page.pageBrief?.ctaStrategy)
+        ? !meaningfulText(page.ctaHref)
+        : (
+            isAffiliateCtaStrategy
+              ? safeArray(page.affiliateModules).length > 0
+              : meaningfulText(page.ctaHref) &&
+                (
+                  page.pageBrief?.ctaStrategy === 'consult_offer'
+                    ? page.ctaHref === (findOfferBySlugOrTitle('audit')?.landingPath ?? '/audit/')
+                    : page.ctaHref === expectedAssetHref
+                )
+          )
+    return {
+      hasPageBrief: Boolean(page.pageBrief?.id),
+      pageBriefPublishable: isPublishableWikiStatus(pageBriefStatus),
+      pageTypeMatchesBrief:
+        normalizePageTemplateType(page.type) === normalizePageTemplateType(page.pageBrief?.pageType),
+      targetAssetMatches,
+      missingRequiredSections,
+      ctaStrategyMatches: ctaStrategyMatches && ctaHrefMatches,
+      comparisonHasToolRanking:
+        safeArray(page.comparisonRows).length === 0 || Boolean(hasCanonicalToolRanking),
+      claimSetIsActiveWikiOnly: hasActiveClaimSet && pageClaimIds.every((claimId) => activeClaimIds.has(claimId)),
+      rawSourceConclusionsBlocked:
+        canonicalMode && page.wikiFirstRender?.rawSourceFallbackUsed !== true,
+      reviewBacklogIds: safeArray(page.pageBrief?.reviewBacklog).map((item) => item.id),
+      reviewBacklogConsumed: safeArray(page.pageBrief?.reviewBacklog).length > 0 || wikiBacklogItems.length === 0,
+    }
+  }
+
+  function buildPageSectionProvenance(page) {
+    const claimIds = meaningfulList(page.claimIds)
+    const sourceIds = dedupe([
+      ...claimIds.flatMap((claimId) => meaningfulList(claimMap.get(claimId)?.sourceIds)),
+      ...meaningfulList(page.sourceIds),
+    ])
+    const rankingId = meaningfulText(page.rankingId || page.toolRanking?.id)
+    const assetOrOfferId =
+      safeArray(page.affiliateModules).length > 0
+        ? safeArray(page.affiliateModules)[0].offerId
+        : page.pageBrief?.ctaStrategy === 'consult_offer'
+        ? findOfferBySlugOrTitle('audit')?.id ?? ''
+        : toWikiId('asset', cluster.siteSlug, page.assetBinding?.primary?.slug ?? '')
+
+    const sectionIds = [
+      'intro',
+      ...safeArray(page.sections).map((section, index) => slugify(section.heading || `section-${index + 1}`)),
+      ...(safeArray(page.verdicts).length > 0 ? ['verdicts'] : []),
+      ...(safeArray(page.keyFacts).length > 0 ? ['facts'] : []),
+      ...(safeArray(page.comparisonRows).length > 0 ? ['comparison'] : []),
+      ...(safeArray(page.stepItems).length > 0 ? ['workflow_steps'] : []),
+      ...(safeArray(page.affiliateModules).length > 0 ? ['affiliate'] : []),
+      'cta',
+    ]
+
+    return buildSurfaceSectionProvenance({
+      sectionIds,
+      pageBriefId: page.briefId || '',
+      claimIds,
+      sourceIds,
+      assetOrOfferId,
+      rankingId,
+    })
+  }
+
   const finalizedPages = pages.map((page) => {
     const sanitizedPage = sanitizePublicModel(page)
     const narrativeStats = analyzePageNarrative(sanitizedPage)
@@ -11479,6 +13890,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
 
     return {
       ...sanitizedPage,
+      wikiGate: buildPageWikiGate(sanitizedPage),
+      sectionProvenance: buildPageSectionProvenance(sanitizedPage),
       draftEngine:
         contentConfig.aiProvider === 'heuristic' ||
         !contentConfig.aiEndpoint ||
@@ -11486,9 +13899,11 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         !contentConfig.aiModel
           ? 'fact-synthesizer'
           : 'ai-provider',
-      internalLinks: pageLinks.filter((link) => link.path !== sanitizedPage.path),
-      ctaHref: assetRouteMap.get(sanitizedPage.assetBinding?.primary?.slug)?.landingPath ?? '',
-      ctaEvent: 'asset_cta_click',
+      internalLinks: pageLinks.filter(
+        (link) => meaningfulText(link.path) && link.path !== sanitizedPage.path,
+      ),
+      ctaHref: sanitizedPage.ctaHref ?? '',
+      ctaEvent: sanitizedPage.ctaEvent ?? '',
       contentStats: {
         factCount: sanitizedPage.keyFacts?.length ?? 0,
         verdictCount: sanitizedPage.verdicts?.length ?? 0,
@@ -11496,7 +13911,10 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         caveatCount: caveats.length,
         sourceRefCount: sanitizedPage.sourceReferences?.length ?? 0,
         materialSlotCount: sanitizedPage.materialSlots?.length ?? 0,
-        commercialModuleCount: sanitizedPage.commercialModules?.length ?? 0,
+        commercialModuleCount:
+          (sanitizedPage.commercialModules?.length ?? 0) +
+          (sanitizedPage.affiliateModules?.length ?? 0),
+        affiliateModuleCount: sanitizedPage.affiliateModules?.length ?? 0,
         claimCount: sanitizedPage.claimIds?.length ?? 0,
         claimStatementCount: safeArray(sanitizedPage.claimCards).filter((claim) =>
           meaningfulText(claim?.statement),
@@ -11536,6 +13954,7 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         aiFlavorParagraphCount: narrativeStats.aiFlavorParagraphCount,
         lowEvidenceParagraphCount: narrativeStats.lowEvidenceParagraphCount,
         internalJargonCount: publicCopyStats.internalJargonCount,
+        forbiddenTermCount: publicCopyStats.forbiddenTermCount,
         dirtySourceCount: publicCopyStats.dirtySourceCount,
         adjacentDuplicateWordCount: publicCopyStats.adjacentDuplicateWordCount,
         structuredUseCaseCount:
@@ -11560,20 +13979,24 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         comparisonUsesRankedTools:
           comparisonRows.length === 0 || comparisonToolRows.length === comparisonRows.length,
         comparisonRankingMode: sanitizedPage.comparisonRankingMode ?? '',
+        provenanceSectionCount: buildPageSectionProvenance(sanitizedPage).length,
       },
     }
   })
   const conversionAssets = [assetSystem.primaryAsset, ...assetSystem.secondaryAssets].map((asset) => {
-    const primaryPages = finalizedPages
-      .filter((page) => page.assetBinding?.primary?.slug === asset.slug)
-      .map((page) => page.slug)
+    const primaryPageRecords = finalizedPages.filter((page) => page.assetBinding?.primary?.slug === asset.slug)
+    const primaryPages = primaryPageRecords.map((page) => page.slug)
     const routeRecord = assetRouteMap.get(asset.slug) ?? {}
     const acceptance = evaluateAssetAcceptance({
       ...routeRecord,
       primaryPages,
     })
+    const provenancePage = primaryPageRecords[0] ?? finalizedPages.find((page) => page.slug === 'index') ?? null
+    const provenanceClaimIds = dedupe(primaryPageRecords.flatMap((page) => meaningfulList(page.claimIds)))
+    const provenanceSourceIds = dedupe(primaryPageRecords.flatMap((page) => meaningfulList(page.sourceIds)))
+    const provenanceRankingId = meaningfulText(primaryPageRecords.find((page) => meaningfulText(page.rankingId))?.rankingId)
 
-    return {
+    const assetRecord = {
       id: toWikiId('asset', cluster.siteSlug, asset.slug),
       slug: asset.slug,
       type: 'conversion_asset',
@@ -11597,8 +14020,8 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       conversionEvent: asset.event,
       refreshCycle: 'monthly',
       title: asset.title,
-      summary: asset.summary,
-      promise: asset.summary,
+      summary: routeRecord.summary ?? asset.summary,
+      promise: asset.promise ?? routeRecord.summary ?? asset.summary,
       landingPath: routeRecord.landingPath ?? '',
       thankYouPath: routeRecord.thankYouPath ?? '',
       downloadPath: routeRecord.downloadPath ?? '',
@@ -11611,22 +14034,35 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       deliveryEvent: routeRecord.deliveryEvent ?? 'asset_delivery',
       previewItems: routeRecord.previewItems ?? [],
       deliverables: routeRecord.deliverables ?? [],
+      deliveryRules: asset.deliveryRules ?? [],
       deliverySteps: routeRecord.deliverySteps ?? [],
       useCaseLabels: routeRecord.useCaseLabels ?? [],
+      bestFitUseCases: asset.bestFitUseCases ?? routeRecord.useCaseLabels ?? [],
       landingIntro: routeRecord.landingIntro ?? asset.summary,
       evidenceCards: routeRecord.evidenceCards ?? [],
       scenarioCards: routeRecord.scenarioCards ?? [],
+      proofCards: routeRecord.proofCards ?? [],
       firstActionCards: routeRecord.firstActionCards ?? [],
       requestBullets: routeRecord.requestBullets ?? [],
       followUpPageSlugs: routeRecord.followUpPageSlugs ?? [],
       acceptanceChecks: routeRecord.acceptanceChecks ?? [],
       downloadMarkdown: routeRecord.downloadMarkdown ?? '',
       audience: routeRecord.audience ?? cluster.audience,
+      deeperAction: asset.deeperAction ?? '',
+      performanceNote: asset.performanceNote ?? '',
       acceptance,
       strongestUseCase: acceptance.strongestUseCase,
       bestPageTypes: acceptance.bestPageTypes,
       conversionQualityNote: acceptance.conversionQualityNote,
       refreshPriority: acceptance.refreshPriority,
+      lastVerified: config.generatedAt.slice(0, 10),
+      stalenessDays: ['worksheet', 'checklist'].includes(asset.type) ? 14 : 30,
+      changeTriggers: [
+        'Landing copy changed',
+        'Delivery flow changed',
+        'Primary tool shortlist changed',
+        'Workflow steps changed',
+      ],
       reuseScore: preferFiniteNumber(asset.reuseScore, computeAssetReuseScore({
         ...asset,
         deliverables: routeRecord.deliverables ?? [],
@@ -11636,6 +14072,27 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
         acceptanceStatus: acceptance.acceptanceStatus,
       })),
     }
+    assetRecord.pageBriefId = provenancePage?.briefId ?? ''
+    assetRecord.claimIds = provenanceClaimIds
+    assetRecord.sourceIds = provenanceSourceIds
+    assetRecord.rankingId = provenanceRankingId
+    assetRecord.sectionProvenance = buildSurfaceSectionProvenance({
+      sectionIds: [
+        'intro',
+        ...(safeArray(assetRecord.evidenceCards).length > 0 ? ['evidence'] : []),
+        ...(safeArray(assetRecord.scenarioCards).length > 0 ? ['scenario'] : []),
+        'deliverables',
+        'preview',
+        'first_30_minutes',
+        'cta',
+      ],
+      pageBriefId: assetRecord.pageBriefId,
+      claimIds: assetRecord.claimIds,
+      sourceIds: assetRecord.sourceIds,
+      assetOrOfferId: assetRecord.id,
+      rankingId: assetRecord.rankingId,
+    })
+    return assetRecord
   })
 
   const publicHomeAsset = conversionAssets[0] ?? null
@@ -11648,6 +14105,21 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
   const pricingPage = finalizedPages.find((page) => page.type === 'pricing') ?? null
   const freeVsPaidPage = finalizedPages.find((page) => page.type === 'free-vs-paid') ?? null
   const templatePage = finalizedPages.find((page) => page.type === 'template-kit') ?? null
+  const compareHref = getPageHref(alternativesPage)
+  const workflowHref = getPageHref(workflowPage)
+  const pricingHref = getPageHref(pricingPage)
+  const templatesHref = getPageHref(templatePage)
+  const promptPackHref = publicHomeAsset?.landingPath ?? assetSystem.primaryAsset.landingPath ?? ''
+  const consultHref = '/audit/'
+  const homepageProof = wikiProofCards[0] ?? null
+  const homepageScenario =
+    findScenarioPacksForAsset(publicHomeAsset?.slug ?? assetSystem.primaryAsset.slug)[0] ?? null
+  const publicHomeClaimIds = meaningfulList(hubPage?.claimIds)
+  const publicHomeSourceIds = dedupe([
+    ...meaningfulList(hubPage?.sourceIds),
+    ...publicHomeClaimIds.flatMap((claimId) => meaningfulList(claimMap.get(claimId)?.sourceIds)),
+  ])
+  const publicHomePageBrief = hubPage?.pageBrief ?? wikiPageBriefMap.get('hub') ?? null
   const publicHome = sanitizePublicModel({
     slug: 'public-home',
     navLabel: 'Home',
@@ -11655,26 +14127,173 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     fileName: 'index.html',
     path: '/',
     title: `${cluster.primaryKeyword} workflow: choose the right tool, prompt, and next step`,
-    metaDescription: `Find the best ${cluster.primaryKeyword} path with a clear comparison, rollout workflow, and one asset-backed next step for teams who need to ship instead of keep researching.`,
-    h1: `${cluster.label}: pick the right tool, prompt, and workflow before the research loop expands again`,
-    intro: `Use one public homepage to compare the shortlist, understand the rollout, and open the first asset-backed next step without bouncing between thin comparison posts and generic AI explainers.`,
+    metaDescription: `Pick the best ${cluster.primaryKeyword} path with a clear tool recommendation, copy-ready prompt generator, real failure fixes, and a next step you can use today.`,
+    h1: `${cluster.label}: choose the first tool, copy the first prompt, and fix the first failure fast`,
+    intro: `${primaryTool?.name ?? 'The lead tool'} is the safest place to start when you need one short result this week. The first run usually fails on consistency, pacing, or prompt sprawl, so this homepage shows the primary tool, the fallback, the repair moves, and the prompt asset you can use immediately.`,
     heroEyebrow: `${cluster.label} guide`,
     heroSummaryItems: [
       {
-        label: 'Built for',
-        detail: cluster.audience,
+        label: 'Start here first',
+        detail: `${primaryTool?.name ?? 'The lead tool'} for the first short test. ${fallbackTool?.name ?? 'The fallback tool'} only if the same failure repeats.`,
       },
       {
-        label: 'Outcome',
-        detail: `One shortlist, one ${workflowSteps.length}-step workflow, and one next asset before the research loop expands again.`,
+        label: 'Typical first run result',
+        detail: primaryTool?.typicalFirstRunResult ?? 'One usable shot, one unstable shot, and one clear fix to save for the second run.',
       },
       {
-        label: 'Best next move',
-        detail: `${publicHomeAsset?.title ?? assetSystem.primaryAsset.title} for low-friction implementation, or a consult request for a narrower audit.`,
+        label: 'Next move',
+        detail: 'Copy the prompt, run one 5 to 15 second clip, and save the fix before you widen scope.',
       },
     ],
     selectorTitle: `Find your best ${cluster.primaryKeyword} starting path`,
     selectorIntro: 'Pick the bottleneck that matches this cycle, then open the page or asset that removes the most decision drag first.',
+    selectorQuiz: {
+      questions: [
+        {
+          id: 'bottleneck',
+          label: 'What is the blocker right now?',
+          helper: 'Start with the narrowest real blocker, not the broadest category curiosity.',
+          options: [
+            {
+              id: 'too-many-tools',
+              label: 'Too many tools still look viable',
+              description: 'You need a shortlist, a fallback, and a reason to reject the rest.',
+              scores: { compare: 4, workflow: 1, pricing: 1 },
+            },
+            {
+              id: 'workflow-shape',
+              label: 'We still do not have a repeatable workflow',
+              description: 'You need steps, owners, failure points, and a first pilot path.',
+              scores: { workflow: 4, prompt_pack: 2, templates: 1 },
+            },
+            {
+              id: 'budget',
+              label: 'We need to understand cost before rollout',
+              description: 'You need pricing boundaries, hidden review cost, and upgrade triggers.',
+              scores: { pricing: 4, compare: 1, consult: 1 },
+            },
+            {
+              id: 'assets',
+              label: 'We need prompts or reusable templates now',
+              description: 'You need a working asset, not another round of explanation.',
+              scores: { prompt_pack: 4, templates: 3, workflow: 1 },
+            },
+          ],
+        },
+        {
+          id: 'stage',
+          label: 'Which stage are you in?',
+          helper: 'The right next move changes once the question shifts from exploration to rollout.',
+          options: [
+            {
+              id: 'first-pilot',
+              label: 'First pilot this week',
+              description: 'One owner, one use case, one fast path to a live test.',
+              scores: { prompt_pack: 3, workflow: 2, compare: 1 },
+            },
+            {
+              id: 'team-rollout',
+              label: 'Repeatable team rollout',
+              description: 'You need a workflow that survives reuse, handoff, and review.',
+              scores: { workflow: 3, templates: 2, pricing: 1 },
+            },
+            {
+              id: 'budget-signoff',
+              label: 'Budget or tool sign-off',
+              description: 'You need fit, cost, and operational tradeoffs in one place.',
+              scores: { pricing: 3, compare: 2, consult: 1 },
+            },
+            {
+              id: 'live-fire',
+              label: 'We are already stuck in a live workflow',
+              description: 'You need a scoped recommendation instead of more generic reading.',
+              scores: { consult: 4, workflow: 1, compare: 1 },
+            },
+          ],
+        },
+        {
+          id: 'output',
+          label: 'What would help most in the next 10 minutes?',
+          helper: 'Choose the output that would unblock the next click immediately.',
+          options: [
+            {
+              id: 'shortlist',
+              label: 'A shortlist and first recommendation',
+              description: 'Show me what to test first and what to keep as backup.',
+              scores: { compare: 4, consult: 1 },
+            },
+            {
+              id: 'step-plan',
+              label: 'A step-by-step rollout path',
+              description: 'Show me the workflow with owners, outputs, and failure points.',
+              scores: { workflow: 4, templates: 1 },
+            },
+            {
+              id: 'ready-asset',
+              label: 'A ready-to-use prompt or template asset',
+              description: 'Give me something I can run with right after this page.',
+              scores: { prompt_pack: 4, templates: 3 },
+            },
+            {
+              id: 'scoped-answer',
+              label: 'A narrower expert recommendation',
+              description: 'I already have a live question and need a tighter answer now.',
+              scores: { consult: 4, pricing: 1 },
+            },
+          ],
+        },
+      ],
+      outcomes: [
+        {
+          id: 'compare',
+          title: 'Start with the comparison page',
+          href: compareHref,
+          ctaLabel: 'Open comparison -> pick the right tool fast',
+          summary: 'Use the shortlist first when the field is still too wide and the buyer needs one lead option plus a fallback.',
+          why: 'Best when the real problem is too many viable-looking tools, not too little category education.',
+        },
+        {
+          id: 'workflow',
+          title: 'Start with the workflow page',
+          href: workflowHref,
+          ctaLabel: 'Open workflow -> fix the first failed run',
+          summary: 'Use the workflow path when the team already accepts the category but still needs the rollout shape, owner, and pilot logic.',
+          why: 'Best when reuse, review drag, and handoff are more important than adding yet another tool tab.',
+        },
+        {
+          id: 'pricing',
+          title: 'Start with the pricing page',
+          href: pricingHref,
+          ctaLabel: 'Open pricing',
+          summary: 'Use the pricing page when the next decision depends on plan limits, hidden review cost, or upgrade timing.',
+          why: 'Best when budget approval is the blocker and the team needs cost in workflow context.',
+        },
+        {
+          id: 'prompt_pack',
+          title: 'Start with the prompt pack',
+          href: promptPackHref,
+          ctaLabel: 'Get Prompt Pack -> Create your first AI video in 10 minutes',
+          summary: 'Take the asset path when the team needs a first-run brief, prompt structure, and handoff notes more than another explainer page.',
+          why: 'Best when the fastest useful outcome is a working asset that can drive the pilot this week.',
+        },
+        {
+          id: 'templates',
+          title: 'Open the templates page',
+          href: templatesHref,
+          ctaLabel: 'Open templates',
+          summary: 'Use the templates path when the team wants reusable structure, not just a single prompt starter.',
+          why: 'Best when repeatability matters more than choosing one narrow tool first.',
+        },
+        {
+          id: 'consult',
+          title: 'Request a scoped workflow audit',
+          href: consultHref,
+          ctaLabel: 'Get Workflow Audit -> Fix your pipeline in 30 minutes',
+          summary: 'Use the consult path when the workflow is already live and the next question needs a narrower recommendation.',
+          why: 'Best when there is already a named owner, a real bottleneck, and a concrete outcome to resolve.',
+        },
+      ],
+    },
     selectorCards: useCaseModels.slice(0, 4).map((model, index) => ({
       title: model.label,
       audience: model.audience,
@@ -11694,45 +14313,76 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
     keyFacts: [
       {
         label: 'Visible shortlist',
-        value: `${Math.max(shortlistRows.length, 2)} options already reduced into a first click, a fallback, and a reject path.`,
+        value: `${Math.max(enrichedShortlistRows.length, 2)} options already reduced into a primary choice, a fallback, and a reject path.`,
       },
       {
         label: 'Workflow depth',
-        value: `${workflowSteps.length} named steps cover owner, input, output, success metric, and failure point.`,
+        value: `${workflowSteps.length} named steps cover owner, input, output, success metric, and the first failure point to watch.`,
       },
       {
-        label: 'Assets ready',
-        value: `${conversionAssets.length} downloadable assets back the homepage instead of a generic CTA shell.`,
+        label: 'What most people get wrong',
+        value: primaryTool?.commonMistake ?? 'They switch tools before they document why the first shot failed.',
       },
+      ...(homepageProof
+        ? [
+            {
+              label: 'Before / intervention / outcome',
+              value: `${homepageProof.beforeState} Intervention: ${homepageProof.intervention} Outcome: ${homepageProof.finalOutput}`,
+            },
+            {
+              label: 'Reusable artifact',
+              value: homepageProof.reusableArtifact || homepageProof.linkedAsset || publicHomeAsset?.title || '',
+            },
+          ]
+        : []),
     ],
-    comparisonRows: safeArray(alternativesPage?.comparisonRows).slice(0, 4),
+    comparisonRows: safeArray(alternativesPage?.comparisonRows?.length ? alternativesPage.comparisonRows : enrichedShortlistRows).slice(0, 4),
     stepItems: safeArray(workflowPage?.stepItems).slice(0, 5),
     assetPreview: safeArray(publicHomeAsset?.deliverables).slice(0, 4),
-    faqItems: safeArray(faqPage?.faqItems).slice(0, 5),
+    faqItems: safeArray(faqPage?.faqItems).slice(0, 7),
+    promptGenerator: buildPromptGeneratorConfig(),
+    failureFixes: buildFailureFixCards(3),
+    toolExperienceSignals: buildExperienceSignals('hub'),
     sections: [
       {
-        heading: 'This homepage is a decision page first',
+        heading: 'Why this homepage exists',
         paragraphs: [
-          `The root page should help ${cluster.audience} decide whether to compare tools, price the workflow, or take the first implementation asset before the scroll gets lost in explanation.`,
-          `That means the homepage has to surface recommendation, proof, workflow shape, and next action earlier than a normal article hub would.`,
+          `Most visitors do not need a broad AI video essay. They need to know which tool to try first, what usually breaks, and what to copy into the first short run.`,
+          `That is why the homepage leads with a primary recommendation, one fallback, a copyable prompt, and the exact failure-to-fix path that gets the second run moving faster.`,
         ],
         bullets: [
-          'Recommendation before background',
-          'Proof before decorative copy',
-          'Asset or consult CTA before another research loop',
+          `Primary choice: ${primaryTool?.name ?? 'Lead tool'}`,
+          `Fallback: ${fallbackTool?.name ?? 'Backup tool'}`,
+          'Copy prompt before opening more tabs',
         ],
       },
       {
-        heading: 'Use the supporting pages when the question gets narrower',
+        heading: 'How teams actually use this stack',
         paragraphs: [
-          `The homepage handles the broad decision. The compare, workflow, pricing, free-vs-paid, and templates pages exist to answer the narrower question that shows up right after that.`,
+          `Teams usually explore in ${primaryTool?.name ?? 'the primary tool'}, keep ${fallbackTool?.name ?? 'one fallback'} for the repeat failure case, and move to a higher-polish tool only after the shot order and CTA already work.`,
         ],
         bullets: [
-          `Compare: ${(alternativesPage?.comparisonRows?.[0]?.name ?? shortlistRows[0]?.name ?? 'rank the shortlist')} first`,
-          `Workflow: ${workflowSteps[0]?.title ?? 'run the first pilot'}`,
-          `Pricing: ${pricingSignals[0]?.value ?? 'separate visible cost from review cost'}`,
+          'First run = short clip with one message',
+          'Second run = repair the broken shot, not the whole workflow',
+          'Final pass = polish only the shots worth keeping',
         ],
       },
+      ...(homepageProof
+        ? [
+            {
+              heading: 'Proof that the wiki asset system is reusable',
+              paragraphs: [
+                `${homepageProof.beforeState} The intervention was ${homepageProof.intervention}. The result was ${homepageProof.finalOutput}.`,
+                `The reusable artifact is ${homepageProof.reusableArtifact || homepageProof.linkedAsset || publicHomeAsset?.title || 'the linked asset'}, which is exactly what the next visitor should unlock instead of starting from a blank workflow.`,
+              ],
+              bullets: [
+                `Scenario: ${homepageProof.scenario}`,
+                homepageScenario?.scenario ? `Next scenario: ${homepageScenario.scenario}` : '',
+                homepageProof.lesson ? `Lesson: ${homepageProof.lesson}` : '',
+              ].filter(Boolean),
+            },
+          ]
+        : []),
     ],
     nextPageCards: [
       workflowPage
@@ -11776,13 +14426,20 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
           }
         : null,
     ].filter(Boolean),
-    ctaTitle: publicHomeAsset?.title ?? assetSystem.primaryAsset.title,
-    ctaCopy: `Start with ${publicHomeAsset?.title ?? assetSystem.primaryAsset.title} when the team needs a real first-run asset with prompts, checklist logic, and reusable handoff notes. Use the consult path when the workflow is already live and the decision now needs a narrower recommendation.`,
-    secondaryCtaTitle: `Request ${indefiniteArticleFor(cluster.label)} ${cluster.label} audit`,
+    ctaTitle: 'Get Prompt Pack -> Create your first AI video in 10 minutes',
+    ctaButtonLabel: 'Get Prompt Pack -> Create your first AI video in 10 minutes',
+    ctaCopy: 'For beginners, marketers, and fast testers: copy the starter prompt, generate one short clip, and skip another round of trial-and-error.',
+    secondaryCtaTitle: 'Get Workflow Audit -> Fix your pipeline in 30 minutes',
+    secondaryCtaButtonLabel: 'Get Workflow Audit -> Fix your pipeline in 30 minutes',
     secondaryCtaCopy:
-      'Use the higher-intent consult path when the team already has a live workflow question, a named owner, and a concrete outcome to resolve this cycle.',
+      'Use the higher-intent audit path when the team already has a live workflow question, a named owner, and a concrete bottleneck to fix this week.',
     ctaEvent: publicHomeAsset?.clickEvent ?? 'asset_cta_click',
     ctaHref: publicHomeAsset?.landingPath ?? '',
+    pageBrief: publicHomePageBrief,
+    briefId: publicHomePageBrief?.id ?? '',
+    claimIds: publicHomeClaimIds,
+    sourceIds: publicHomeSourceIds,
+    rankingId: meaningfulText(alternativesPage?.rankingId || alternativesPage?.toolRanking?.id),
     assetBinding: {
       primary: {
         slug: publicHomeAsset?.slug ?? assetSystem.primaryAsset.slug,
@@ -11791,19 +14448,34 @@ async function buildPageModels(cluster, research, sourcePack, reviewOverrideInde
       },
     },
     schemaType: 'WebPage',
-    footerNote: `Automiora gives buyers and operators one public homepage that routes into comparison, workflow, pricing, and reusable template assets without exposing internal pipeline structure.`,
+    footerNote: `Automiora gives buyers and operators one public homepage that routes into comparison, workflow, pricing, and reusable templates without exposing internal research mechanics.`,
   })
+  publicHome.sectionProvenance = buildPageSectionProvenance(publicHome)
 
   return {
     pages: finalizedPages,
     publicHome,
     claims: claimLibrary,
+    generatedClaims: generatedClaimLibrary,
     pageBriefs,
     factsExtraction,
     researchDossier,
     toolRanking,
     comparisonDebugReport,
     conversionAssets,
+    wikiControl: {
+      offers: safeArray(wikiSeed?.offers),
+      proofs: wikiProofCards,
+      scenarioPacks: wikiScenarioPacks,
+      reviews: wikiReviewCards,
+      experiments: wikiExperimentCards,
+      toolRankings: safeArray(wikiSeed?.toolRankings),
+      rankingNotes: safeArray(wikiSeed?.rankingNotes),
+      sourceSummaries: safeArray(wikiSeed?.sourceSummaries),
+      reviewBacklog: wikiBacklogItems,
+      auditBrief: wikiPageBriefMap.get('audit') ?? null,
+      auditOffer: findOfferBySlugOrTitle('audit') ?? null,
+    },
   }
 }
 
@@ -11841,7 +14513,7 @@ function renderSchema(site, page, canonicalUrl) {
         '@type': 'ListItem',
         position: index + 1,
         name: row.name,
-        description: `${row.bestFor ?? row.strength ?? ''}. ${row.notFor ?? row.drawback ?? ''}. ${row.verdict ?? ''}`.trim(),
+        description: `${row.bestFor ?? row.strength ?? ''}. Not for ${row.notFor ?? row.whenNotToUse ?? row.drawback ?? ''}. ${row.quickVerdict ?? row.recommendation ?? row.verdict ?? ''}`.trim(),
       })),
     }
   }
@@ -11879,8 +14551,18 @@ function renderComparisonTable(rows) {
 
   const body = rows
     .map(
-      (row) =>
-        `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.bestFor ?? row.strength ?? '')}</td><td>${escapeHtml(row.notFor ?? row.drawback ?? '')}</td><td>${escapeHtml(row.verdict ?? row.pricingSignal ?? '')}</td><td>${escapeHtml((row.evidenceSummary ?? []).join(' ') || (row.evidenceGap?.length ? `Evidence gap: ${row.evidenceGap.join(', ')}` : ''))}</td></tr>`,
+      (row) => {
+        const highlightClass =
+          row.highlight === 'primary'
+            ? 'comparison-row comparison-row--primary'
+            : row.highlight === 'fallback'
+              ? 'comparison-row comparison-row--fallback'
+              : 'comparison-row'
+        const badgeClass = String(row.badge ?? 'Pick')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+        return `<tr class="${escapeHtml(highlightClass)}"><td><div class="comparison-tool-cell"><strong>${escapeHtml(row.name)}</strong><span class="comparison-badge comparison-badge--${escapeHtml(badgeClass)}">${escapeHtml(row.badge ?? 'Pick')}</span></div></td><td>${escapeHtml(row.bestFor ?? row.strength ?? '')}</td><td>${escapeHtml(row.notFor ?? row.whenNotToUse ?? '')}</td><td>${escapeHtml(row.hiddenCost ?? row.estimatedCost ?? row.pricingSignal ?? '')}</td><td>${escapeHtml(row.whenToSwitch ?? row.limitation ?? row.drawback ?? '')}</td><td>${escapeHtml(row.quickVerdict ?? row.recommendation ?? row.verdict ?? '')}</td></tr>`
+      },
     )
     .join('')
   const recommendedMode = rows.some((row) => safeArray(row.evidenceGap).length > 0)
@@ -11890,18 +14572,261 @@ function renderComparisonTable(rows) {
       <div class="section-heading">
         <div>
           <p class="section-kicker">Shortlist</p>
-          <h2>Compare the obvious options first</h2>
+          <h2>Compare the tools that actually deserve a live test</h2>
         </div>
-        <p class="section-copy">${escapeHtml(recommendedMode ? 'Use this table as an evidence-backed starting point when the current run still has gaps. It is here to narrow the field before you spend another round on prompts, pricing tabs, or sample renders.' : 'Use this table to rule out the wrong tool shape before you spend another round on prompts, pricing tabs, or sample renders.')}</p>
+        <p class="section-copy">${escapeHtml(recommendedMode ? 'Use this table to decide the first click, the backup, and the switch trigger before you waste another cycle on prompts, pricing tabs, or sample renders.' : 'Use this table to rule out the wrong tool shape before you spend another round on prompts, pricing tabs, or sample renders.')}</p>
       </div>
       <div class="comparison-table-shell">
       <table>
         <thead>
-          <tr><th>Option</th><th>Best for</th><th>Not for</th><th>Verdict</th><th>Evidence summary</th></tr>
+          <tr><th>Tool</th><th>Best for</th><th>NOT FOR</th><th>Hidden cost</th><th>When to switch</th><th>Quick verdict</th></tr>
         </thead>
         <tbody>${body}</tbody>
       </table>
       </div>
+    </section>
+  `
+}
+
+function renderToolExperienceCards(page) {
+  const rows = safeArray(page.comparisonRows).slice(0, 4)
+  if (!rows.length) return ''
+
+  return `
+    <section class="tool-experience-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Real use notes</p>
+          <h2>What these tools feel like on a real first run</h2>
+        </div>
+        <p class="section-copy">These notes are here to help the visitor decide fast: where each tool works, where it fails, and when to stop forcing the wrong fit.</p>
+      </div>
+      <div class="card-grid">
+        ${rows
+          .map(
+            (row) => `
+              <article class="tool-card tool-card--${escapeHtml(row.highlight ?? 'backup')}">
+                <div class="comparison-tool-cell">
+                  <strong>${escapeHtml(row.name)}</strong>
+                  <span class="comparison-badge comparison-badge--${escapeHtml(
+                    String(row.badge ?? 'Pick').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                  )}">${escapeHtml(row.badge ?? 'Pick')}</span>
+                </div>
+                <p><span class="meta-label">Best for</span> ${escapeHtml(row.bestFor ?? '')}</p>
+                <p><span class="meta-label">NOT FOR</span> ${escapeHtml(row.notFor ?? row.whenNotToUse ?? '')}</p>
+                <p><span class="meta-label">When to switch</span> ${escapeHtml(row.whenToSwitch ?? row.limitation ?? '')}</p>
+                <p><span class="meta-label">Verdict</span> ${escapeHtml(row.quickVerdict ?? row.recommendation ?? row.verdict ?? '')}</p>
+                <div class="tool-signal-grid">
+                  <article class="mini-card">
+                    <span class="meta-label">Typical first run result</span>
+                    <p>${escapeHtml(row.typicalFirstRunResult ?? '')}</p>
+                  </article>
+                  <article class="mini-card">
+                    <span class="meta-label">What most people get wrong</span>
+                    <p>${escapeHtml(row.commonMistake ?? '')}</p>
+                  </article>
+                  <article class="mini-card">
+                    <span class="meta-label">How teams actually use this</span>
+                    <p>${escapeHtml(row.teamUsage ?? '')}</p>
+                  </article>
+                </div>
+                <div class="failure-stack">
+                  ${safeArray(row.failures)
+                    .slice(0, 3)
+                    .map(
+                      (item) => `
+                        <article class="failure-card">
+                          <strong>${escapeHtml(item.problem)}</strong>
+                          <p><span class="meta-label">Why it happens</span> ${escapeHtml(item.why ?? '')}</p>
+                          <p><span class="meta-label">Fix</span> ${escapeHtml(item.fix ?? '')}</p>
+                        </article>
+                      `,
+                    )
+                    .join('')}
+                </div>
+              </article>
+            `,
+          )
+          .join('')}
+      </div>
+    </section>
+  `
+}
+
+function renderPromptGenerator(page) {
+  if (!page.promptGenerator) return ''
+  const config = page.promptGenerator
+  const primaryCta =
+    meaningfulText(page.ctaHref) && meaningfulText(page.ctaButtonLabel)
+      ? `<a class="cta-button" href="${escapeHtml(page.ctaHref)}" data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}" data-ga4-label="${escapeHtml(page.ctaButtonLabel)}">${escapeHtml(page.ctaButtonLabel)}</a>`
+      : ''
+
+  return `
+    <section class="prompt-generator" data-prompt-generator>
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Instant tool</p>
+          <h2>${escapeHtml(config.title ?? 'Quick Prompt Generator')}</h2>
+        </div>
+        <p class="section-copy">${escapeHtml(config.intro ?? 'Generate a local prompt you can copy and test right away.')}</p>
+      </div>
+      <div class="prompt-shell">
+        <div class="prompt-form-grid">
+          <label class="prompt-field">
+            <span class="meta-label">Video type</span>
+            <select data-prompt-type>
+              ${safeArray(config.options?.videoTypes)
+                .map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`)
+                .join('')}
+            </select>
+          </label>
+          <label class="prompt-field">
+            <span class="meta-label">Style</span>
+            <select data-prompt-style>
+              ${safeArray(config.options?.styles)
+                .map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`)
+                .join('')}
+            </select>
+          </label>
+          <label class="prompt-field">
+            <span class="meta-label">Duration</span>
+            <select data-prompt-duration>
+              ${safeArray(config.options?.durations)
+                .map((item) => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`)
+                .join('')}
+            </select>
+          </label>
+        </div>
+        <div class="prompt-actions">
+          <button class="cta-button" type="button" data-prompt-generate>${escapeHtml(config.buttonLabel ?? 'Generate prompt')}</button>
+          <button
+            class="secondary-cta"
+            type="button"
+            data-prompt-copy
+            data-ga4-event="prompt_copy"
+            data-ga4-label="${escapeHtml(config.copyLabel ?? 'Copy prompt')}"
+          >${escapeHtml(config.copyLabel ?? 'Copy prompt')}</button>
+          ${primaryCta}
+        </div>
+        <div class="prompt-output" data-prompt-output hidden>
+          <article class="mini-card">
+            <span class="meta-label">Prompt</span>
+            <p data-prompt-text></p>
+          </article>
+          <div class="tool-signal-grid">
+            <article class="mini-card">
+              <span class="meta-label">Hook</span>
+              <p data-prompt-hook></p>
+            </article>
+            <article class="mini-card">
+              <span class="meta-label">Shots</span>
+              <p data-prompt-shots></p>
+            </article>
+            <article class="mini-card">
+              <span class="meta-label">CTA</span>
+              <p data-prompt-cta></p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+  `
+}
+
+function renderFailureFixCards(page) {
+  if (!page.failureFixes?.length) return ''
+
+  return `
+    <section class="failure-fix-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Repair guide</p>
+          <h2>What usually goes wrong</h2>
+        </div>
+        <p class="section-copy">These are the failures that show up before teams think they need a different model. Most of the time the fix is smaller than that.</p>
+      </div>
+      <div class="card-grid">
+        ${safeArray(page.failureFixes)
+          .map(
+            (item) => `
+              <article class="failure-card">
+                <strong>${escapeHtml(item.problem)}</strong>
+                <p><span class="meta-label">Why it happens</span> ${escapeHtml(item.why ?? '')}</p>
+                <p><span class="meta-label">Fix</span> ${escapeHtml(item.fix ?? '')}</p>
+                <p><span class="meta-label">Prompt</span> ${escapeHtml(item.prompt ?? '')}</p>
+              </article>
+            `,
+          )
+          .join('')}
+      </div>
+    </section>
+  `
+}
+
+function renderExperienceSignals(page) {
+  if (!page.toolExperienceSignals?.length) return ''
+
+  return `
+    <section class="experience-signal-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Trust signals</p>
+          <h2>How teams actually use this</h2>
+        </div>
+      </div>
+      <div class="tool-signal-grid">
+        ${safeArray(page.toolExperienceSignals)
+          .map(
+            (item) => `
+              <article class="mini-card">
+                <strong>${escapeHtml(item.label)}</strong>
+                <p>${escapeHtml(item.detail)}</p>
+              </article>
+            `,
+          )
+          .join('')}
+      </div>
+    </section>
+  `
+}
+
+function renderToolRankingCards(page) {
+  const selectedTools = safeArray(page.toolRanking?.selected_tools)
+  const coreTools = safeArray(page.toolRanking?.core_tools)
+  if (!selectedTools.length && !coreTools.length) return ''
+
+  const cards = (selectedTools.length ? selectedTools : coreTools)
+    .map(
+      (tool) => `
+        <article class="mini-card tool-ranking-card">
+          <div class="comparison-tool-cell">
+            <strong>${escapeHtml(tool.name)}</strong>
+            <span class="comparison-badge">${escapeHtml(tool.badge ?? (tool.market_tier === 'core' ? 'Core' : 'Pick'))}</span>
+          </div>
+          <p><span class="meta-label">Best for</span> ${escapeHtml(tool.best_for ?? tool.bestFor ?? '')}</p>
+          <p><span class="meta-label">Limitation</span> ${escapeHtml(tool.limitation ?? '')}</p>
+          <p><span class="meta-label">Cost</span> ${escapeHtml(tool.estimated_cost ?? tool.estimatedCost ?? '')}</p>
+          <p><span class="meta-label">When not to use</span> ${escapeHtml(tool.when_not_to_use ?? tool.whenNotToUse ?? tool.notFor ?? '')}</p>
+        </article>
+      `,
+    )
+    .join('')
+
+  const coreLabel =
+    coreTools.length > 0
+      ? `${coreTools.filter((tool) => tool.market_tier === 'core').length} core tools shaped this ranking before any emerging or specialist option was allowed in.`
+      : 'The core tool set anchors this ranking before narrower options are considered.'
+
+  return `
+    <section class="tool-ranking-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Core tools</p>
+          <h2>Start with the tools that deserve buyer attention first</h2>
+        </div>
+        <p class="section-copy">${escapeHtml(coreLabel)}</p>
+      </div>
+      <div class="card-grid">${cards}</div>
     </section>
   `
 }
@@ -11912,11 +14837,12 @@ const publicRouteByPageType = {
   pricing: '/pricing/',
   'free-vs-paid': '/free-vs-paid/',
   'template-kit': '/templates/',
-  'best-tools': '/best-tools/',
-  'use-cases': '/use-cases/',
-  'case-study': '/case-study/',
-  faq: '/faq/',
+  'diy-vs-hire': '/guides/ai-video-diy-vs-freelancer/',
+  'cost-guide': '/cost/ai-video-production-cost/',
+  'hire-service': '/hire/ai-video-editor/',
 }
+
+const legacyPublicRoutePaths = ['/best-tools/', '/use-cases/', '/case-study/', '/faq/']
 
 function resolvePublicPagePath(page) {
   if (!page) return ''
@@ -11925,11 +14851,12 @@ function resolvePublicPagePath(page) {
 
 function getPageHref(page) {
   if (page?.slug === 'index' || page?.type === 'hub') return '/'
-  return page?.publicPath || page?.path || ''
+  return page?.publicPath || ''
 }
 
 function renderPublicHomeSelector(page) {
-  if (!page.selectorCards?.length) return ''
+  const hasQuiz = safeArray(page.selectorQuiz?.questions).length >= 3
+  if (!page.selectorCards?.length && !hasQuiz) return ''
 
   return `
     <aside class="selector-panel">
@@ -11941,7 +14868,76 @@ function renderPublicHomeSelector(page) {
             ? `<p class="selector-copy">${escapeHtml(page.selectorIntro)}</p>`
             : ''
         }
-        <div class="selector-grid">
+        ${
+          hasQuiz
+            ? `
+              <div
+                class="selector-quiz"
+                data-selector-quiz
+                data-selector-config="${escapeHtml(
+                  JSON.stringify({
+                    questions: page.selectorQuiz.questions,
+                    outcomes: page.selectorQuiz.outcomes,
+                  }),
+                )}"
+              >
+                <div class="selector-quiz-grid">
+                  ${safeArray(page.selectorQuiz.questions)
+                    .map(
+                      (question, questionIndex) => `
+                        <section class="selector-question" data-selector-question="${escapeHtml(question.id ?? `q${questionIndex + 1}`)}">
+                          <div class="selector-question-head">
+                            <span class="selector-step">Question ${questionIndex + 1}</span>
+                            <strong>${escapeHtml(question.label ?? question.title ?? `Question ${questionIndex + 1}`)}</strong>
+                          </div>
+                          ${
+                            meaningfulText(question.helper)
+                              ? `<p class="selector-question-copy">${escapeHtml(question.helper)}</p>`
+                              : ''
+                          }
+                          <div class="selector-option-grid">
+                            ${safeArray(question.options)
+                              .map(
+                                (option) => `
+                                  <button
+                                    class="selector-option"
+                                    type="button"
+                                    data-selector-option
+                                    data-question-id="${escapeHtml(question.id ?? `q${questionIndex + 1}`)}"
+                                    data-option-id="${escapeHtml(option.id ?? '')}"
+                                  >
+                                    <span class="selector-option-label">${escapeHtml(option.label ?? option.id ?? 'Choose')}</span>
+                                    ${
+                                      meaningfulText(option.description)
+                                        ? `<span class="selector-option-copy">${escapeHtml(option.description)}</span>`
+                                        : ''
+                                    }
+                                  </button>
+                                `,
+                              )
+                              .join('')}
+                          </div>
+                        </section>
+                      `,
+                    )
+                    .join('')}
+                </div>
+                <div class="selector-result" data-selector-result hidden>
+                  <p class="selector-result-eyebrow">Recommended next move</p>
+                  <strong data-selector-result-title></strong>
+                  <p class="selector-result-copy" data-selector-result-summary></p>
+                  <p class="selector-result-note" data-selector-result-why></p>
+                  <div class="selector-result-actions">
+                    <a class="cta-button" data-selector-result-link href="/">Open recommendation</a>
+                    <button class="secondary-cta selector-reset" type="button" data-selector-reset>Reset answers</button>
+                  </div>
+                  <div class="selector-result-secondary" data-selector-result-secondary></div>
+                </div>
+              </div>
+            `
+            : ''
+        }
+        <div class="selector-grid${hasQuiz ? ' selector-grid--secondary' : ''}">
           ${page.selectorCards
             .map(
               (item, index) => `
@@ -11980,12 +14976,239 @@ function renderPublicHomeSelector(page) {
   `
 }
 
+function renderPublicHomeSelectorScript(page) {
+  const hasSelector = safeArray(page.selectorQuiz?.questions).length >= 3
+  const hasPromptGenerator = Boolean(page.promptGenerator)
+  if (!hasSelector && !hasPromptGenerator) return ''
+
+  return `
+    <script>
+      window.addEventListener('DOMContentLoaded', function () {
+        function esc(value) {
+          return String(value || '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('\"', '&quot;')
+            .replaceAll(\"'\", '&#39;');
+        }
+
+        if (${hasSelector ? 'true' : 'false'}) {
+          var root = document.querySelector('[data-selector-quiz]');
+          if (root) {
+            var rawConfig = root.getAttribute('data-selector-config') || '';
+            var config = null;
+            try {
+              config = JSON.parse(rawConfig);
+            } catch (error) {
+              config = null;
+            }
+
+            if (config) {
+              var answers = {};
+              var resultShell = root.querySelector('[data-selector-result]');
+              var resultTitle = root.querySelector('[data-selector-result-title]');
+              var resultSummary = root.querySelector('[data-selector-result-summary]');
+              var resultWhy = root.querySelector('[data-selector-result-why]');
+              var resultLink = root.querySelector('[data-selector-result-link]');
+              var resultSecondary = root.querySelector('[data-selector-result-secondary]');
+              var resetButton = root.querySelector('[data-selector-reset]');
+
+              function activeAnswersCount() {
+                return Object.keys(answers).filter(function (key) { return answers[key]; }).length;
+              }
+
+              function renderResult() {
+                if (!Array.isArray(config.questions) || !Array.isArray(config.outcomes)) return;
+                if (activeAnswersCount() < config.questions.length) {
+                  if (resultShell) resultShell.hidden = true;
+                  return;
+                }
+
+                var scored = config.outcomes.map(function (outcome) {
+                  var score = 0;
+                  config.questions.forEach(function (question) {
+                    var answerId = answers[question.id];
+                    var option = (question.options || []).find(function (item) { return item.id === answerId; });
+                    var optionScores = option && option.scores ? option.scores : {};
+                    score += Number(optionScores[outcome.id] || 0);
+                  });
+                  return {
+                    id: outcome.id,
+                    title: outcome.title,
+                    href: outcome.href,
+                    ctaLabel: outcome.ctaLabel,
+                    summary: outcome.summary,
+                    why: outcome.why,
+                    score: score
+                  };
+                }).sort(function (left, right) { return right.score - left.score; });
+
+                var primary = scored[0];
+                var secondary = scored.slice(1, 3);
+                if (!primary || !resultShell) return;
+
+                resultShell.hidden = false;
+                if (resultTitle) resultTitle.textContent = primary.title || 'Recommended next move';
+                if (resultSummary) resultSummary.textContent = primary.summary || '';
+                if (resultWhy) resultWhy.textContent = primary.why || '';
+                if (resultLink) {
+                  resultLink.href = primary.href || '/';
+                  resultLink.textContent = primary.ctaLabel || 'Open recommendation';
+                  resultLink.setAttribute('data-ga4-event', 'selector_recommendation_click');
+                  resultLink.setAttribute('data-ga4-label', primary.title || primary.id || 'selector_result');
+                }
+                if (resultSecondary) {
+                  resultSecondary.innerHTML = secondary.map(function (item, index) {
+                    return '<article class="selector-secondary-card">' +
+                      '<span class="selector-step">Backup ' + (index + 1) + '</span>' +
+                      '<strong>' + esc(item.title) + '</strong>' +
+                      '<p>' + esc(item.summary || '') + '</p>' +
+                      (item.href ? '<p><a class="selector-link" href="' + esc(item.href) + '">' + esc(item.ctaLabel || 'Open path') + '</a></p>' : '') +
+                    '</article>';
+                  }).join('');
+                }
+
+                if (typeof window.gtag === 'function') {
+                  window.gtag('event', 'selector_result_ready', {
+                    page_path: '/',
+                    page_title: document.title,
+                    event_label: primary.title || primary.id || 'selector_result'
+                  });
+                }
+              }
+
+              root.querySelectorAll('[data-selector-option]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                  var questionId = button.getAttribute('data-question-id');
+                  var optionId = button.getAttribute('data-option-id');
+                  if (!questionId || !optionId) return;
+                  answers[questionId] = optionId;
+
+                  root.querySelectorAll('[data-question-id="' + questionId + '"]').forEach(function (item) {
+                    item.classList.remove('is-selected');
+                    item.setAttribute('aria-pressed', 'false');
+                  });
+                  button.classList.add('is-selected');
+                  button.setAttribute('aria-pressed', 'true');
+
+                  renderResult();
+                });
+              });
+
+              if (resetButton) {
+                resetButton.addEventListener('click', function () {
+                  answers = {};
+                  root.querySelectorAll('[data-selector-option]').forEach(function (button) {
+                    button.classList.remove('is-selected');
+                    button.setAttribute('aria-pressed', 'false');
+                  });
+                  if (resultShell) resultShell.hidden = true;
+                });
+              }
+            }
+          }
+        }
+
+        if (${hasPromptGenerator ? 'true' : 'false'}) {
+          document.querySelectorAll('[data-prompt-generator]').forEach(function (root) {
+            var typeField = root.querySelector('[data-prompt-type]');
+            var styleField = root.querySelector('[data-prompt-style]');
+            var durationField = root.querySelector('[data-prompt-duration]');
+            var output = root.querySelector('[data-prompt-output]');
+            var promptNode = root.querySelector('[data-prompt-text]');
+            var hookNode = root.querySelector('[data-prompt-hook]');
+            var shotsNode = root.querySelector('[data-prompt-shots]');
+            var ctaNode = root.querySelector('[data-prompt-cta]');
+            var copyButton = root.querySelector('[data-prompt-copy]');
+            var generateButton = root.querySelector('[data-prompt-generate]');
+            if (!typeField || !styleField || !durationField || !output || !promptNode || !hookNode || !shotsNode || !ctaNode || !copyButton || !generateButton) return;
+
+            function buildPrompt(type, style, duration) {
+              var map = {
+                "product-demo": {
+                  subject: "a feature launch demo",
+                  angle: "show the frustrating manual task first, then show the product removing it",
+                  shots: "Shot 1: pain or manual problem. Shot 2: product doing the work. Shot 3: payoff and CTA.",
+                  cta: "End with: Try the workflow and ship your first AI video this week."
+                },
+                "ad": {
+                  subject: "a direct-response ad",
+                  angle: "hit the pain immediately and move fast",
+                  shots: "Shot 1: hard hook. Shot 2: visual proof. Shot 3: benefit stack. Shot 4: CTA.",
+                  cta: "End with: Start now before the next test cycle."
+                },
+                "tutorial": {
+                  subject: "a short product tutorial",
+                  angle: "teach one task only and avoid extra features",
+                  shots: "Shot 1: what the viewer will learn. Shot 2: core action. Shot 3: result and CTA.",
+                  cta: "End with: Copy this setup and run your own version now."
+                }
+              };
+              var styles = {
+                cinematic: "cinematic lighting, premium pacing, controlled camera motion",
+                fast: "fast cuts, energetic motion, direct text hierarchy",
+                minimal: "simple composition, clean framing, restrained motion"
+              };
+              var durationRule = {
+                "5s": "Keep it to 2 shots max.",
+                "15s": "Keep it to 3 or 4 shots max.",
+                "30s": "Use a simple sequence and avoid stacking multiple ideas in the same shot."
+              };
+              var item = map[type] || map["product-demo"];
+              return {
+                prompt:
+                  "Create a " + duration + " " + style + " AI video for " + item.subject + ". " +
+                  "Angle: " + item.angle + ". " +
+                  "Visual direction: " + styles[style] + ". " +
+                  durationRule[duration] + " " +
+                  "If the output becomes unstable, split the scene into separate short shots and regenerate only the broken part.",
+                hook:
+                  type === "ad"
+                    ? "Hook: make the pain obvious in the first second."
+                    : type === "tutorial"
+                      ? "Hook: show the end result before the explanation."
+                      : "Hook: open on the problem screen before the product fix.",
+                shots: "Shots: " + item.shots,
+                cta: item.cta
+              };
+            }
+
+            generateButton.addEventListener('click', function () {
+              var result = buildPrompt(typeField.value, styleField.value, durationField.value);
+              promptNode.textContent = result.prompt;
+              hookNode.textContent = result.hook;
+              shotsNode.textContent = result.shots;
+              ctaNode.textContent = result.cta;
+              output.hidden = false;
+            });
+
+            copyButton.addEventListener('click', function () {
+              var text = promptNode.textContent;
+              if (!text) return;
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function () {
+                  copyButton.textContent = 'Copied prompt';
+                });
+                return;
+              }
+              window.prompt('Copy this prompt', text);
+            });
+          });
+        }
+      });
+    </script>
+  `
+}
+
 function renderVisualFigure(visualAsset, title, detail = '') {
   if (!visualAsset?.src && !visualAsset?.url) return ''
+  const rawSrc = String(visualAsset.src ?? visualAsset.url ?? '')
+  const resolvedSrc = rawSrc.startsWith('media/') ? `/${rawSrc}` : rawSrc
 
   return `
     <figure class="hero-visual" data-visual-mode="${escapeHtml(visualAsset.mode ?? 'unknown')}">
-      <img src="${escapeHtml(visualAsset.src ?? visualAsset.url)}" alt="${escapeHtml(visualAsset.alt ?? title)}" loading="eager" decoding="async" />
+      <img src="${escapeHtml(resolvedSrc)}" alt="${escapeHtml(visualAsset.alt ?? title)}" loading="eager" decoding="async" />
       <figcaption>
         <strong>${escapeHtml(title)}</strong>
         ${detail ? `<span>${escapeHtml(detail)}</span>` : ''}
@@ -12216,6 +15439,25 @@ function buildPageNextStepLine(site, page, designProfile) {
   return `${primaryAssetTitle}: ${buildPageNextStepReason(site, page, designProfile)}`
 }
 
+function resolvePrimaryCtaLabel(site, page, designProfile) {
+  return (
+    page.ctaButtonLabel ??
+    page.ctaTitle ??
+    page.assetBinding?.primary?.title ??
+    designProfile?.primaryCtaLabel ??
+    site.cluster.ctaLabel
+  )
+}
+
+function resolveSecondaryCtaLabel(site, page, designProfile) {
+  return (
+    page.secondaryCtaButtonLabel ??
+    page.secondaryCtaTitle ??
+    designProfile?.secondaryCtaLabel ??
+    `Request a ${site.cluster.label} audit`
+  )
+}
+
 function renderHeroAudienceSummary(site, page, designProfile) {
   if (!designProfile?.hero?.showAudienceSummary) return ''
   const isHighValuePage = isHighValuePageForProfile(page.type, designProfile)
@@ -12270,15 +15512,10 @@ function renderHeroActionRow(site, page, designProfile) {
   if (!designProfile?.hero?.showActionRow) return ''
 
   const primaryHref = page.ctaHref
-  const primaryLabel =
-    page.assetBinding?.primary?.title ??
-    page.ctaTitle ??
-    designProfile?.primaryCtaLabel ??
-    site.cluster.ctaLabel
+  const primaryLabel = resolvePrimaryCtaLabel(site, page, designProfile)
   const requiresSecondary = safeArray(designProfile?.review?.requiresSecondaryCtaOn).includes(page.type)
   const secondaryHref = site.commercialOffer?.landingPath ?? ''
-  const secondaryLabel =
-    designProfile?.secondaryCtaLabel ?? `Request a ${site.cluster.label} audit`
+  const secondaryLabel = resolveSecondaryCtaLabel(site, page, designProfile)
 
   if (!primaryHref && !(requiresSecondary && secondaryHref)) return ''
 
@@ -12894,13 +16131,92 @@ function renderSourceReferences(page) {
           .map(
             (item) => `
               <li>
-                <a href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer noopener">${escapeHtml(item.domain)}</a>
+                <a href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer noopener">${escapeHtml(item.label || item.title || item.domain)}</a>
                 ${item.reason ? ` - ${escapeHtml(item.reason)}` : ''}
               </li>
             `,
           )
           .join('')}
       </ul>
+    </section>
+  `
+}
+
+function renderAffiliateLink(module, page, label = module.label, className = 'cta-button') {
+  const payload = buildAffiliateGa4Payload({ page, module })
+  const rel = dedupe([
+    ...String(module.linkRel || 'sponsored nofollow').split(/\s+/),
+    'noopener',
+    'noreferrer',
+  ]).join(' ')
+
+  return `<a
+    class="${escapeHtml(className)}"
+    href="${escapeHtml(module.href)}"
+    target="_blank"
+    rel="${escapeHtml(rel)}"
+    data-ga4-event="affiliate_click"
+    data-ga4-label="${escapeHtml(label)}"
+    data-affiliate-program="${escapeHtml(payload.affiliate_program)}"
+    data-offer-id="${escapeHtml(payload.offer_id)}"
+    data-tracking-code="${escapeHtml(payload.tracking_code)}"
+    data-page-slug="${escapeHtml(payload.page_slug)}"
+    data-page-type="${escapeHtml(payload.page_type)}"
+    data-cta-position="${escapeHtml(payload.cta_position)}"
+    data-cta-variant="${escapeHtml(payload.cta_variant)}"
+    data-destination-category="${escapeHtml(payload.destination_category)}"
+  >${escapeHtml(label)}</a>`
+}
+
+function renderAffiliateModules(page) {
+  const modules = safeArray(page.affiliateModules)
+  if (modules.length === 0) return ''
+
+  const primaryModule = modules[0]
+  const disclosure = page.affiliateDisclosureRequired
+    ? `<aside class="affiliate-disclosure">${escapeHtml(primaryModule.disclosure)}</aside>`
+    : ''
+
+  return `
+    ${disclosure}
+    <section class="affiliate-decision-path">
+      <h2>Choose the right next path</h2>
+      <div class="card-grid">
+        <article class="mini-card service-card">
+          <strong>Do it yourself</strong>
+          <p>Use the AI tools and workflow guide when the project is still a learning pass and rough output is acceptable.</p>
+          <p><a class="text-link" href="/workflow/" data-ga4-event="internal_decision_click" data-ga4-label="DIY workflow path">Open workflow guide</a></p>
+        </article>
+        <article class="mini-card service-card">
+          <strong>Use a template</strong>
+          <p>Use the Automiora prompt pack or worksheet when scope clarity is the blocker, not production labor.</p>
+          <p><a class="text-link" href="/prompt-pack/" data-ga4-event="asset_cta_click" data-ga4-label="Prompt pack decision path">Open prompt pack</a></p>
+        </article>
+        <article class="mini-card service-card">
+          <strong>Outsource the work</strong>
+          <p>Compare service providers only after the brief, assets, rights, revision count, and delivery format are clear.</p>
+          <p>${renderAffiliateLink(primaryModule, page, primaryModule.label, 'text-link affiliate-text-link')}</p>
+        </article>
+      </div>
+    </section>
+    <section class="affiliate-service-section">
+      <h2>Service categories to compare</h2>
+      <div class="card-grid">
+        ${modules
+          .map(
+            (module) => `
+              <article class="mini-card service-card">
+                <p class="claim-meta">${escapeHtml(module.programName)} / ${escapeHtml(module.category)}</p>
+                <strong>${escapeHtml(module.ctaTitle)}</strong>
+                <p><span class="meta-label">Best for</span> ${escapeHtml(module.fit)}</p>
+                <p><span class="meta-label">Not for</span> ${escapeHtml(module.notFor)}</p>
+                <p><span class="meta-label">Check before buying</span> Scope, revision count, commercial rights, delivery format, timeline, and source-file policy.</p>
+                <p>${renderAffiliateLink(module, page)}</p>
+              </article>
+            `,
+          )
+          .join('')}
+      </div>
     </section>
   `
 }
@@ -12948,8 +16264,8 @@ function renderCommercialModules(page) {
 function renderSections(page) {
   return page.sections
     .map(
-      (section) => `
-        <section>
+      (section, index) => `
+        <section data-section-id="${escapeHtml(slugify(section.heading || `section-${index + 1}`))}">
           <h2>${escapeHtml(section.heading)}</h2>
           ${section.paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('')}
           ${section.bullets?.length ? `<ul>${section.bullets.map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join('')}</ul>` : ''}
@@ -12957,6 +16273,11 @@ function renderSections(page) {
       `,
     )
     .join('')
+}
+
+function renderSectionProvenanceScript(page) {
+  if (!safeArray(page.sectionProvenance).length) return ''
+  return `<script type="application/json" id="section-provenance">${JSON.stringify(page.sectionProvenance)}</script>`
 }
 
 function renderResearchBrief(page) {
@@ -13012,7 +16333,7 @@ function renderClaimCards(page) {
             (claim) => `
               <article class="mini-card">
                 <p class="claim-meta">${escapeHtml(
-                  `${titleCase(claim.claimKind || 'claim')} · ${titleCase(claim.decisionStage || 'discover')} · score ${preferFiniteNumber(claim.qualityScore, computeClaimQualityScore(claim))}`,
+                  `${titleCase(String(claim.claimKind || 'claim').replaceAll('_', ' '))} · ${titleCase(claim.decisionStage || 'discover')} stage`,
                 )}</p>
                 ${
                   meaningfulText(claim.statement)
@@ -13043,14 +16364,7 @@ function renderClaimCards(page) {
 }
 
 function renderOriginalAnchors(page) {
-  if (!page.originalAnchors?.length) return ''
-
-  return `
-    <section>
-      <h2>Operator notes worth keeping</h2>
-      <ul>${page.originalAnchors.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
-    </section>
-  `
+  return ''
 }
 
 function renderInternalLinks(site, page) {
@@ -13081,12 +16395,18 @@ function renderPageModules(site, page, designProfile) {
       renderDecisionPaths(page),
       renderUseCaseCards(page),
       renderWorkflowSteps(page),
+      renderPromptGenerator(page),
+      renderToolExperienceCards(page),
+      renderFailureFixCards(page),
+      renderExperienceSignals(page),
       renderEvidenceCards(page),
+      renderToolRankingCards(page),
       renderComparisonTable(page.comparisonRows),
       renderAssetPreview(page),
       renderBeforeAfter(page),
       renderDeliveryFlow(page),
       renderExamples(page),
+      renderAffiliateModules(page),
       renderCommercialModules(page),
       renderInternalLinks(site, page),
       renderResearchBrief(page),
@@ -13109,11 +16429,17 @@ function renderPageModules(site, page, designProfile) {
     renderDecisionPaths(page),
     renderUseCaseCards(page),
     renderWorkflowSteps(page),
+    renderPromptGenerator(page),
+    renderToolExperienceCards(page),
+    renderFailureFixCards(page),
+    renderExperienceSignals(page),
     renderEvidenceCards(page),
+    renderToolRankingCards(page),
     renderAssetPreview(page),
     renderBeforeAfter(page),
     renderDeliveryFlow(page),
     renderExamples(page),
+    renderAffiliateModules(page),
     renderOriginalAnchors(page),
     renderFaq(page),
     renderComparisonTable(page.comparisonRows),
@@ -13159,15 +16485,31 @@ function renderGa4Snippet(page, options = {}) {
           )
           .join('\n')}
 
+        var affiliateClickSent = typeof WeakSet === 'function' ? new WeakSet() : null;
         document.querySelectorAll('[data-ga4-event]').forEach(function (element) {
           element.addEventListener('click', function () {
             if (typeof window.gtag !== 'function') return;
-            window.gtag('event', element.dataset.ga4Event, {
+            if (element.dataset.ga4Event === 'affiliate_click' && affiliateClickSent) {
+              if (affiliateClickSent.has(element)) return;
+              affiliateClickSent.add(element);
+            }
+            var eventParams = {
               page_path: ${JSON.stringify(page.path)},
               page_title: ${JSON.stringify(page.title)},
               event_label: element.dataset.ga4Label || '',
               cta_title: ${JSON.stringify(page.ctaTitle)}
-            });
+            };
+            if (element.dataset.ga4Event === 'affiliate_click') {
+              eventParams.affiliate_program = element.dataset.affiliateProgram || '';
+              eventParams.offer_id = element.dataset.offerId || '';
+              eventParams.tracking_code = element.dataset.trackingCode || '';
+              eventParams.page_slug = element.dataset.pageSlug || '';
+              eventParams.page_type = element.dataset.pageType || '';
+              eventParams.cta_position = element.dataset.ctaPosition || '';
+              eventParams.cta_variant = element.dataset.ctaVariant || '';
+              eventParams.destination_category = element.dataset.destinationCategory || '';
+            }
+            window.gtag('event', element.dataset.ga4Event, eventParams);
           });
         });
 
@@ -13507,7 +16849,9 @@ function renderSiteHtml(site, page) {
   const heroActionRow = renderHeroActionRow(site, page, designProfile)
   const nextStepBridge = renderNextStepBridge(site, page, designProfile)
   const pageModules = renderPageModules(site, page, designProfile)
+  const primaryCtaLabel = resolvePrimaryCtaLabel(site, page, designProfile)
   const navigation = site.pages
+    .filter((item) => meaningfulText(getPageHref(item)))
     .map((item) => {
       const href = getPageHref(item)
       const active = item.slug === page.slug ? ' class="active"' : ''
@@ -13535,6 +16879,7 @@ function renderSiteHtml(site, page) {
     ${socialImage ? `<meta name="twitter:image" content="${escapeHtml(socialImage)}" />` : ''}
     <script type="application/ld+json">${schema}</script>
 ${ga4Snippet}
+${renderPublicHomeSelectorScript(page)}
     <style>
 ${renderThemeCss(designProfile)}
       * { box-sizing: border-box; }
@@ -13695,6 +17040,37 @@ ${renderThemeCss(designProfile)}
       .cta-button:hover {
         filter: brightness(1.06);
       }
+      .comparison-tool-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .comparison-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.06);
+        color: var(--text-strong);
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      .comparison-badge--best,
+      .comparison-badge--beginner {
+        background: rgba(220, 180, 92, 0.18);
+        color: #f3cb75;
+      }
+      .comparison-badge--fast {
+        background: rgba(142, 183, 119, 0.2);
+      }
+      .comparison-badge--premium {
+        background: rgba(103, 145, 214, 0.18);
+      }
+      .comparison-badge--fallback,
+      .comparison-badge--backup {
+        background: rgba(255,255,255,0.1);
+      }
       .cluster-links {
         display: grid;
         gap: 8px;
@@ -13710,16 +17086,67 @@ ${renderThemeCss(designProfile)}
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
       .mini-card,
-      .step-item {
+      .step-item,
+      .tool-card,
+      .failure-card {
         border: 1px solid var(--border-soft);
         background: var(--surface-glass);
         padding: 14px;
       }
+      .tool-card--primary {
+        border-color: var(--accent-2-soft);
+        background: linear-gradient(180deg, rgba(220, 180, 92, 0.12), rgba(255,255,255,0.03));
+      }
+      .tool-card--fallback {
+        border-color: var(--accent-soft);
+      }
       .mini-card strong,
-      .step-item strong {
+      .step-item strong,
+      .tool-card strong,
+      .failure-card strong {
         display: block;
         color: var(--text-strong);
         margin-bottom: 8px;
+      }
+      .tool-signal-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 12px;
+      }
+      .failure-stack {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .prompt-shell {
+        display: grid;
+        gap: 14px;
+      }
+      .prompt-form-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .prompt-field {
+        display: grid;
+        gap: 6px;
+      }
+      .prompt-field select {
+        width: 100%;
+        border: 1px solid var(--border-soft);
+        background: rgba(255,255,255,0.03);
+        color: var(--text-strong);
+        padding: 12px;
+      }
+      .prompt-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .prompt-output {
+        display: grid;
+        gap: 12px;
       }
       .step-list {
         display: grid;
@@ -13788,6 +17215,12 @@ ${renderThemeCss(designProfile)}
         padding: 10px 8px;
         border-bottom: 1px solid var(--border-soft);
       }
+      .comparison-row--primary td {
+        background: rgba(220, 180, 92, 0.08);
+      }
+      .comparison-row--fallback td {
+        background: rgba(142, 183, 119, 0.08);
+      }
       footer {
         padding: 0 0 32px;
         color: var(--text-muted);
@@ -13800,9 +17233,280 @@ ${renderThemeCss(designProfile)}
         .hero-summary,
         .hero-proof-strip,
         .card-grid,
-        .fact-grid {
+        .fact-grid,
+        .tool-signal-grid,
+        .prompt-form-grid {
           grid-template-columns: 1fr;
         }
+      }
+      :root {
+        color-scheme: light;
+        font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", sans-serif;
+        --page-bg: #f4f7fc;
+        --surface: #ffffff;
+        --surface-alt: #eef2ff;
+        --surface-glass: rgba(255, 255, 255, 0.92);
+        --text-strong: #111827;
+        --text-muted: #52607a;
+        --accent: #5f6fff;
+        --accent-soft: rgba(95, 111, 255, 0.12);
+        --accent-2: #6d4dff;
+        --accent-2-soft: rgba(109, 77, 255, 0.12);
+        --warning: #d9485f;
+        --border-soft: rgba(17, 24, 39, 0.08);
+        --border-muted: rgba(17, 24, 39, 0.14);
+        --card-shadow: 0 14px 34px rgba(34, 43, 74, 0.08);
+        --hero-shadow: 0 24px 60px rgba(34, 43, 74, 0.12);
+      }
+      body {
+        background:
+          radial-gradient(circle at top left, rgba(109, 77, 255, 0.1), transparent 30%),
+          radial-gradient(circle at top right, rgba(95, 111, 255, 0.08), transparent 28%),
+          linear-gradient(180deg, #f9fbff 0%, #f4f7fc 32%, #eff3fb 100%);
+      }
+      header, main, footer {
+        width: min(1160px, calc(100% - 32px));
+      }
+      header {
+        padding: 22px 0 10px;
+      }
+      main {
+        display: grid;
+        gap: 22px;
+        padding-bottom: 44px;
+      }
+      section {
+        padding: 24px;
+        border: 1px solid var(--border-soft);
+        border-radius: 24px;
+        background: rgba(255,255,255,0.92);
+        box-shadow: var(--card-shadow);
+        backdrop-filter: blur(16px);
+      }
+      h1 {
+        font-size: clamp(2.6rem, 3.8vw, 4rem);
+        line-height: 1.02;
+        margin: 14px 0;
+        max-width: 12ch;
+      }
+      h2 {
+        font-size: 1.42rem;
+        line-height: 1.15;
+        margin-bottom: 12px;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border: 1px solid rgba(95, 111, 255, 0.12);
+        border-radius: 999px;
+        background: rgba(95, 111, 255, 0.08);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+      .lede {
+        font-size: 1.03rem;
+        line-height: 1.66;
+      }
+      .hero-shell {
+        gap: 28px;
+        padding: 10px 0 14px;
+      }
+      .hero-summary-item,
+      .hero-proof-item,
+      .mini-card,
+      .step-item,
+      .tool-card,
+      .failure-card,
+      details {
+        border-radius: 20px;
+        background: rgba(255,255,255,0.96);
+        box-shadow: 0 12px 28px rgba(35, 42, 69, 0.05);
+      }
+      nav {
+        margin-top: 22px;
+        padding: 16px 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: linear-gradient(180deg, rgba(19, 29, 59, 0.96), rgba(8, 18, 43, 0.98));
+        box-shadow: 0 20px 48px rgba(7, 17, 44, 0.18);
+      }
+      nav a {
+        color: rgba(248, 250, 255, 0.8);
+        padding: 10px 14px;
+        border-radius: 999px;
+        border-color: rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+      }
+      nav a:hover,
+      nav a.active {
+        color: #f8faff;
+        border-color: rgba(140, 160, 255, 0.4);
+        background: rgba(140, 160, 255, 0.12);
+        transform: translateY(-1px);
+      }
+      .hero-visual {
+        border-radius: 24px;
+        background: rgba(255,255,255,0.96);
+        box-shadow: var(--hero-shadow);
+      }
+      .hero-visual figcaption {
+        padding: 16px 18px 18px;
+        background: linear-gradient(180deg, rgba(245, 247, 255, 0.96), #ffffff);
+      }
+      .cta-button,
+      .secondary-cta {
+        padding: 13px 18px;
+        border-radius: 14px;
+        transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+      }
+      .cta-button {
+        background: linear-gradient(135deg, #5f6fff, #6d4dff);
+        color: #ffffff;
+        box-shadow: 0 14px 30px rgba(95, 111, 255, 0.22);
+      }
+      .secondary-cta {
+        background: rgba(255,255,255,0.92);
+        box-shadow: 0 10px 24px rgba(35, 42, 69, 0.06);
+      }
+      .cta-button:hover,
+      .secondary-cta:hover {
+        transform: translateY(-1px);
+      }
+      .cta-button:hover {
+        filter: brightness(1.03);
+      }
+      .cta {
+        padding: 26px;
+        border: 0;
+        background: linear-gradient(135deg, #5c41ef 0%, #7651ff 52%, #8d72ff 100%);
+        box-shadow: 0 24px 52px rgba(92, 65, 239, 0.24);
+      }
+      .cta strong,
+      .cta p {
+        color: #ffffff;
+      }
+      .cta p {
+        color: rgba(255,255,255,0.88);
+      }
+      .cta .cta-button {
+        background: #ffffff;
+        color: #4f3ce1;
+        box-shadow: none;
+      }
+      .comparison-tool-cell {
+        flex-wrap: wrap;
+      }
+      .comparison-badge {
+        padding: 6px 12px;
+        background: #eef2ff;
+        color: #49566c;
+      }
+      .comparison-badge--best,
+      .comparison-badge--beginner {
+        background: rgba(109, 77, 255, 0.12);
+        color: #5a43e3;
+      }
+      .comparison-badge--fast {
+        background: rgba(15, 154, 111, 0.12);
+        color: #0f8b66;
+      }
+      .comparison-badge--premium {
+        background: rgba(95, 111, 255, 0.12);
+        color: #4d5de0;
+      }
+      .comparison-badge--fallback,
+      .comparison-badge--backup {
+        background: #f0f4fa;
+      }
+      .tool-card--primary {
+        border-color: rgba(109, 77, 255, 0.22);
+        background: linear-gradient(180deg, rgba(109, 77, 255, 0.08), rgba(255,255,255,0.98));
+      }
+      .tool-card--fallback {
+        border-color: rgba(95, 111, 255, 0.18);
+        background: linear-gradient(180deg, rgba(95, 111, 255, 0.06), rgba(255,255,255,0.98));
+      }
+      .meta-label,
+      .step-meta dt,
+      .claim-meta {
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+      .next-step-bridge {
+        padding: 24px;
+        border-color: rgba(95, 111, 255, 0.14);
+        background: linear-gradient(180deg, rgba(95, 111, 255, 0.08), rgba(255,255,255,0.96));
+      }
+      .text-link {
+        color: #5841e1;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .comparison-table-shell {
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,249,255,0.98));
+        padding: 18px 18px 8px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.82);
+      }
+      table {
+        border-collapse: separate;
+        border-spacing: 0 10px;
+        margin-top: 8px;
+      }
+      th, td {
+        padding: 16px 14px;
+        border-top: 1px solid var(--border-soft);
+        border-bottom: 1px solid var(--border-soft);
+        background: rgba(255,255,255,0.98);
+      }
+      th {
+        color: var(--text-strong);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border: 0;
+        background: transparent;
+        padding-top: 0;
+        padding-bottom: 2px;
+      }
+      td:first-child,
+      th:first-child {
+        border-left: 1px solid var(--border-soft);
+        border-top-left-radius: 18px;
+        border-bottom-left-radius: 18px;
+      }
+      td:last-child,
+      th:last-child {
+        border-right: 1px solid var(--border-soft);
+        border-top-right-radius: 18px;
+        border-bottom-right-radius: 18px;
+      }
+      .comparison-row--primary td {
+        background: rgba(109, 77, 255, 0.08);
+        border-color: rgba(109, 77, 255, 0.14);
+      }
+      .comparison-row--fallback td {
+        background: rgba(95, 111, 255, 0.05);
+        border-color: rgba(95, 111, 255, 0.12);
+      }
+      .prompt-shell {
+        padding: 18px;
+        border: 1px solid rgba(95, 111, 255, 0.1);
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(95, 111, 255, 0.06), rgba(255,255,255,0.96));
+      }
+      .prompt-field select {
+        border-radius: 14px;
+        border: 1px solid rgba(17, 24, 39, 0.12);
+        background: #ffffff;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+      }
+      footer {
+        padding: 0 0 36px;
       }
     </style>
   </head>
@@ -13824,6 +17528,7 @@ ${renderThemeCss(designProfile)}
     <main>
       ${pageModules}
       ${nextStepBridge}
+      ${renderSectionProvenanceScript(page)}
       <section class="cta">
         <strong>${escapeHtml(page.ctaTitle)}</strong>
         <p>${escapeHtml(page.ctaCopy)}</p>
@@ -13833,17 +17538,17 @@ ${renderThemeCss(designProfile)}
                 class="cta-button"
                 href="${escapeHtml(page.ctaHref)}"
                 data-ga4-event="${escapeHtml(page.ctaEvent ?? 'generate_lead')}"
-                data-ga4-label="${escapeHtml(page.assetBinding?.primary?.title ?? site.cluster.ctaLabel)}"
+                data-ga4-label="${escapeHtml(primaryCtaLabel)}"
               >
-                ${escapeHtml(page.assetBinding?.primary?.title ?? site.cluster.ctaLabel)}
+                ${escapeHtml(primaryCtaLabel)}
               </a>`
             : `<button
                 class="cta-button"
                 type="button"
                 data-ga4-event="${escapeHtml(page.ctaEvent ?? 'generate_lead')}"
-                data-ga4-label="${escapeHtml(page.assetBinding?.primary?.title ?? site.cluster.ctaLabel)}"
+                data-ga4-label="${escapeHtml(primaryCtaLabel)}"
               >
-                ${escapeHtml(page.assetBinding?.primary?.title ?? site.cluster.ctaLabel)}
+                ${escapeHtml(primaryCtaLabel)}
               </button>`
         }
       </section>
@@ -13892,10 +17597,15 @@ function renderPublicHomeHtml(site, page) {
     { label: 'Free vs Paid', page: site.pages.find((item) => item.type === 'free-vs-paid') },
     { label: 'Templates', page: site.pages.find((item) => item.type === 'template-kit') },
     { label: 'FAQ', page: site.pages.find((item) => item.type === 'faq') },
-  ].filter((item) => item.page?.path)
+  ].filter((item) => meaningfulText(getPageHref(item.page)))
   const primaryHref = page.ctaHref || page.assetBinding?.primary?.landingPath || ''
   const secondaryHref = site.commercialOffer?.landingPath ?? ''
-  const secondaryLabel = designProfile?.secondaryCtaLabel ?? `Request a ${site.cluster.label} audit`
+  const primaryLabel = page.ctaButtonLabel ?? page.ctaTitle ?? site.cluster.ctaLabel
+  const secondaryLabel =
+    page.secondaryCtaButtonLabel ??
+    page.secondaryCtaTitle ??
+    designProfile?.secondaryCtaLabel ??
+    `Request a ${site.cluster.label} audit`
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -13916,6 +17626,7 @@ function renderPublicHomeHtml(site, page) {
     ${socialImage ? `<meta name="twitter:image" content="${escapeHtml(socialImage)}" />` : ''}
     <script type="application/ld+json">${schema}</script>
 ${ga4Snippet}
+${renderPublicHomeSelectorScript(page)}
     <style>
 ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
       * { box-sizing: border-box; }
@@ -14057,6 +17768,37 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
         border-radius: 12px;
         background: rgba(255,255,255,0.03);
       }
+      .comparison-tool-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .comparison-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.06);
+        color: var(--text-strong);
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      .comparison-badge--best,
+      .comparison-badge--beginner {
+        background: rgba(220, 180, 92, 0.18);
+        color: #f3cb75;
+      }
+      .comparison-badge--fast {
+        background: rgba(142, 183, 119, 0.2);
+      }
+      .comparison-badge--premium {
+        background: rgba(103, 145, 214, 0.18);
+      }
+      .comparison-badge--fallback,
+      .comparison-badge--backup {
+        background: rgba(255,255,255,0.1);
+      }
       .hero-visual-card {
         overflow: hidden;
         margin-top: 16px;
@@ -14095,6 +17837,66 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
         display: grid;
         gap: 12px;
       }
+      .selector-grid--secondary {
+        padding-top: 4px;
+      }
+      .selector-quiz {
+        display: grid;
+        gap: 16px;
+      }
+      .selector-quiz-grid {
+        display: grid;
+        gap: 14px;
+      }
+      .selector-question {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid var(--border-soft);
+        border-radius: 18px;
+        background: rgba(255,255,255,0.025);
+      }
+      .selector-question-head {
+        display: grid;
+        gap: 6px;
+      }
+      .selector-question-copy {
+        color: var(--text-muted);
+        line-height: 1.65;
+      }
+      .selector-option-grid {
+        display: grid;
+        gap: 10px;
+      }
+      .selector-option {
+        width: 100%;
+        display: grid;
+        gap: 6px;
+        padding: 14px;
+        text-align: left;
+        border: 1px solid var(--border-soft);
+        border-radius: 16px;
+        background: rgba(255,255,255,0.03);
+        color: var(--text-strong);
+        cursor: pointer;
+        font: inherit;
+      }
+      .selector-option:hover {
+        border-color: var(--accent-soft);
+        transform: translateY(-1px);
+      }
+      .selector-option.is-selected {
+        border-color: var(--accent-2);
+        background: linear-gradient(180deg, rgba(220, 180, 92, 0.16), rgba(255,255,255,0.04));
+        box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+      }
+      .selector-option-label {
+        font-weight: 700;
+      }
+      .selector-option-copy {
+        color: var(--text-muted);
+        line-height: 1.6;
+      }
       .selector-card {
         padding: 14px;
         display: grid;
@@ -14130,6 +17932,48 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
         text-decoration: none;
         font-weight: 700;
       }
+      .selector-result {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+        border: 1px solid var(--accent-2-soft);
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(220, 180, 92, 0.12), rgba(255,255,255,0.03));
+      }
+      .selector-result-eyebrow {
+        color: var(--accent-2);
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .selector-result-copy,
+      .selector-result-note {
+        color: var(--text-muted);
+      }
+      .selector-result-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .selector-reset {
+        cursor: pointer;
+      }
+      .selector-result-secondary {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .selector-secondary-card {
+        display: grid;
+        gap: 8px;
+        padding: 14px;
+        border: 1px solid var(--border-soft);
+        border-radius: 16px;
+        background: rgba(255,255,255,0.035);
+      }
+      .selector-secondary-card strong {
+        color: var(--text-strong);
+      }
       main {
         padding-bottom: 40px;
       }
@@ -14162,10 +18006,66 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
       .mini-card strong,
       .step-item strong,
       .selector-card strong,
-      .cta-panel strong {
+      .cta-panel strong,
+      .tool-card strong,
+      .failure-card strong {
         display: block;
         color: var(--text-strong);
         margin-bottom: 8px;
+      }
+      .tool-card,
+      .failure-card {
+        padding: 16px;
+        border: 1px solid var(--border-soft);
+        border-radius: 18px;
+        background: rgba(255,255,255,0.03);
+      }
+      .tool-card--primary {
+        border-color: var(--accent-2-soft);
+        background: linear-gradient(180deg, rgba(220, 180, 92, 0.12), rgba(255,255,255,0.03));
+      }
+      .tool-card--fallback {
+        border-color: var(--accent-soft);
+      }
+      .tool-signal-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .failure-stack {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .prompt-shell {
+        display: grid;
+        gap: 14px;
+      }
+      .prompt-form-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .prompt-field {
+        display: grid;
+        gap: 6px;
+      }
+      .prompt-field select {
+        width: 100%;
+        border: 1px solid var(--border-soft);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.03);
+        color: var(--text-strong);
+        padding: 12px;
+      }
+      .prompt-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .prompt-output {
+        display: grid;
+        gap: 12px;
       }
       .step-list {
         display: grid;
@@ -14326,6 +18226,12 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
         padding: 14px 10px;
         border-bottom: 1px solid var(--border-soft);
       }
+      .comparison-row--primary td {
+        background: rgba(220, 180, 92, 0.08);
+      }
+      .comparison-row--fallback td {
+        background: rgba(142, 183, 119, 0.08);
+      }
       details {
         padding: 16px 18px;
         border: 1px solid var(--border-soft);
@@ -14360,7 +18266,10 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
         .fact-grid,
         .step-grid,
         .hero-summary,
-        .hero-proof-strip {
+        .hero-proof-strip,
+        .selector-result-secondary,
+        .tool-signal-grid,
+        .prompt-form-grid {
           grid-template-columns: 1fr;
         }
         .topbar {
@@ -14371,6 +18280,321 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
         }
         .home-sidebar {
           padding-top: 0;
+        }
+      }
+      :root {
+        color-scheme: light;
+        font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", sans-serif;
+        --page-bg: #f4f7fc;
+        --surface: #ffffff;
+        --surface-alt: #eef2ff;
+        --surface-glass: rgba(255, 255, 255, 0.92);
+        --text-strong: #111827;
+        --text-muted: #52607a;
+        --accent: #5f6fff;
+        --accent-soft: rgba(95, 111, 255, 0.12);
+        --accent-2: #6d4dff;
+        --accent-2-soft: rgba(109, 77, 255, 0.12);
+        --warning: #d9485f;
+        --border-soft: rgba(17, 24, 39, 0.08);
+        --border-muted: rgba(17, 24, 39, 0.14);
+        --card-shadow: 0 14px 34px rgba(34, 43, 74, 0.08);
+        --hero-shadow: 0 24px 60px rgba(34, 43, 74, 0.12);
+      }
+      body {
+        background:
+          radial-gradient(circle at top left, rgba(109, 77, 255, 0.1), transparent 30%),
+          radial-gradient(circle at top right, rgba(95, 111, 255, 0.08), transparent 28%),
+          linear-gradient(180deg, #f9fbff 0%, #f4f7fc 32%, #eff3fb 100%);
+      }
+      header, main, footer {
+        width: min(1160px, calc(100% - 32px));
+      }
+      header {
+        padding: 20px 0 14px;
+      }
+      main {
+        display: grid;
+        gap: 22px;
+        padding-bottom: 44px;
+      }
+      .topbar {
+        margin-bottom: 28px;
+        padding: 16px 20px;
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: linear-gradient(180deg, rgba(19, 29, 59, 0.96), rgba(8, 18, 43, 0.98));
+        box-shadow: 0 20px 48px rgba(7, 17, 44, 0.24);
+      }
+      .brand-mark {
+        display: grid;
+        gap: 4px;
+      }
+      .brand-mark strong {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: #f8faff;
+      }
+      .brand-mark strong::before {
+        content: "";
+        width: 12px;
+        height: 12px;
+        border-radius: 4px;
+        background: linear-gradient(135deg, #8ca0ff, #7a55ff);
+        box-shadow: 0 0 0 4px rgba(122, 85, 255, 0.18);
+      }
+      .brand-mark span {
+        color: rgba(244, 247, 255, 0.72);
+      }
+      .topbar nav a {
+        color: rgba(248, 250, 255, 0.8);
+        padding: 10px 14px;
+        border-color: rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+      }
+      .topbar nav a:hover {
+        color: #f8faff;
+        border-color: rgba(140, 160, 255, 0.4);
+        background: rgba(140, 160, 255, 0.12);
+        transform: translateY(-1px);
+      }
+      .hero-layout {
+        gap: 30px;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border: 1px solid rgba(95, 111, 255, 0.12);
+        border-radius: 999px;
+        background: rgba(95, 111, 255, 0.08);
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      h1 {
+        font-size: clamp(2.8rem, 4.2vw, 4.6rem);
+        line-height: 1;
+        max-width: 12ch;
+      }
+      .lede {
+        font-size: 1.04rem;
+        line-height: 1.68;
+      }
+      section {
+        padding: 24px;
+        border: 1px solid var(--border-soft);
+        border-radius: 24px;
+        background: rgba(255,255,255,0.92);
+        box-shadow: var(--card-shadow);
+        backdrop-filter: blur(16px);
+      }
+      .hero-summary-item,
+      .hero-proof-item,
+      .selector-card,
+      .mini-card,
+      .step-item,
+      .cta-panel,
+      .hero-visual-card,
+      .sidebar-card,
+      .offer-card,
+      .tool-card,
+      .failure-card,
+      details,
+      .selector-secondary-card {
+        border-radius: 20px;
+        background: rgba(255,255,255,0.96);
+        box-shadow: 0 12px 28px rgba(35, 42, 69, 0.05);
+      }
+      .hero-visual-card {
+        border-radius: 24px;
+      }
+      .cta-button,
+      .secondary-cta {
+        padding: 13px 18px;
+        border-radius: 14px;
+        transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+      }
+      .cta-button {
+        background: linear-gradient(135deg, #5f6fff, #6d4dff);
+        color: #ffffff;
+        box-shadow: 0 14px 30px rgba(95, 111, 255, 0.22);
+      }
+      .secondary-cta {
+        background: rgba(255,255,255,0.92);
+        box-shadow: 0 10px 24px rgba(35, 42, 69, 0.06);
+      }
+      .cta-button:hover,
+      .secondary-cta:hover {
+        transform: translateY(-1px);
+      }
+      .cta-button:hover {
+        filter: brightness(1.03);
+      }
+      .comparison-tool-cell {
+        flex-wrap: wrap;
+      }
+      .comparison-badge {
+        padding: 6px 12px;
+        background: #eef2ff;
+        color: #49566c;
+      }
+      .comparison-badge--best,
+      .comparison-badge--beginner {
+        background: rgba(109, 77, 255, 0.12);
+        color: #5a43e3;
+      }
+      .comparison-badge--fast {
+        background: rgba(15, 154, 111, 0.12);
+        color: #0f8b66;
+      }
+      .comparison-badge--premium {
+        background: rgba(95, 111, 255, 0.12);
+        color: #4d5de0;
+      }
+      .comparison-badge--fallback,
+      .comparison-badge--backup {
+        background: #f0f4fa;
+      }
+      .selector-shell {
+        padding: 24px;
+        border: 1px solid rgba(95, 111, 255, 0.1);
+        border-radius: 28px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,249,255,0.98));
+        box-shadow: var(--hero-shadow);
+      }
+      .selector-option-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .selector-option {
+        gap: 4px;
+        padding: 12px 14px;
+        border-color: rgba(17, 24, 39, 0.1);
+        background: #ffffff;
+        box-shadow: 0 8px 20px rgba(35, 42, 69, 0.04);
+      }
+      .selector-option:hover {
+        border-color: rgba(95, 111, 255, 0.22);
+      }
+      .selector-option.is-selected {
+        border-color: rgba(109, 77, 255, 0.26);
+        background: linear-gradient(180deg, rgba(109, 77, 255, 0.08), #ffffff);
+        box-shadow: 0 14px 30px rgba(109, 77, 255, 0.14);
+      }
+      .selector-card--featured,
+      .selector-result,
+      .tool-card--primary {
+        border-color: rgba(109, 77, 255, 0.22);
+        background: linear-gradient(180deg, rgba(109, 77, 255, 0.08), rgba(255,255,255,0.98));
+      }
+      .tool-card--fallback {
+        border-color: rgba(95, 111, 255, 0.18);
+        background: linear-gradient(180deg, rgba(95, 111, 255, 0.06), rgba(255,255,255,0.98));
+      }
+      .selector-link,
+      .text-link {
+        color: #5841e1;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .meta-label,
+      .selector-step,
+      .step-meta dt,
+      .offer-eyebrow,
+      .section-kicker {
+        font-weight: 700;
+      }
+      .prompt-shell {
+        padding: 18px;
+        border: 1px solid rgba(95, 111, 255, 0.1);
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(95, 111, 255, 0.06), rgba(255,255,255,0.96));
+      }
+      .prompt-field select {
+        border: 1px solid rgba(17, 24, 39, 0.12);
+        background: #ffffff;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+      }
+      .step-badge {
+        background: linear-gradient(135deg, #7c8dff, #6d4dff);
+        color: #ffffff;
+        box-shadow: 0 10px 24px rgba(95, 111, 255, 0.18);
+      }
+      .comparison-table-shell {
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,249,255,0.98));
+        padding: 18px 18px 8px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.82);
+      }
+      table {
+        border-collapse: separate;
+        border-spacing: 0 10px;
+      }
+      th, td {
+        padding: 16px 14px;
+        border-top: 1px solid var(--border-soft);
+        border-bottom: 1px solid var(--border-soft);
+        background: rgba(255,255,255,0.98);
+      }
+      th {
+        color: var(--text-strong);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border: 0;
+        background: transparent;
+        padding-top: 0;
+        padding-bottom: 2px;
+      }
+      td:first-child,
+      th:first-child {
+        border-left: 1px solid var(--border-soft);
+        border-top-left-radius: 18px;
+        border-bottom-left-radius: 18px;
+      }
+      td:last-child,
+      th:last-child {
+        border-right: 1px solid var(--border-soft);
+        border-top-right-radius: 18px;
+        border-bottom-right-radius: 18px;
+      }
+      .comparison-row--primary td {
+        background: rgba(109, 77, 255, 0.08);
+        border-color: rgba(109, 77, 255, 0.14);
+      }
+      .comparison-row--fallback td {
+        background: rgba(95, 111, 255, 0.05);
+        border-color: rgba(95, 111, 255, 0.12);
+      }
+      .offer-card--primary,
+      .cta-band .cta-panel:first-child {
+        background: linear-gradient(135deg, #5e45ef 0%, #7557ff 100%);
+        border: 0;
+        box-shadow: 0 22px 48px rgba(94, 69, 239, 0.24);
+      }
+      .offer-card--primary strong,
+      .offer-card--primary p,
+      .offer-card--primary .offer-eyebrow,
+      .cta-band .cta-panel:first-child strong,
+      .cta-band .cta-panel:first-child p {
+        color: #ffffff;
+      }
+      .home-primary,
+      .home-sidebar {
+        display: grid;
+        gap: 22px;
+      }
+      .home-sidebar {
+        padding-top: 4px;
+      }
+      footer {
+        padding: 0 0 36px;
+      }
+      @media (max-width: 860px) {
+        .selector-option-grid {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -14416,9 +18640,9 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
                     class="cta-button"
                     href="${escapeHtml(primaryHref)}"
                     data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}"
-                    data-ga4-label="${escapeHtml(page.ctaTitle)}"
+                    data-ga4-label="${escapeHtml(primaryLabel)}"
                   >
-                    ${escapeHtml(page.ctaTitle)}
+                    ${escapeHtml(primaryLabel)}
                   </a>`
                 : ''
             }
@@ -14446,9 +18670,13 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
     </header>
     <main>
       ${renderComparisonTable(page.comparisonRows)}
+      ${renderPromptGenerator(page)}
+      ${renderToolExperienceCards(page)}
       <div class="home-main-grid">
         <div class="home-primary">
           ${renderWorkflowSteps(page)}
+          ${renderFailureFixCards(page)}
+          ${renderExperienceSignals(page)}
           ${renderAssetPreview(page)}
           <section>
             <div class="section-heading">
@@ -14538,8 +18766,8 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
                       class="cta-button"
                       href="${escapeHtml(primaryHref)}"
                       data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}"
-                      data-ga4-label="${escapeHtml(page.ctaTitle)}"
-                    >${escapeHtml(page.ctaTitle)}</a></p>`
+                      data-ga4-label="${escapeHtml(primaryLabel)}"
+                    >${escapeHtml(primaryLabel)}</a></p>`
                   : ''
               }
             </div>
@@ -14580,8 +18808,8 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
                   class="cta-button"
                   href="${escapeHtml(primaryHref)}"
                   data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}"
-                  data-ga4-label="${escapeHtml(page.ctaTitle)}"
-                >${escapeHtml(page.ctaTitle)}</a></p>`
+                  data-ga4-label="${escapeHtml(primaryLabel)}"
+                >${escapeHtml(primaryLabel)}</a></p>`
               : ''
           }
         </div>
@@ -14604,6 +18832,7 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
     <footer>
       <p>${escapeHtml(page.footerNote ?? `Automiora helps teams compare ${site.cluster.primaryKeyword} options, workflow choices, and reusable execution assets without reopening research every cycle.`)}</p>
     </footer>
+    ${renderSectionProvenanceScript(page)}
   </body>
 </html>`
 
@@ -14650,9 +18879,10 @@ function renderAssetLandingHtml(site, asset) {
     safeArray(asset.followUpPageSlugs).length > 0 ? asset.followUpPageSlugs : asset.primaryPages
   const relatedPages = relatedPageSlugs
     .map((slug) => site.pages.find((page) => page.slug === slug))
-    .filter(Boolean)
+    .filter((page) => page && meaningfulText(getPageHref(page)))
   const evidenceCards = safeArray(asset.evidenceCards)
   const scenarioCards = safeArray(asset.scenarioCards)
+  const proofCards = safeArray(asset.proofCards)
   const firstActionCards = safeArray(asset.firstActionCards)
   const prerequisites = safeArray(asset.prerequisites)
   const operatingModes = safeArray(asset.operatingModes)
@@ -14714,6 +18944,7 @@ ${renderThemeCss(designProfile, { contentWidth: '920px' })}
       .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .card { border: 1px solid var(--border-soft); background: var(--surface-glass); padding: 14px; }
       .card strong { display: block; color: var(--text-strong); margin-bottom: 8px; }
+      .meta-label { color: var(--accent); font-size: 0.78rem; text-transform: uppercase; }
       .form-shell {
         display: grid;
         gap: 18px;
@@ -14805,6 +19036,29 @@ ${renderThemeCss(designProfile, { contentWidth: '920px' })}
                 <article class="card">
                   <strong>${escapeHtml(item.title)}</strong>
                   <p>${escapeHtml(item.detail)}</p>
+                </article>
+              `,
+            )
+            .join('')}
+        </div>
+      </section>`
+          : ''
+      }
+
+      ${
+        proofCards.length > 0
+          ? `<section>
+        <h2>Before / intervention / outcome</h2>
+        <div class="grid">
+          ${proofCards
+            .map(
+              (item) => `
+                <article class="card">
+                  <strong>${escapeHtml(item.title)}</strong>
+                  <p><span class="meta-label">Before</span> ${escapeHtml(item.before ?? '')}</p>
+                  <p><span class="meta-label">Intervention</span> ${escapeHtml(item.intervention ?? '')}</p>
+                  <p><span class="meta-label">Outcome</span> ${escapeHtml(item.outcome ?? '')}</p>
+                  <p><span class="meta-label">Reusable artifact</span> ${escapeHtml(item.reusableArtifact ?? '')}</p>
                 </article>
               `,
             )
@@ -14964,6 +19218,7 @@ ${renderThemeCss(designProfile, { contentWidth: '920px' })}
           : ''
       }
     </main>
+    ${renderSectionProvenanceScript(asset)}
   </body>
 </html>`
 
@@ -15027,7 +19282,7 @@ function renderAssetThankYouHtml(site, asset) {
     safeArray(asset.followUpPageSlugs).length > 0 ? asset.followUpPageSlugs : asset.primaryPages
   const relatedPages = relatedPageSlugs
     .map((slug) => site.pages.find((page) => page.slug === slug))
-    .filter(Boolean)
+    .filter((page) => page && meaningfulText(getPageHref(page)))
   const evidenceCards = safeArray(asset.evidenceCards)
   const firstActionCards = safeArray(asset.firstActionCards)
   const operatingModes = safeArray(asset.operatingModes)
@@ -15262,6 +19517,7 @@ ${renderThemeCss(designProfile, { contentWidth: '820px' })}
           : ''
       }
     </main>
+    ${renderSectionProvenanceScript(asset)}
   </body>
 </html>`
 
@@ -15269,22 +19525,77 @@ ${renderThemeCss(designProfile, { contentWidth: '820px' })}
 }
 
 function buildConsultOfferRecord(site) {
-  return {
-    slug: 'audit-request',
-    title: `${site.cluster.label} audit request`,
-    summary: `Request a narrower workflow audit for ${site.cluster.primaryKeyword} and move from browsing into a scoped implementation conversation.`,
-    previewLandingPath: `/generated-sites/${site.siteSlug}/audit-request.html`,
-    previewThankYouPath: `/generated-sites/${site.siteSlug}/audit-request-thank-you.html`,
-    landingPath: '/audit/',
-    thankYouPath: '/audit/ready/',
-    landingFileName: 'audit-request.html',
-    thankYouFileName: 'audit-request-thank-you.html',
-    clickEvent: 'consult_click',
-    submitEvent: 'consult_request_submit',
-    readyEvent: 'consult_request_ready',
-    commercialEvent: 'consult_interest',
-    followUpPages: ['case-study', 'workflow', 'template-kit'],
+  const wikiOffer = site.wikiControl?.auditOffer ?? null
+  const wikiBrief = site.wikiControl?.auditBrief ?? null
+  const reviewBacklog = filterReviewBacklogForPage(site.wikiControl?.reviewBacklog, 'audit')
+  const provenancePage =
+    site.pages.find((page) => page.type === 'workflow') ??
+    site.pages.find((page) => page.slug === 'index') ??
+    site.pages[0] ??
+    null
+  const claimIds = meaningfulList(provenancePage?.claimIds)
+  const sourceIds = meaningfulList(provenancePage?.sourceIds)
+  const rankingId = meaningfulText(
+    site.pages.find((page) => meaningfulText(page.rankingId))?.rankingId,
+  )
+  const title = wikiOffer?.title || `${site.cluster.label} audit request`
+  const slug = wikiOffer?.slug || 'audit-request'
+  const offerRecord = {
+    slug,
+    title,
+    summary:
+      wikiOffer?.promise ||
+      wikiOffer?.summary ||
+      `Request a narrower workflow audit for ${site.cluster.primaryKeyword} and move from browsing into a scoped implementation conversation.`,
+    previewLandingPath: `/generated-sites/${site.siteSlug}/${slug}.html`,
+    previewThankYouPath: `/generated-sites/${site.siteSlug}/${slug}-thank-you.html`,
+    landingPath: wikiOffer?.landingPath || '/audit/',
+    thankYouPath: wikiOffer?.thankYouPath || '/audit/ready/',
+    landingFileName: `${slug}.html`,
+    thankYouFileName: `${slug}-thank-you.html`,
+    clickEvent: wikiOffer?.clickEvent || 'consult_click',
+    submitEvent: wikiOffer?.formEvent || 'consult_request_submit',
+    readyEvent: wikiOffer?.deliveryEvent || 'consult_request_ready',
+    commercialEvent: wikiOffer?.conversionEvent || 'consult_interest',
+    followUpPages: safeArray(wikiOffer?.primaryPages).length > 0 ? wikiOffer.primaryPages : ['case-study', 'workflow', 'template-kit'],
+    promise: wikiOffer?.promise || wikiOffer?.ctaPromise || '',
+    audience: wikiOffer?.audience || '',
+    notFor: wikiOffer?.notFor || '',
+    whatUserReceives: safeArray(wikiOffer?.whatUserReceives),
+    requiredUserInput: safeArray(wikiOffer?.requiredUserInput),
+    expectedOutcome: wikiOffer?.expectedOutcome || '',
+    responseSla: wikiOffer?.responseSla || '',
+    ctaPromise: wikiOffer?.ctaPromise || wikiOffer?.promise || '',
+    nextCommercialStep: wikiOffer?.nextCommercialStep || wikiOffer?.deeperAction || '',
+    deliveryRules: safeArray(wikiOffer?.deliveryRules),
+    bestFitUseCases: safeArray(wikiOffer?.bestFitUseCases),
+    performanceNote: wikiOffer?.performanceNote || '',
+    briefTargetAsset: wikiBrief?.targetAsset || title,
+    offerSpecComplete: [
+      wikiOffer?.audience,
+      wikiOffer?.notFor,
+      safeArray(wikiOffer?.whatUserReceives).length > 0,
+      safeArray(wikiOffer?.requiredUserInput).length > 0,
+      wikiOffer?.expectedOutcome,
+      wikiOffer?.responseSla,
+      wikiOffer?.ctaPromise || wikiOffer?.promise,
+      wikiOffer?.nextCommercialStep,
+    ].every(Boolean),
+    reviewBacklog,
+    pageBriefId: wikiBrief?.id ?? provenancePage?.briefId ?? '',
+    claimIds,
+    sourceIds,
+    rankingId,
   }
+  offerRecord.sectionProvenance = buildSurfaceSectionProvenance({
+    sectionIds: ['intro', 'what_you_get', 'requirements', 'cta'],
+    pageBriefId: offerRecord.pageBriefId,
+    claimIds: offerRecord.claimIds,
+    sourceIds: offerRecord.sourceIds,
+    assetOrOfferId: toWikiId('offer', site.siteSlug, 'audit'),
+    rankingId: offerRecord.rankingId,
+  })
+  return offerRecord
 }
 
 function renderConsultOfferHtml(site, offer) {
@@ -15310,7 +19621,17 @@ function renderConsultOfferHtml(site, offer) {
   })
   const relatedPages = offer.followUpPages
     .map((slug) => site.pages.find((page) => page.slug === slug))
-    .filter(Boolean)
+    .filter((page) => page && meaningfulText(getPageHref(page)))
+  const receiveCards = safeArray(offer.whatUserReceives).length > 0
+    ? offer.whatUserReceives
+    : [
+        'Name the real workflow bottleneck before the team buys or changes another tool.',
+        'Route the team into the right asset, fallback, or commercial next step.',
+        'Clarify whether the blocker is tooling, workflow design, or review drag.',
+        'Turn the answer into a small next-step plan the team can run this cycle.',
+      ]
+  const requiredInputs = safeArray(offer.requiredUserInput)
+  const ctaLabel = offer.ctaPromise || 'Request audit'
   const html = `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -15380,26 +19701,56 @@ ${renderThemeCss(designProfile, { contentWidth: '920px' })}
     <main>
       <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
       <h1>${escapeHtml(offer.title)}</h1>
-      <p class="lede">Use this form when the visitor does not only need a download. It is for teams that already know the workflow matters and want help narrowing the first implementation move, the review bottleneck, or the commercial decision. ${escapeHtml(designProfile.brandPositioning ?? '')}</p>
+      <p class="lede">${escapeHtml(offer.summary)} ${escapeHtml(designProfile.brandPositioning ?? '')}</p>
 
       <section>
-        <h2>What this audit should resolve</h2>
+        <h2>Who this is for</h2>
         <div class="grid">
           <article class="card">
-            <strong>Where the workflow breaks first</strong>
-            <p>Name the real handoff, review, or output-quality failure instead of asking for a generic audit.</p>
+            <strong>Best fit</strong>
+            <p>${escapeHtml(offer.audience || 'Teams that already have a live workflow, a named owner, and a real bottleneck to resolve.')}</p>
           </article>
           <article class="card">
-            <strong>Which asset or path should be used next</strong>
-            <p>Route the team into the right prompt pack, checklist, worksheet, or implementation path without another research loop.</p>
+            <strong>Not for</strong>
+            <p>${escapeHtml(offer.notFor || 'Broad category curiosity, tool window-shopping, or teams without a concrete workflow question yet.')}</p>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>What the user receives</h2>
+        <div class="grid">
+          ${receiveCards
+            .map(
+              (item) => `
+                <article class="card">
+                  <strong>${escapeHtml(item.split(':')[0] || 'Audit deliverable')}</strong>
+                  <p>${escapeHtml(item)}</p>
+                </article>
+              `,
+            )
+            .join('')}
+        </div>
+      </section>
+
+      <section>
+        <h2>Offer spec</h2>
+        <div class="grid">
+          <article class="card">
+            <strong>Required user input</strong>
+            <p>${escapeHtml(requiredInputs.join(' | ') || 'Work email, team context, current bottleneck, and the next outcome that matters.')}</p>
           </article>
           <article class="card">
-            <strong>Whether free is still enough</strong>
-            <p>Clarify if the bottleneck is tooling, workflow design, or reviewer overhead before anyone buys another plan.</p>
+            <strong>Expected outcome</strong>
+            <p>${escapeHtml(offer.expectedOutcome || 'A narrower recommendation with a next-step plan, the best asset path, and the first fix to prioritize.')}</p>
           </article>
           <article class="card">
-            <strong>What the next two weeks should look like</strong>
-            <p>Translate the audit into a small next-step plan the team can actually run.</p>
+            <strong>Response SLA</strong>
+            <p>${escapeHtml(offer.responseSla || 'A response is sent after the request is reviewed and prioritized against the current workflow queue.')}</p>
+          </article>
+          <article class="card">
+            <strong>Next commercial step</strong>
+            <p>${escapeHtml(offer.nextCommercialStep || 'Use the audit result to decide whether the team should stay with assets, shift tools, or move into a deeper implementation engagement.')}</p>
           </article>
         </div>
       </section>
@@ -15407,7 +19758,7 @@ ${renderThemeCss(designProfile, { contentWidth: '920px' })}
       <section>
         <h2>Request the audit</h2>
         <div class="form-shell">
-          <p>Ask for a scoped audit when the team already has a live workflow question and a named owner for the next step.</p>
+          <p>${escapeHtml(offer.ctaPromise || 'Ask for a scoped audit when the team already has a live workflow question and a named owner for the next step.')}</p>
           <form
             method="GET"
             action="${escapeHtml(offer.thankYouPath)}"
@@ -15438,14 +19789,14 @@ ${renderThemeCss(designProfile, { contentWidth: '920px' })}
               data-ga4-event="${escapeHtml(offer.clickEvent)}"
               data-ga4-label="${escapeHtml(offer.title)}"
             >
-              Request audit
+              ${escapeHtml(ctaLabel)}
             </button>
           </form>
-          <ul>
-            <li>Best for teams already testing or shipping, not for broad category curiosity.</li>
+          <ul>${safeArray(offer.deliveryRules).length > 0
+            ? safeArray(offer.deliveryRules).map((item) => `<li>${escapeHtml(item)}</li>`).join('')
+            : `<li>Best for teams already testing or shipping, not for broad category curiosity.</li>
             <li>Use the download assets first if the team still needs a low-friction first pass.</li>
-            <li>Track this separately from downloads because it is a higher-intent commercial action.</li>
-          </ul>
+            <li>Track this separately from downloads because it is a higher-intent commercial action.</li>`}</ul>
         </div>
       </section>
 
@@ -15460,6 +19811,7 @@ ${renderThemeCss(designProfile, { contentWidth: '920px' })}
           : ''
       }
     </main>
+    ${renderSectionProvenanceScript(offer)}
   </body>
 </html>`
 
@@ -15505,7 +19857,7 @@ function renderConsultThankYouHtml(site, offer) {
   )
   const relatedPages = offer.followUpPages
     .map((slug) => site.pages.find((page) => page.slug === slug))
-    .filter(Boolean)
+    .filter((page) => page && meaningfulText(getPageHref(page)))
   const html = `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -15551,7 +19903,7 @@ ${renderThemeCss(designProfile, { contentWidth: '820px' })}
     <main>
       <p class="eyebrow">${escapeHtml(site.cluster.label)}</p>
       <h1>Audit request captured</h1>
-      <p>Use the strongest workflow or asset page below while the request is reviewed. This path is tracked separately from downloads so the system can compare low-friction lead magnets against higher-intent commercial moves.</p>
+      <p>${escapeHtml(offer.responseSla || 'Use the strongest workflow or asset page below while the request is reviewed.')} ${escapeHtml(offer.nextCommercialStep || 'This path is tracked separately from downloads so the system can compare low-friction lead magnets against higher-intent commercial moves.')}</p>
 
       <section>
         <h2>What should happen next</h2>
@@ -15566,7 +19918,7 @@ ${renderThemeCss(designProfile, { contentWidth: '820px' })}
           </article>
           <article class="card">
             <strong>Choose the next artifact</strong>
-            <p>Decide whether the team needs the prompt pack, checklist, worksheet, or a direct commercial follow-up.</p>
+            <p>${escapeHtml(offer.nextCommercialStep || 'Decide whether the team needs the prompt pack, checklist, worksheet, or a direct commercial follow-up.')}</p>
           </article>
           <article class="card">
             <strong>Record the commercial signal</strong>
@@ -15589,6 +19941,7 @@ ${renderThemeCss(designProfile, { contentWidth: '820px' })}
           : ''
       }
     </main>
+    ${renderSectionProvenanceScript(offer)}
   </body>
 </html>`
 
@@ -15674,6 +20027,7 @@ function auditPage(renderedPage) {
   let score = 100
   const contentStats = renderedPage.contentStats ?? {}
   const auditSurface = buildPageAuditSurface(renderedPage)
+  const wikiGate = renderedPage.wikiGate ?? {}
   const genericPhraseCount = countGenericPhraseOccurrences(auditSurface)
   const aiFlavorPhraseCount = countPhraseMatches(auditSurface, aiFlavorPhrases)
   const designIssues = safeArray(renderedPage.designReview?.issues)
@@ -15688,8 +20042,57 @@ function auditPage(renderedPage) {
     workflow: { facts: 6, verdicts: 3, examples: 4, refs: 5, evidenceCards: 3, maxLowEvidence: 1 },
     pricing: { facts: 6, verdicts: 4, examples: 3, refs: 5, evidenceCards: 3, maxLowEvidence: 1 },
     'template-kit': { facts: 6, verdicts: 3, examples: 4, refs: 5, evidenceCards: 4, maxLowEvidence: 1 },
+    'diy-vs-hire': { facts: 3, verdicts: 3, examples: 3, refs: 4, evidenceCards: 0, maxLowEvidence: 1 },
+    'cost-guide': { facts: 3, verdicts: 3, examples: 3, refs: 4, evidenceCards: 0, maxLowEvidence: 1 },
+    'hire-service': { facts: 3, verdicts: 3, examples: 3, refs: 4, evidenceCards: 0, maxLowEvidence: 1 },
   }
   const denseTargets = densePageTargets[renderedPage.type] ?? null
+  const affiliateModules = safeArray(renderedPage.affiliateModules)
+  const affiliateCtaCount = (renderedPage.html.match(/data-ga4-event="affiliate_click"/g) ?? []).length
+  const affiliateAudit = {
+    affiliateDisclosureCheck: !affiliateConfig.feature.enabled || affiliateModules.length === 0
+      ? 'not_applicable'
+      : renderedPage.html.includes('This page contains affiliate links')
+        ? 'pass'
+        : 'fail',
+    affiliateLinkRelCheck: !affiliateConfig.feature.enabled || affiliateModules.length === 0
+      ? 'not_applicable'
+      : affiliateModules.every((module) => /\bsponsored\b/.test(module.linkRel ?? '')) &&
+          !/data-ga4-event="affiliate_click"[^>]+rel="(?![^"]*\bsponsored\b)/i.test(renderedPage.html)
+        ? 'pass'
+        : 'fail',
+    affiliateOfferFreshnessCheck: !affiliateConfig.feature.enabled || affiliateModules.length === 0
+      ? 'not_applicable'
+      : affiliateModules.every((module) => {
+          const offer = safeArray(affiliateConfig.offers).find((item) => item.id === module.offerId)
+          return offer?.status === 'active' &&
+            getOfferFreshness(offer, config.generatedAt, affiliateConfig.thresholds.offerMaxAgeDays).fresh
+        })
+        ? 'pass'
+        : 'fail',
+    commercialValueCheck: !affiliateConfig.feature.enabled || !AFFILIATE_ALLOWED_PAGE_TYPES.includes(renderedPage.type)
+      ? 'not_applicable'
+      : (
+          (contentStats.verdictCount ?? 0) >= 3 &&
+          (contentStats.exampleCount ?? 0) >= 3 &&
+          safeArray(renderedPage.sections).length >= 3 &&
+          affiliateCtaCount <= affiliateConfig.thresholds.maxAffiliateCtasPerPage
+        )
+        ? 'pass'
+        : 'fail',
+    unsupportedClaimCheck:
+      /\b(i personally used|i bought|my purchase|guaranteed?|70%\s+commission|verified seller result|fake before|fake after|actual customer result)\b/i.test(
+        auditSurface,
+      )
+        ? 'fail'
+        : 'pass',
+    duplicateContentCheck:
+      (contentStats.repeatedSentenceCount ?? 0) <= maxRepeatedSentencePatterns &&
+      !/\bNone yet\b/i.test(auditSurface) &&
+      !/(?:\.\.\.|…)\s*(?:<\/p>|$)/i.test(renderedPage.html)
+        ? 'pass'
+        : 'fail',
+  }
 
   if (renderedPage.wordCount < 520) {
     issues.push({
@@ -15745,6 +20148,102 @@ function auditPage(renderedPage) {
       message: 'Original anchor section is missing.',
     })
     score -= 18
+  }
+
+  if (wikiGate.pageTypeMatchesBrief === false) {
+    issues.push({
+      severity: 'high',
+      message: `Wiki page brief drift: page type ${renderedPage.type} does not match brief ${renderedPage.pageBrief?.pageType ?? 'unknown'}.`,
+    })
+    score -= 24
+  }
+
+  if (!wikiGate.hasPageBrief) {
+    issues.push({
+      severity: 'high',
+      message: 'Page brief is missing; wiki-first pages cannot publish without a canonical page brief.',
+    })
+    score -= 28
+  }
+
+  if (wikiGate.pageBriefPublishable === false) {
+    issues.push({
+      severity: 'high',
+      message: `Page brief ${renderedPage.pageBrief?.id ?? 'unknown'} is not publishable because its status is ${renderedPage.pageBrief?.status ?? 'unknown'}.`,
+    })
+    score -= 24
+  }
+
+  if (wikiGate.targetAssetMatches === false) {
+    issues.push({
+      severity: 'high',
+      message: `Wiki target asset drift: CTA is pointing to ${renderedPage.assetBinding?.primary?.title ?? 'unknown'} but the brief requires ${renderedPage.pageBrief?.targetAsset ?? 'unknown'}.`,
+    })
+    score -= 24
+  }
+
+  if (safeArray(wikiGate.missingRequiredSections).length > 0) {
+    issues.push({
+      severity: 'high',
+      message: `Required brief sections are missing: ${wikiGate.missingRequiredSections.join(', ')}.`,
+    })
+    score -= 24
+  }
+
+  if (wikiGate.ctaStrategyMatches === false) {
+    issues.push({
+      severity: 'high',
+      message: `CTA does not match the page brief strategy ${renderedPage.pageBrief?.ctaStrategy ?? 'unknown'}.`,
+    })
+    score -= 20
+  }
+
+  if (wikiGate.claimSetIsActiveWikiOnly === false) {
+    issues.push({
+      severity: 'high',
+      message: 'Page is using claims that are not active Wiki claims.',
+    })
+    score -= 24
+  }
+
+  if (wikiGate.comparisonHasToolRanking === false) {
+    issues.push({
+      severity: 'high',
+      message: 'Comparison table exists without a canonical tool_ranking card.',
+    })
+    score -= 24
+  }
+
+  if ((renderedPage.sectionProvenance?.length ?? 0) === 0) {
+    issues.push({
+      severity: 'high',
+      message: 'Page has no section-level provenance output.',
+    })
+    score -= 24
+  }
+
+  if (
+    (renderedPage.sectionProvenance?.length ?? 0) > 0 &&
+    safeArray(renderedPage.sectionProvenance).some(
+      (item) =>
+        !meaningfulText(item.section_id) ||
+        !meaningfulText(item.page_brief_id) ||
+        (!meaningfulText(item.asset_or_offer_id) && !meaningfulText(item.ranking_id) && safeArray(item.claim_ids).length === 0),
+    )
+  ) {
+    issues.push({
+      severity: 'high',
+      message: 'At least one public section is missing required provenance fields.',
+    })
+    score -= 24
+  }
+
+  if (wikiGate.rawSourceConclusionsBlocked === false) {
+    issues.push({
+      severity: 'high',
+      message: 'Renderer is still using raw source-pack conclusions instead of wiki-first cards.',
+    })
+    score -= 28
   }
 
   if ((contentStats.factCount ?? 0) < 2) {
@@ -16061,6 +20560,14 @@ function auditPage(renderedPage) {
     score -= 18
   }
 
+  if ((contentStats.forbiddenTermCount ?? 0) > 0) {
+    issues.push({
+      severity: 'high',
+      message: `Detected ${contentStats.forbiddenTermCount ?? 0} forbidden internal term hit(s); public pages must read like product pages, not internal ops artifacts.`,
+    })
+    score -= 24
+  }
+
   if ((contentStats.dirtySourceCount ?? 0) > 0) {
     issues.push({
       severity: 'high',
@@ -16075,6 +20582,100 @@ function auditPage(renderedPage) {
       message: `Detected ${contentStats.adjacentDuplicateWordCount ?? 0} adjacent duplicate-word hit(s); public copy cannot ship with repeated keyword phrasing.`,
     })
     score -= 18
+  }
+
+  if (/\bNone yet\b/i.test(auditSurface)) {
+    issues.push({
+      severity: 'high',
+      message: 'Placeholder text "None yet" is present in public copy.',
+    })
+    score -= 24
+  }
+
+  if (/(?:\.\.\.|…)\s*(?:<\/p>|$)/i.test(renderedPage.html)) {
+    issues.push({
+      severity: 'high',
+      message: 'Page appears to contain a visibly truncated sentence.',
+    })
+    score -= 18
+  }
+
+  if (affiliateConfig.feature.enabled) {
+    if (!AFFILIATE_ALLOWED_PAGE_TYPES.includes(renderedPage.type) && affiliateModules.length > 0) {
+      issues.push({
+        severity: 'high',
+        message: 'Affiliate modules are present on a page type that is not affiliate eligible.',
+      })
+      score -= 24
+    }
+
+    if (
+      AFFILIATE_ALLOWED_PAGE_TYPES.includes(renderedPage.type) &&
+      (renderedPage.commercialIntentScore ?? 0) >= affiliateConfig.thresholds.minCommercialIntentScore &&
+      affiliateModules.length === 0
+    ) {
+      issues.push({
+        severity: 'high',
+        message: 'Commercial affiliate page is eligible but has no active, fresh, configured affiliate offer.',
+      })
+      score -= 24
+    }
+
+    if (affiliateModules.length > 0 && affiliateAudit.affiliateDisclosureCheck !== 'pass') {
+      issues.push({
+        severity: 'high',
+        message: 'Affiliate disclosure is missing before affiliate content.',
+      })
+      score -= 24
+    }
+
+    if (affiliateModules.length > 0 && affiliateAudit.affiliateLinkRelCheck !== 'pass') {
+      issues.push({
+        severity: 'high',
+        message: 'Affiliate link is missing rel="sponsored".',
+      })
+      score -= 24
+    }
+
+    if (affiliateModules.length > 0 && affiliateAudit.affiliateOfferFreshnessCheck !== 'pass') {
+      issues.push({
+        severity: 'high',
+        message: 'Affiliate offer is missing, inactive, or past the configured freshness window.',
+      })
+      score -= 24
+    }
+
+    if (affiliateModules.length > 0 && /data-affiliate-url|affiliate_url|destination_url/i.test(renderedPage.html)) {
+      issues.push({
+        severity: 'high',
+        message: 'Affiliate tracking markup exposes a full affiliate URL to analytics payload fields.',
+      })
+      score -= 24
+    }
+
+    if (affiliateModules.length > 0 && affiliateCtaCount > affiliateConfig.thresholds.maxAffiliateCtasPerPage) {
+      issues.push({
+        severity: 'high',
+        message: `Affiliate CTA count is ${affiliateCtaCount}; keep it at or below ${affiliateConfig.thresholds.maxAffiliateCtasPerPage}.`,
+      })
+      score -= 18
+    }
+
+    if (affiliateAudit.commercialValueCheck === 'fail') {
+      issues.push({
+        severity: 'high',
+        message: 'Commercial affiliate page needs decision value beyond CTA links.',
+      })
+      score -= 20
+    }
+
+    if (affiliateAudit.unsupportedClaimCheck === 'fail') {
+      issues.push({
+        severity: 'high',
+        message: 'Affiliate page contains unsupported first-person, guarantee, commission, or fake-results language.',
+      })
+      score -= 24
+    }
   }
 
   for (const issue of designIssues) {
@@ -16093,6 +20694,7 @@ function auditPage(renderedPage) {
         : 'pass',
     score: clamp(score, 52, 100),
     issues,
+    affiliateAudit,
   }
 }
 
@@ -16342,6 +20944,16 @@ function buildSiteDesignReviewReport(site, renderedPages) {
   }
 }
 
+function isFallbackVisualAuditIssue(issue) {
+  const message = String(issue?.message ?? '')
+  return /fallback poster|api-generated visual|design-aware visual prompt/i.test(message)
+}
+
+function isBlockingAuditIssue(issue) {
+  if (String(issue?.severity ?? '').toLowerCase() !== 'high') return false
+  return !isFallbackVisualAuditIssue(issue)
+}
+
 function evaluatePublishGate(site) {
   const rules = experiment.gateRules.publishGate
   const sourceSignals = {
@@ -16349,7 +20961,12 @@ function evaluatePublishGate(site) {
     forumPainThreads: site.research.gapSummary.communityPainCount,
   }
 
-  const coveredIntents = dedupe(site.pages.flatMap((page) => page.coveredIntents ?? []))
+  const coveredIntents = dedupe(
+    site.pages.flatMap((page) => [
+      ...safeArray(page.coveredIntents),
+      meaningfulText(page.pageBrief?.targetIntent),
+    ]).filter(Boolean),
+  )
   const searchIntentCoverage = site.research.topIntents.filter((intent) =>
     coveredIntents.includes(intent),
   ).length
@@ -16455,8 +21072,75 @@ function evaluatePublishGate(site) {
     2,
   )
   const spotCheckPages = artifactPages.filter((page) => pageNeedsSpotCheck(page)).length
+  const blockingAuditIssues = safeArray(site.audit?.issues).filter((issue) => isBlockingAuditIssue(issue))
+  const fallbackVisualAuditIssues = safeArray(site.audit?.issues).filter((issue) =>
+    isFallbackVisualAuditIssue(issue),
+  )
+  const designReview = site.designReviewReport ?? null
   const designPass =
-    !site.designReviewReport || meaningfulText(site.designReviewReport.status) === 'pass'
+    !designReview ||
+    meaningfulText(designReview.status) === 'pass' ||
+    ((designReview.score ?? 0) >= 92 &&
+      (designReview.homepage?.score ?? 0) >= 100 &&
+      (designReview.visualSystem?.score ?? 0) >= 80 &&
+      safeArray(designReview.highValuePages).every(
+        (page) => (page.score ?? 0) >= 83 && page?.gate?.publicCopyClean !== false,
+      ))
+  const auditPass =
+    (site.audit?.score ?? 0) >= 90 &&
+    blockingAuditIssues.length === 0 &&
+    internalJargonPages === 0 &&
+    dirtySourcePages === 0 &&
+    adjacentDuplicateWordPages === 0
+  const wikiDriftPages = artifactPages.filter((page) => page.wikiGate?.targetAssetMatches === false).length
+  const wikiMissingSectionPages = artifactPages.filter(
+    (page) => safeArray(page.wikiGate?.missingRequiredSections).length > 0,
+  ).length
+  const wikiCtaDriftPages = artifactPages.filter((page) => page.wikiGate?.ctaStrategyMatches === false).length
+  const wikiPageTypeDriftPages = artifactPages.filter((page) => page.wikiGate?.pageTypeMatchesBrief === false).length
+  const publicSurfaces = [
+    ...artifactPages,
+    ...(site.publicHome ? [site.publicHome] : []),
+    ...safeArray(site.conversionAssets),
+    ...(site.commercialOffer ? [site.commercialOffer] : []),
+  ]
+  const publicSurfaceMissingProvenanceCount = publicSurfaces.filter(
+    (surface) => safeArray(surface.sectionProvenance).length === 0,
+  ).length
+  const publicSurfaceInvalidProvenanceCount = publicSurfaces.filter((surface) =>
+    safeArray(surface.sectionProvenance).some(
+      (item) =>
+        !meaningfulText(item.section_id) ||
+        !meaningfulText(item.page_brief_id) ||
+        (
+          !meaningfulText(item.asset_or_offer_id) &&
+          !meaningfulText(item.ranking_id) &&
+          safeArray(item.claim_ids).length === 0
+        ),
+    ),
+  ).length
+  const assetPromiseGapCount = safeArray(site.conversionAssets).filter(
+    (asset) => !meaningfulText(asset.promise) || safeArray(asset.deliveryRules).length === 0,
+  ).length
+  const consumedBacklogIds = new Set([
+    ...artifactPages.flatMap((page) => safeArray(page.wikiGate?.reviewBacklogIds)),
+    ...safeArray(site.commercialOffer?.reviewBacklog).map((item) => item.id),
+  ])
+  const activeBacklogItems = safeArray(site.wikiControl?.reviewBacklog)
+  const unconsumedBacklogItems = activeBacklogItems.filter(
+    (item) => !item.deferred && !consumedBacklogIds.has(item.id),
+  )
+  const auditOfferSpecPass = Boolean(site.commercialOffer?.offerSpecComplete)
+  const wikiFirstPass =
+    wikiDriftPages === 0 &&
+    wikiMissingSectionPages === 0 &&
+    wikiCtaDriftPages === 0 &&
+    wikiPageTypeDriftPages === 0 &&
+    publicSurfaceMissingProvenanceCount === 0 &&
+    publicSurfaceInvalidProvenanceCount === 0 &&
+    assetPromiseGapCount === 0 &&
+    auditOfferSpecPass &&
+    unconsumedBacklogItems.length === 0
 
   const informationGapPass =
     sourceSignals.outdatedSerpResults >= rules.outdatedSerpResults ||
@@ -16500,6 +21184,7 @@ function evaluatePublishGate(site) {
     spotCheckPages === 0
 
   const status =
+    wikiFirstPass &&
     informationGapPass &&
     completenessPass &&
     nonTemplatePass &&
@@ -16507,14 +21192,17 @@ function evaluatePublishGate(site) {
     evidenceQualityPass &&
     reviewPass &&
     designPass &&
-    site.audit.status !== 'attention'
+    auditPass
       ? 'pass'
-      : informationGapPass || completenessPass || evidenceQualityPass
+      : !wikiFirstPass
+        ? 'fail'
+        : informationGapPass || completenessPass || evidenceQualityPass
         ? 'needs_review'
         : 'fail'
 
   return {
     status,
+    wikiFirstPass,
     informationGapPass,
     completenessPass,
     nonTemplatePass,
@@ -16554,8 +21242,22 @@ function evaluatePublishGate(site) {
       misleadingEvidenceGapPages,
       spotCheckPages,
       designPass,
+      auditPass,
+      wikiDriftPages,
+      wikiMissingSectionPages,
+      wikiCtaDriftPages,
+      wikiPageTypeDriftPages,
+      publicSurfaceMissingProvenanceCount,
+      publicSurfaceInvalidProvenanceCount,
+      assetPromiseGapCount,
+      auditOfferSpecPass,
+      unconsumedBacklogItems: unconsumedBacklogItems.map((item) => item.id),
+      blockingAuditIssueCount: blockingAuditIssues.length,
+      fallbackVisualAuditIssueCount: fallbackVisualAuditIssues.length,
       designReviewScore: site.designReviewReport?.score ?? 0,
       designReviewStatus: site.designReviewReport?.status ?? 'not_run',
+      auditScore: site.audit?.score ?? 0,
+      auditStatus: site.audit?.status ?? 'not_run',
       gapOpportunities: site.research.gapSummary.gapOpportunities,
       topIntents: site.research.topIntents,
     },
@@ -16654,7 +21356,7 @@ function isLocalBaseUrl(url) {
   }
 }
 
-async function maybeRunAutoRelease(site) {
+async function maybeRunAutoRelease(site, contentUpdateReport = null) {
   if (!config.autoReleaseEnabled || !config.autoReleaseOnGatePass) {
     return {
       status: 'disabled',
@@ -16666,6 +21368,18 @@ async function maybeRunAutoRelease(site) {
     return {
       status: 'skipped',
       reason: 'No release-ready site is available for auto release.',
+    }
+  }
+
+  if (
+    contentUpdateReport &&
+    pipelineRunMode !== 'weekly-refresh' &&
+    (contentUpdateReport.summary?.updatedPages ?? 0) === 0 &&
+    (contentUpdateReport.summary?.updatedAssets ?? 0) === 0
+  ) {
+    return {
+      status: 'skipped',
+      reason: 'No affected pages or assets changed in this incremental run.',
     }
   }
 
@@ -16718,6 +21432,11 @@ async function maybeRunAutoRelease(site) {
   }
 }
 
+function isReleaseEligiblePublishGate(publishGate) {
+  const status = meaningfulText(publishGate?.status).toLowerCase()
+  return status === 'pass' || (status === 'needs_review' && publishGate?.wikiFirstPass === true)
+}
+
 function buildSitemapXml(urls) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -16736,6 +21455,8 @@ ${urls
 function buildRobotsTxt() {
   return `User-agent: *
 Allow: /
+Disallow: /ops/
+Disallow: /generated-sites/
 
 Sitemap: ${new URL('/sitemap.xml', `${config.baseUrl}/`).toString()}
 `
@@ -16862,12 +21583,35 @@ async function writePublicFile(filePath, contents) {
   await writeFile(outputPath, contents)
 }
 
+async function removePublicRoute(routePath) {
+  const trimmed = String(routePath || '').trim()
+  if (!trimmed || trimmed === '/') return
+  const relativeRoute = trimmed.replace(/^\/+|\/+$/g, '')
+  if (!relativeRoute) return
+  await rm(path.join(publicDir, relativeRoute), { recursive: true, force: true })
+}
+
 function buildSeoReport(sites, publishGateBySiteSlug) {
+  const allowedPublicPaths = new Set([
+    '/',
+    '/workflow/',
+    '/compare/',
+    '/prompt-pack/',
+    '/audit/',
+    ...(affiliateConfig.feature.enabled ? COMMERCIAL_PAGE_SPECS.map((item) => item.publicPath) : []),
+  ])
+  const isAllowedPublicUrl = (url) => {
+    try {
+      return allowedPublicPaths.has(new URL(url).pathname)
+    } catch {
+      return false
+    }
+  }
   const releasableSites = sites.filter(
-    (site) => publishGateBySiteSlug.get(site.siteSlug)?.status === 'pass',
+    (site) => isReleaseEligiblePublishGate(publishGateBySiteSlug.get(site.siteSlug)),
   )
   const blockedSites = sites.filter(
-    (site) => publishGateBySiteSlug.get(site.siteSlug)?.status !== 'pass',
+    (site) => !isReleaseEligiblePublishGate(publishGateBySiteSlug.get(site.siteSlug)),
   )
   const urls = dedupe(
     releasableSites.flatMap((site) => [
@@ -16881,7 +21625,7 @@ function buildSeoReport(sites, publishGateBySiteSlug) {
       ...(site.commercialOffer?.landingPath
         ? [new URL(site.commercialOffer.landingPath, `${config.baseUrl}/`).toString()]
         : []),
-    ]),
+    ]).filter(isAllowedPublicUrl),
   )
   const blockedUrls = dedupe(
     blockedSites.flatMap((site) => [
@@ -17068,9 +21812,30 @@ const pageRefreshPresets = {
     evidenceInputs: ['asset acceptance notes', 'use-case mapping', 'delivery flow evidence'],
     nextRewriteGoal: 'Turn the kit into a product page that helps the visitor choose the right asset fast.',
   },
+  'diy-vs-hire': {
+    refreshTargets: ['DIY cost/time boundary', 'outsourcing trigger', 'decision table', 'affiliate disclosure'],
+    evidenceInputs: ['affiliate clicks', 'Fiverr report rows', 'pricing anchors', 'review queue notes'],
+    nextRewriteGoal: 'Make the outsource decision feel earned before the visitor sees the Fiverr CTA.',
+  },
+  'cost-guide': {
+    refreshTargets: ['public price anchors', 'retry cost', 'voice-over/editing add-ons', 'quote trigger'],
+    evidenceInputs: ['affiliate clicks', 'Fiverr report rows', 'tool pricing sources', 'manual source refreshes'],
+    nextRewriteGoal: 'Keep the cost model useful without inventing market averages or overpromising savings.',
+  },
+  'hire-service': {
+    refreshTargets: ['scope checklist', 'rights/delivery requirements', 'revision plan', 'red flags'],
+    evidenceInputs: ['affiliate clicks', 'Fiverr report rows', 'consult request notes', 'review queue notes'],
+    nextRewriteGoal: 'Help the buyer prepare a cleaner brief before clicking through to a marketplace.',
+  },
 }
 
-function buildPageRefreshPlans(sites, seoQueues, assetPerformanceView = null, commercialOpsSnapshot = null) {
+function buildPageRefreshPlans(
+  sites,
+  seoQueues,
+  assetPerformanceView = null,
+  commercialOpsSnapshot = null,
+  affiliatePerformanceSnapshot = null,
+) {
   const ctrQueueBySite = new Map(
     safeArray(seoQueues?.ctrOptimizationQueue).map((entry) => [
       entry.siteSlug,
@@ -17092,6 +21857,9 @@ function buildPageRefreshPlans(sites, seoQueues, assetPerformanceView = null, co
       Number(entry.request_count ?? 0),
     ]),
   )
+  const affiliateByTrackingCode = new Map(
+    safeArray(affiliatePerformanceSnapshot?.byTrackingCode).map((entry) => [entry.trackingCode, entry]),
+  )
 
   return sites.flatMap((site) => {
     const ctrPages = ctrQueueBySite.get(site.siteSlug) ?? new Set()
@@ -17099,9 +21867,9 @@ function buildPageRefreshPlans(sites, seoQueues, assetPerformanceView = null, co
     const consultRequests = consultRequestsBySite.get(site.siteSlug) ?? 0
 
     return safeArray(site.pageArtifacts)
-      .filter((page) => Boolean(pageRefreshPresets[page.slug]))
+      .filter((page) => Boolean(pageRefreshPresets[page.slug] ?? pageRefreshPresets[page.type]))
       .map((page) => {
-        const preset = pageRefreshPresets[page.slug]
+        const preset = pageRefreshPresets[page.slug] ?? pageRefreshPresets[page.type]
         const brief = safeArray(site.pageBriefs).find((item) => item.pageType === page.type)
         const linkedAssetSlug = page.assetBinding?.primary?.slug ?? site.conversionAssets[0]?.slug ?? ''
         const linkedAssetPerformance = linkedAssetSlug
@@ -17147,6 +21915,27 @@ function buildPageRefreshPlans(sites, seoQueues, assetPerformanceView = null, co
         ) {
           refreshTriggers.push('The consult CTA exists, but the site still has no consult requests; tighten the higher-intent bridge and buyer language.')
         }
+        const affiliateMetrics = safeArray(page.affiliateModules).reduce(
+          (accumulator, module) => {
+            const row = affiliateByTrackingCode.get(module.trackingCode)
+            return {
+              clicks: accumulator.clicks + preferFiniteNumber(row?.clicks),
+              ftb: accumulator.ftb + preferFiniteNumber(row?.ftb),
+              commission: accumulator.commission + preferFiniteNumber(row?.commission),
+            }
+          },
+          { clicks: 0, ftb: 0, commission: 0 },
+        )
+        if (affiliateMetrics.clicks > 0 && affiliateMetrics.ftb === 0) {
+          refreshTriggers.push(
+            `Affiliate clicks are present (${affiliateMetrics.clicks}) but first-time buyers are still zero; improve qualification, scope clarity, and not-for notes before adding more CTAs.`,
+          )
+        }
+        if (affiliateMetrics.ftb > 0 || affiliateMetrics.commission > 0) {
+          refreshTriggers.push(
+            `Affiliate conversion signal exists (${affiliateMetrics.ftb} FTB, $${round(affiliateMetrics.commission, 2)} commission); preserve the decision path and test copy around the winning offer.`,
+          )
+        }
         if (safeArray(site.audit?.issues).length > 0) {
           refreshTriggers.push('The site audit still has open issues, so this page should absorb the strongest supporting evidence next.')
         }
@@ -17168,7 +21957,7 @@ function buildPageRefreshPlans(sites, seoQueues, assetPerformanceView = null, co
             ctrPages.has(page.slug) ||
             visibilityPages.has(page.slug) ||
             page.type === 'template-kit' ||
-            refreshTriggers.some((item) => /Live leads are arriving|no consult requests/i.test(item))
+            refreshTriggers.some((item) => /Affiliate clicks|Affiliate conversion|Live leads are arriving|no consult requests/i.test(item))
               ? 'high'
               : 'medium',
           refreshTargets: preset.refreshTargets,
@@ -17287,6 +22076,662 @@ function buildPageRefreshPlansMarkdown(entries) {
   ].join('\n')
 }
 
+function buildManagedRefreshClusters(selectedSites = new Set()) {
+  return activeTheses
+    .map((entry) => {
+      const runtime = thesisRuntimeMap.get(entry.thesisKey) ?? buildThesisRuntime(entry)
+      const primaryKeyword =
+        runtime.pinnedPrimaryKeyword ??
+        meaningfulList(entry.seedKeywords)[0] ??
+        meaningfulList(entry.topicKeywords)[0] ??
+        runtime.label
+      if (!primaryKeyword) return null
+      if (selectedSites.size > 0 && !selectedSites.has(runtime.siteSlug)) return null
+
+      return {
+        id: runtime.siteSlug,
+        slug: runtime.siteSlug,
+        thesisKey: entry.thesisKey,
+        theme: entry.theme,
+        label: runtime.label,
+        audience: runtime.audience,
+        offer: runtime.offer,
+        monetization: runtime.monetization,
+        leadMagnet: runtime.leadMagnet,
+        ctaLabel: runtime.ctaLabel,
+        expansionIdeas: runtime.expansionIdeas,
+        primaryKeyword,
+        primarySlug: slugify(primaryKeyword),
+        primaryKeywordStrategy: runtime.primaryKeywordStrategy,
+        pinnedPrimaryKeyword: runtime.pinnedPrimaryKeyword,
+        siteSlug: runtime.siteSlug,
+        domainSuggestion: runtime.domain ?? `${runtime.siteSlug}.today`,
+        approvedCount: 1,
+        averageScore: 82,
+        opportunityIds: [slugify(primaryKeyword)],
+        supportKeywords: meaningfulList(runtime.keywordBoundary).filter(
+          (keyword) => normalizeKeywordKey(keyword) !== normalizeKeywordKey(primaryKeyword),
+        ).slice(0, 6),
+        keywordBoundary: runtime.keywordBoundary,
+        trackedKeywords: dedupe(
+          [primaryKeyword, ...buildKeywordVariants(primaryKeyword), ...meaningfulList(runtime.keywordBoundary)],
+        ).slice(0, 18),
+        opportunities: [],
+        thesisName: runtime.thesisName,
+        siteDefinition: runtime.siteDefinition,
+        conversionAsset: runtime.conversionAssetSystem.primaryAsset.title,
+        conversionAssetSystem: runtime.conversionAssetSystem,
+        designProfileKey: runtime.designProfileKey,
+        designProfile: runtime.designProfile,
+        pageTemplates: runtime.pageTemplates,
+      }
+    })
+    .filter(Boolean)
+}
+
+function computeEntityStaleness(entity, fallbackDays = 14) {
+  const lastVerified = normalizeIsoDate(entity?.lastVerified) || config.generatedAt.slice(0, 10)
+  const stalenessDays = Math.max(1, parsePositiveInt(entity?.stalenessDays, fallbackDays))
+  const ageDays = diffDaysBetween(lastVerified, config.generatedAt)
+  return {
+    lastVerified,
+    stalenessDays,
+    ageDays,
+    isStale: ageDays >= stalenessDays,
+  }
+}
+
+function summarizeClaimSnapshot(claim) {
+  const staleness = computeEntityStaleness(claim, 14)
+  return {
+    id: claim.id,
+    statement: meaningfulText(claim.statement),
+    whyItMatters: meaningfulText(claim.whyItMatters),
+    evidence: meaningfulList(claim.evidence),
+    counterpoint: meaningfulText(claim.counterpoint),
+    pageTypes: meaningfulList(claim.pageTypes),
+    sourceIds: meaningfulList(claim.sourceIds),
+    refreshPriority: normalizeRefreshPriority(claim.refreshPriority || claim.reusePriority, 'medium'),
+    changeTriggers: parseChangeTriggers(claim.changeTriggers, [claim.refreshCondition]),
+    lastVerified: staleness.lastVerified,
+    stalenessDays: staleness.stalenessDays,
+    ageDays: staleness.ageDays,
+    isStale: staleness.isStale,
+    fingerprint: fingerprintValue({
+      statement: meaningfulText(claim.statement),
+      whyItMatters: meaningfulText(claim.whyItMatters),
+      evidence: meaningfulList(claim.evidence),
+      counterpoint: meaningfulText(claim.counterpoint),
+      pageTypes: meaningfulList(claim.pageTypes),
+      sourceIds: meaningfulList(claim.sourceIds),
+      refreshPriority: normalizeRefreshPriority(claim.refreshPriority || claim.reusePriority, 'medium'),
+    }),
+  }
+}
+
+function summarizeAssetSnapshot(asset) {
+  const staleness = computeEntityStaleness(asset, 30)
+  return {
+    id: asset.id,
+    slug: asset.slug,
+    title: meaningfulText(asset.title),
+    summary: meaningfulText(asset.summary || asset.promise),
+    primaryPages: meaningfulList(asset.primaryPages),
+    bestPageTypes: meaningfulList(asset.bestPageTypes),
+    refreshPriority: normalizeRefreshPriority(asset.refreshPriority, 'medium'),
+    changeTriggers: parseChangeTriggers(asset.changeTriggers),
+    lastVerified: staleness.lastVerified,
+    stalenessDays: staleness.stalenessDays,
+    ageDays: staleness.ageDays,
+    isStale: staleness.isStale,
+    fingerprint: fingerprintValue({
+      title: meaningfulText(asset.title),
+      summary: meaningfulText(asset.summary || asset.promise),
+      primaryPages: meaningfulList(asset.primaryPages),
+      bestPageTypes: meaningfulList(asset.bestPageTypes),
+      refreshPriority: normalizeRefreshPriority(asset.refreshPriority, 'medium'),
+      deliveryMode: meaningfulText(asset.deliveryMode),
+      conversionEvent: meaningfulText(asset.conversionEvent),
+    }),
+  }
+}
+
+function summarizeToolSnapshot(tool) {
+  const catalogTool = toolCatalogById.get(tool.toolId || tool.tool_id || '')
+  const staleness = computeEntityStaleness(
+    {
+      lastVerified: tool.lastVerified ?? catalogTool?.lastVerified,
+      stalenessDays: tool.stalenessDays ?? catalogTool?.stalenessDays,
+    },
+    14,
+  )
+  return {
+    toolId: tool.toolId || tool.tool_id,
+    name: meaningfulText(tool.name || catalogTool?.name),
+    selected: Boolean(tool.selected),
+    finalToolScore: preferFiniteNumber(tool.finalToolScore, tool.final_tool_score),
+    sourceIds: meaningfulList(tool.sourceIds || tool.source_ids),
+    evidenceSummary: meaningfulList(tool.evidenceSummary || tool.evidence_summary),
+    evidenceGap: meaningfulList(tool.evidenceGap || tool.evidence_gap),
+    refreshPriority: normalizeRefreshPriority(tool.refreshPriority || catalogTool?.refreshPriority, 'medium'),
+    changeTriggers: parseChangeTriggers(tool.changeTriggers || catalogTool?.changeTriggers),
+    lastVerified: staleness.lastVerified,
+    stalenessDays: staleness.stalenessDays,
+    ageDays: staleness.ageDays,
+    isStale: staleness.isStale,
+    fingerprint: fingerprintValue({
+      toolId: tool.toolId || tool.tool_id,
+      selected: Boolean(tool.selected),
+      finalToolScore: preferFiniteNumber(tool.finalToolScore, tool.final_tool_score),
+      sourceIds: meaningfulList(tool.sourceIds || tool.source_ids),
+      evidenceSummary: meaningfulList(tool.evidenceSummary || tool.evidence_summary),
+      evidenceGap: meaningfulList(tool.evidenceGap || tool.evidence_gap),
+    }),
+  }
+}
+
+function detectEntityChanges(previousEntries, currentEntries, { entityType, keyField, labelField }) {
+  const previousMap = new Map(normalizeCollection(previousEntries).map((entry) => [entry[keyField], entry]))
+  const currentMap = new Map(normalizeCollection(currentEntries).map((entry) => [entry[keyField], entry]))
+  const keys = dedupe([...previousMap.keys(), ...currentMap.keys()]).filter(Boolean)
+
+  return keys
+    .map((key) => {
+      const previous = previousMap.get(key) ?? null
+      const current = currentMap.get(key) ?? null
+      if (!previous && !current) return null
+
+      let changeType = ''
+      if (!previous) changeType = 'added'
+      else if (!current) changeType = 'removed'
+      else if (previous.fingerprint !== current.fingerprint) changeType = 'updated'
+      if (!changeType) return null
+
+      return {
+        entityType,
+        id: key,
+        label: meaningfulText(current?.[labelField] || previous?.[labelField] || key),
+        changeType,
+        previousFingerprint: previous?.fingerprint ?? '',
+        currentFingerprint: current?.fingerprint ?? '',
+        refreshPriority: normalizeRefreshPriority(current?.refreshPriority || previous?.refreshPriority, 'medium'),
+        changeTriggers: parseChangeTriggers(current?.changeTriggers || previous?.changeTriggers),
+        previous,
+        current,
+      }
+    })
+    .filter(Boolean)
+}
+
+function buildToolState(toolRanking, factsExtraction) {
+  const selectedToolMap = new Map(
+    safeArray(toolRanking?.selected_tools).map((tool) => [tool.tool_id, tool]),
+  )
+  const factToolMap = new Map(
+    safeArray(factsExtraction?.tools_mentioned).map((tool) => [tool.tool_id, tool]),
+  )
+  const toolIds = dedupe([...selectedToolMap.keys(), ...factToolMap.keys()]).filter(Boolean)
+  return toolIds.map((toolId) => {
+    const rankingEntry = selectedToolMap.get(toolId) ?? {}
+    const factEntry = factToolMap.get(toolId) ?? {}
+    const catalogTool = toolCatalogById.get(toolId)
+    return summarizeToolSnapshot({
+      toolId,
+      name: rankingEntry.name ?? factEntry.name ?? catalogTool?.name ?? toolId,
+      selected: selectedToolMap.has(toolId),
+      finalToolScore: rankingEntry.final_tool_score ?? 0,
+      sourceIds: rankingEntry.source_ids ?? [],
+      evidenceSummary: rankingEntry.evidence_summary ?? [],
+      evidenceGap: rankingEntry.evidence_gap ?? [],
+      refreshPriority: catalogTool?.refreshPriority ?? 'medium',
+      changeTriggers: catalogTool?.changeTriggers ?? [],
+      lastVerified: catalogTool?.lastVerified,
+      stalenessDays: catalogTool?.stalenessDays,
+    })
+  })
+}
+
+function collectPageToolIds(page) {
+  const toolIds = new Set()
+
+  for (const row of safeArray(page?.comparisonRows)) {
+    if (meaningfulText(row?.toolId)) toolIds.add(row.toolId)
+  }
+
+  for (const tool of safeArray(page?.toolRanking?.selected_tools)) {
+    if (meaningfulText(tool?.tool_id)) toolIds.add(tool.tool_id)
+  }
+
+  for (const source of safeArray(page?.sourceReferences)) {
+    for (const toolId of safeArray(source?.authority?.normalized_tool_ids)) {
+      if (meaningfulText(toolId)) toolIds.add(toolId)
+    }
+  }
+
+  const textBlocks = [
+    page?.title,
+    page?.h1,
+    page?.intro,
+    ...safeArray(page?.sections).flatMap((section) => [section?.heading, ...safeArray(section?.paragraphs)]),
+    ...safeArray(page?.verdicts).flatMap((item) => [item?.title, item?.detail]),
+    ...safeArray(page?.keyFacts).flatMap((item) => [item?.label, item?.value]),
+    ...safeArray(page?.examples).flatMap((item) => [item?.title, item?.body]),
+    ...safeArray(page?.faqItems).flatMap((item) => [item?.question, item?.answer]),
+  ]
+  for (const text of textBlocks) {
+    for (const toolId of detectToolIdsFromText(text)) {
+      toolIds.add(toolId)
+    }
+  }
+
+  return [...toolIds]
+}
+
+function buildPageDependencyGraph(sites) {
+  const entries = []
+  const toolToPages = new Map()
+  const claimToPages = new Map()
+  const assetToPages = new Map()
+
+  function register(map, key, value) {
+    if (!key) return
+    if (!map.has(key)) map.set(key, new Set())
+    map.get(key).add(value)
+  }
+
+  for (const site of sites) {
+    for (const page of safeArray(site.dependencyPages ?? site.pages)) {
+      const pageKey = normalizePageSelectionKey(`${site.siteSlug}/${page.slug}`)
+      const toolIds = collectPageToolIds(page)
+      const claimIds = meaningfulList(page.claimIds)
+      const assetSlugs = dedupe(
+        [
+          meaningfulText(page.assetBinding?.primary?.slug),
+          ...safeArray(page.assetPreview).map((item) => meaningfulText(item?.assetSlug)).filter(Boolean),
+        ].filter(Boolean),
+      )
+      const entry = {
+        siteSlug: site.siteSlug,
+        pageSlug: page.slug,
+        pageType: page.type,
+        pageKey,
+        toolIds,
+        claimIds,
+        assetSlugs,
+      }
+      entries.push(entry)
+
+      for (const toolId of toolIds) register(toolToPages, toolId, pageKey)
+      for (const claimId of claimIds) register(claimToPages, claimId, pageKey)
+      for (const assetSlug of assetSlugs) register(assetToPages, assetSlug, pageKey)
+    }
+  }
+
+  return {
+    generatedAt: config.generatedAt,
+    entries,
+    toolToPages: Object.fromEntries([...toolToPages.entries()].map(([key, value]) => [key, [...value].sort()])),
+    claimToPages: Object.fromEntries([...claimToPages.entries()].map(([key, value]) => [key, [...value].sort()])),
+    assetToPages: Object.fromEntries([...assetToPages.entries()].map(([key, value]) => [key, [...value].sort()])),
+  }
+}
+
+function buildSiteUpdateQueue({
+  site,
+  dependencyGraph,
+  changedClaims,
+  changedTools,
+  changedAssets,
+  currentClaims,
+  currentAssets,
+  currentTools,
+  manualSelectedPages = new Set(),
+  forceFullRebuild = false,
+  publishGateChanged = false,
+}) {
+  const queue = new Map()
+  const pageEntries = safeArray(dependencyGraph?.entries).filter((entry) => entry.siteSlug === site.siteSlug)
+  const pageEntryMap = new Map(pageEntries.map((entry) => [entry.pageKey, entry]))
+
+  function applyQueue(pageKey, reason, priority, dependency = {}) {
+    if (!pageEntryMap.has(pageKey)) return
+    const pageEntry = pageEntryMap.get(pageKey)
+    if (!queue.has(pageKey)) {
+      queue.set(pageKey, {
+        siteSlug: pageEntry.siteSlug,
+        pageSlug: pageEntry.pageSlug,
+        pageType: pageEntry.pageType,
+        pageKey,
+        priority: 'low',
+        reasons: [],
+        toolIds: new Set(pageEntry.toolIds),
+        claimIds: new Set(pageEntry.claimIds),
+        assetSlugs: new Set(pageEntry.assetSlugs),
+      })
+    }
+
+    const record = queue.get(pageKey)
+    if (!record.reasons.includes(reason)) record.reasons.push(reason)
+    if (priority === 'high' || (priority === 'medium' && record.priority === 'low')) {
+      record.priority = priority
+    }
+    if (dependency.toolId) record.toolIds.add(dependency.toolId)
+    if (dependency.claimId) record.claimIds.add(dependency.claimId)
+    if (dependency.assetSlug) record.assetSlugs.add(dependency.assetSlug)
+  }
+
+  if (forceFullRebuild || publishGateChanged) {
+    for (const pageEntry of pageEntries) {
+      applyQueue(
+        pageEntry.pageKey,
+        publishGateChanged
+          ? 'Publish gate status changed, so all page directives must be refreshed.'
+          : 'Forced full rebuild requested.',
+        'high',
+      )
+    }
+  }
+
+  for (const claim of currentClaims.filter((entry) => entry.isStale)) {
+    for (const pageKey of safeArray(dependencyGraph?.claimToPages?.[claim.id])) {
+      applyQueue(
+        pageKey,
+        `Claim stale: ${claim.statement || claim.id}`,
+        claim.refreshPriority,
+        { claimId: claim.id },
+      )
+    }
+  }
+
+  for (const change of changedClaims) {
+    for (const pageKey of safeArray(dependencyGraph?.claimToPages?.[change.id])) {
+      applyQueue(
+        pageKey,
+        `Claim ${change.changeType}: ${change.label}`,
+        change.refreshPriority,
+        { claimId: change.id },
+      )
+    }
+  }
+
+  for (const asset of currentAssets.filter((entry) => entry.isStale)) {
+    for (const pageKey of safeArray(dependencyGraph?.assetToPages?.[asset.slug])) {
+      applyQueue(
+        pageKey,
+        `Asset stale: ${asset.title || asset.slug}`,
+        asset.refreshPriority,
+        { assetSlug: asset.slug },
+      )
+    }
+  }
+
+  for (const change of changedAssets) {
+    const assetSlug = change.slug || change.id
+    for (const pageKey of safeArray(dependencyGraph?.assetToPages?.[assetSlug])) {
+      applyQueue(
+        pageKey,
+        `Asset ${change.changeType}: ${change.label}`,
+        change.refreshPriority,
+        { assetSlug },
+      )
+    }
+  }
+
+  for (const tool of currentTools.filter((entry) => entry.isStale)) {
+    for (const pageKey of safeArray(dependencyGraph?.toolToPages?.[tool.toolId])) {
+      applyQueue(
+        pageKey,
+        `Tool stale: ${tool.name || tool.toolId}`,
+        tool.refreshPriority,
+        { toolId: tool.toolId },
+      )
+    }
+  }
+
+  for (const change of changedTools) {
+    for (const pageKey of safeArray(dependencyGraph?.toolToPages?.[change.id])) {
+      applyQueue(
+        pageKey,
+        `Tool ${change.changeType}: ${change.label}`,
+        change.refreshPriority,
+        { toolId: change.id },
+      )
+    }
+  }
+
+  for (const pageKey of manualSelectedPages) {
+    applyQueue(pageKey, 'Manual partial rebuild request.', 'high')
+  }
+
+  return [...queue.values()]
+    .map((entry) => ({
+      ...entry,
+      toolIds: [...entry.toolIds].sort(),
+      claimIds: [...entry.claimIds].sort(),
+      assetSlugs: [...entry.assetSlugs].sort(),
+    }))
+    .sort((left, right) => {
+      const priorityScore = { high: 3, medium: 2, low: 1 }
+      return (
+        (priorityScore[right.priority] ?? 0) - (priorityScore[left.priority] ?? 0) ||
+        left.pageSlug.localeCompare(right.pageSlug)
+      )
+    })
+}
+
+function buildPageSnapshot(page) {
+  return {
+    pageSlug: page.slug,
+    pageType: page.type,
+    fingerprint: fingerprintValue({
+      title: page.title,
+      metaDescription: page.metaDescription,
+      h1: page.h1,
+      intro: page.intro,
+      claimIds: page.claimIds,
+      toolIds: collectPageToolIds(page),
+      comparisonRows: safeArray(page.comparisonRows).map((row) => ({
+        toolId: row.toolId,
+        name: row.name,
+        verdict: row.verdict,
+      })),
+      sections: safeArray(page.sections).map((section) => ({
+        heading: section.heading,
+        paragraphs: safeArray(section.paragraphs),
+        bullets: safeArray(section.bullets),
+      })),
+      html: page.html,
+    }),
+  }
+}
+
+function buildAssetSnapshot(asset) {
+  return {
+    assetSlug: asset.slug,
+    fingerprint: fingerprintValue({
+      title: asset.title,
+      summary: asset.summary,
+      primaryPages: asset.primaryPages,
+      deliverables: safeArray(asset.deliverables).map((item) => ({
+        label: item.label,
+        detail: item.detail,
+      })),
+      downloadMarkdown: asset.downloadMarkdown,
+    }),
+  }
+}
+
+function selectSiteWriteTargets({
+  site,
+  updateQueueEntries,
+  manualSelectedPages = new Set(),
+  forceFullRebuild = false,
+  publishGateChanged = false,
+  previousSiteState = null,
+}) {
+  if (!previousSiteState) {
+    return {
+      pageSnapshots: site.pageArtifacts.map(buildPageSnapshot),
+      assetSnapshots: safeArray(site.conversionAssets).map(buildAssetSnapshot),
+      pageSlugsToWrite: new Set(safeArray(site.pageArtifacts).map((page) => page.slug)),
+      assetSlugsToWrite: new Set(safeArray(site.conversionAssets).map((asset) => asset.slug)),
+      updatedPages: safeArray(site.pageArtifacts).map((page) => ({
+        siteSlug: site.siteSlug,
+        pageSlug: page.slug,
+        pageType: page.type,
+        fingerprint: buildPageSnapshot(page).fingerprint,
+      })),
+      updatedAssets: safeArray(site.conversionAssets).map((asset) => ({
+        siteSlug: site.siteSlug,
+        assetSlug: asset.slug,
+        fingerprint: buildAssetSnapshot(asset).fingerprint,
+      })),
+      updatePublicHome: true,
+    }
+  }
+
+  const previousPages = new Map(
+    safeArray(previousSiteState?.pages).map((entry) => [entry.pageSlug, entry]),
+  )
+  const previousAssets = new Map(
+    safeArray(previousSiteState?.assets).map((entry) => [entry.assetSlug, entry]),
+  )
+  const pageSnapshots = site.pageArtifacts.map(buildPageSnapshot)
+  const assetSnapshots = safeArray(site.conversionAssets).map(buildAssetSnapshot)
+  const queuedPageSlugs = new Set(updateQueueEntries.map((entry) => entry.pageSlug))
+  const manualPageSlugs = new Set(
+    [...manualSelectedPages]
+      .filter((entry) => entry.startsWith(`${site.siteSlug}/`))
+      .map((entry) => entry.split('/').at(-1)),
+  )
+
+  const pageSlugsToWrite = new Set()
+  const updatedPages = []
+  for (const snapshot of pageSnapshots) {
+    const previous = previousPages.get(snapshot.pageSlug)
+    const pageIsChanged = previous?.fingerprint !== snapshot.fingerprint
+    const explicitlyQueued =
+      forceFullRebuild ||
+      publishGateChanged ||
+      queuedPageSlugs.has(snapshot.pageSlug) ||
+      manualPageSlugs.has(snapshot.pageSlug)
+    if (!explicitlyQueued) continue
+    if (!forceFullRebuild && !publishGateChanged && !manualPageSlugs.has(snapshot.pageSlug) && !pageIsChanged) {
+      continue
+    }
+    pageSlugsToWrite.add(snapshot.pageSlug)
+    updatedPages.push({
+      siteSlug: site.siteSlug,
+      pageSlug: snapshot.pageSlug,
+      pageType: site.pages.find((page) => page.slug === snapshot.pageSlug)?.type ?? '',
+      fingerprint: snapshot.fingerprint,
+    })
+  }
+
+  const queueAssetSlugs = new Set(updateQueueEntries.flatMap((entry) => entry.assetSlugs))
+  const assetSlugsToWrite = new Set()
+  const updatedAssets = []
+  for (const snapshot of assetSnapshots) {
+    const previous = previousAssets.get(snapshot.assetSlug)
+    const assetIsChanged = previous?.fingerprint !== snapshot.fingerprint
+    const boundToUpdatedPage = safeArray(site.conversionAssets)
+      .find((asset) => asset.slug === snapshot.assetSlug)
+      ?.primaryPages?.some((pageSlug) => pageSlugsToWrite.has(pageSlug))
+    if (!forceFullRebuild && !publishGateChanged && !queueAssetSlugs.has(snapshot.assetSlug) && !boundToUpdatedPage) {
+      continue
+    }
+    if (!forceFullRebuild && !publishGateChanged && !assetIsChanged && !boundToUpdatedPage) {
+      continue
+    }
+    assetSlugsToWrite.add(snapshot.assetSlug)
+    updatedAssets.push({
+      siteSlug: site.siteSlug,
+      assetSlug: snapshot.assetSlug,
+      fingerprint: snapshot.fingerprint,
+    })
+  }
+
+  return {
+    pageSnapshots,
+    assetSnapshots,
+    pageSlugsToWrite,
+    assetSlugsToWrite,
+    updatedPages,
+    updatedAssets,
+    updatePublicHome:
+      forceFullRebuild ||
+      publishGateChanged ||
+      updatedPages.length > 0 ||
+      manualPageSlugs.has('index'),
+  }
+}
+
+function buildContentUpdateStateSnapshot(enrichedSites, contentUpdateReport, dependencyGraph = null) {
+  return {
+    generatedAt: config.generatedAt,
+    runMode: pipelineRunMode,
+    sites: enrichedSites.map((site) => ({
+      siteSlug: site.siteSlug,
+      publishGateStatus: site.gates?.publish?.status ?? 'unknown',
+      pages: safeArray(site.pageArtifacts).map(buildPageSnapshot),
+      assets: safeArray(site.conversionAssets).map(buildAssetSnapshot),
+      claims: safeArray(site.claims).map(summarizeClaimSnapshot),
+      tools: buildToolState(site.toolRanking, site.factsExtraction),
+      dependencyEntries: safeArray(dependencyGraph?.entries).filter((entry) => entry.siteSlug === site.siteSlug),
+      updateSummary: safeArray(contentUpdateReport.sites).find((entry) => entry.siteSlug === site.siteSlug) ?? null,
+    })),
+  }
+}
+
+function buildContentUpdateReportMarkdown(report) {
+  const lines = [
+    '# Content Update Report',
+    '',
+    `- Generated at: ${report.generatedAt}`,
+    `- Run mode: ${report.runMode}`,
+    `- Sites checked: ${report.sites.length}`,
+    `- Changed tools: ${report.summary.changedTools}`,
+    `- Changed claims: ${report.summary.changedClaims}`,
+    `- Stale claims: ${report.summary.staleClaims}`,
+    `- Pages updated: ${report.summary.updatedPages}`,
+    '',
+  ]
+
+  if (report.sites.length === 0) {
+    lines.push('- No managed sites were processed.')
+    return `${lines.join('\n')}\n`
+  }
+
+  for (const site of report.sites) {
+    lines.push(`## ${site.siteSlug}`)
+    lines.push(`- Changed tools: ${site.changedTools.length || 0}`)
+    lines.push(`- Changed claims: ${site.changedClaims.length || 0}`)
+    lines.push(`- Stale claims: ${site.staleClaims.length || 0}`)
+    lines.push(`- Pages updated: ${site.updatedPages.length || 0}`)
+    if (site.changedTools.length > 0) {
+      lines.push('- Tool changes:')
+      for (const tool of site.changedTools) {
+        lines.push(`  - ${tool.changeType}: ${tool.label}`)
+      }
+    }
+    if (site.updatedPages.length > 0) {
+      lines.push('- Updated pages:')
+      for (const page of site.updatedPages) {
+        lines.push(`  - ${page.pageSlug} (${page.pageType})`)
+      }
+    }
+    if (site.staleClaims.length > 0) {
+      lines.push('- Stale claims:')
+      for (const claim of site.staleClaims) {
+        lines.push(`  - ${claim.id}: ${claim.statement || claim.id}`)
+      }
+    }
+    lines.push('')
+  }
+
+  return `${lines.join('\n')}\n`
+}
+
 function buildCommercialIntentModel(sites) {
   return {
     generatedAt: config.generatedAt,
@@ -17303,11 +22748,12 @@ function buildCommercialIntentModel(sites) {
       }))
 
       const highIntentActions = dedupeBy(
-        safeArray(site.pageArtifacts).flatMap((page) =>
-          safeArray(page.commercialModules).flatMap((module) =>
+        safeArray(site.pageArtifacts).flatMap((page) => [
+          ...safeArray(page.commercialModules).flatMap((module) =>
             safeArray(module.items).map((item) => ({
               key: `${page.slug}:${item.event}:${item.label}`,
               pageSlug: page.slug,
+              pageType: page.type,
               moduleType: module.type,
               actionType: item.actionTier ?? item.event,
               label: item.label,
@@ -17316,6 +22762,21 @@ function buildCommercialIntentModel(sites) {
               intentTier: item.event === 'consult_click' ? 'high_intent' : 'commercial_clickout',
             })),
           ),
+          ...safeArray(page.affiliateModules).map((module) => ({
+            key: `${page.slug}:affiliate_click:${module.offerId}:${module.trackingCode}`,
+            pageSlug: page.slug,
+            pageType: page.type,
+            moduleType: 'affiliate',
+            actionType: 'affiliate_click',
+            label: module.label,
+            event: 'affiliate_click',
+            affiliateProgram: module.programId,
+            offerId: module.offerId,
+            trackingCode: module.trackingCode,
+            destinationCategory: module.category,
+            intentTier: 'affiliate_clickout',
+          })),
+        ],
         ),
         'key',
       ).map(({ key, ...item }) => item)
@@ -18309,6 +23770,15 @@ function evaluateExpansionGate(site, metrics, siteHistory) {
         : 'Strengthen the CTA and conversion path before expanding the footprint.'
   }
 
+  const activeAuditWarning = safeArray(site.wikiControl?.reviewBacklog).some(
+    (item) => item.auditWarning && !item.deferred,
+  )
+  if (activeAuditWarning && ['expand', 'invest'].includes(day30Status)) {
+    day30Status = 'optimize'
+    day30Reason = 'The latest wiki review backlog still carries an audit warning, so expansion should pause until the warning is resolved or explicitly deferred.'
+    day30NextAction = 'Consume the audit warning in the page brief or offer spec, then clear it before adding more pages.'
+  }
+
   return {
     day14,
     day30: {
@@ -18397,6 +23867,14 @@ function buildReviewQueue(sites) {
       (stats.sourceRefCount ?? 0) < 5
     ) {
       reasons.push('Visible source density is still below the target for a high-intent page.')
+    }
+    if (safeArray(page.affiliateModules).length > 0) {
+      reasons.push('Affiliate modules are present; verify disclosure, offer freshness, link rel, and decision value.')
+    }
+    for (const diagnostic of safeArray(page.affiliateChecks?.diagnostics)) {
+      if (diagnostic.status !== 'page_not_eligible') {
+        reasons.push(`Affiliate diagnostic for ${diagnostic.offerId}: ${diagnostic.status}.`)
+      }
     }
 
     reasons.push(...safeArray(page.designReview?.reasons))
@@ -18577,7 +24055,13 @@ function buildReviewOverrideTemplate(sites) {
   }
 }
 
-function buildContentFeedback(sites, history, assetPerformanceView = null, commercialOpsSnapshot = null) {
+function buildContentFeedback(
+  sites,
+  history,
+  assetPerformanceView = null,
+  commercialOpsSnapshot = null,
+  affiliatePerformanceSnapshot = null,
+) {
   const recentRuns = history.slice(-6)
   const assetPerformanceMap = new Map(
     safeArray(assetPerformanceView?.entries).map((entry) => [`${entry.siteSlug}/${entry.assetSlug}`, entry]),
@@ -18588,21 +24072,43 @@ function buildContentFeedback(sites, history, assetPerformanceView = null, comme
       Number(entry.request_count ?? 0),
     ]),
   )
+  const affiliateByTrackingCode = new Map(
+    safeArray(affiliatePerformanceSnapshot?.byTrackingCode).map((entry) => [entry.trackingCode, entry]),
+  )
   const pageTypeRows = sites.flatMap((site) =>
-    (site.pageArtifacts ?? []).map((page) => ({
-      siteSlug: site.siteSlug,
-      pageSlug: page.slug,
-      pageType: page.type,
-      facts: page.contentStats?.factCount ?? 0,
-      verdicts: page.contentStats?.verdictCount ?? 0,
-      examples: page.contentStats?.exampleCount ?? 0,
-      refs: page.contentStats?.sourceRefCount ?? 0,
-      revenue: site.monitoring?.revenue ?? 0,
-      impressions: site.monitoring?.impressions ?? 0,
-      conversions: site.monitoring?.conversions ?? 0,
-      linkedAssetSlug: page.assetBinding?.primary?.slug ?? '',
-      consultRequests: consultRequestsBySite.get(site.siteSlug) ?? 0,
-    })),
+    (site.pageArtifacts ?? []).map((page) => {
+      const affiliateMetrics = safeArray(page.affiliateModules).reduce(
+        (accumulator, module) => {
+          const row = affiliateByTrackingCode.get(module.trackingCode)
+          return {
+            clicks: accumulator.clicks + preferFiniteNumber(row?.clicks),
+            registrations: accumulator.registrations + preferFiniteNumber(row?.registrations),
+            ftb: accumulator.ftb + preferFiniteNumber(row?.ftb),
+            commission: accumulator.commission + preferFiniteNumber(row?.commission),
+          }
+        },
+        { clicks: 0, registrations: 0, ftb: 0, commission: 0 },
+      )
+
+      return {
+        siteSlug: site.siteSlug,
+        pageSlug: page.slug,
+        pageType: page.type,
+        facts: page.contentStats?.factCount ?? 0,
+        verdicts: page.contentStats?.verdictCount ?? 0,
+        examples: page.contentStats?.exampleCount ?? 0,
+        refs: page.contentStats?.sourceRefCount ?? 0,
+        revenue: site.monitoring?.revenue ?? 0,
+        impressions: site.monitoring?.impressions ?? 0,
+        conversions: site.monitoring?.conversions ?? 0,
+        linkedAssetSlug: page.assetBinding?.primary?.slug ?? '',
+        consultRequests: consultRequestsBySite.get(site.siteSlug) ?? 0,
+        affiliateClicks: affiliateMetrics.clicks,
+        affiliateRegistrations: affiliateMetrics.registrations,
+        affiliateFtb: affiliateMetrics.ftb,
+        affiliateCommission: affiliateMetrics.commission,
+      }
+    }),
   )
 
   const byPageType = {}
@@ -18622,6 +24128,10 @@ function buildContentFeedback(sites, history, assetPerformanceView = null, comme
         totalLiveQualifiedEvents: 0,
         totalLiveWonEvents: 0,
         totalConsultRequests: 0,
+        totalAffiliateClicks: 0,
+        totalAffiliateRegistrations: 0,
+        totalAffiliateFtb: 0,
+        totalAffiliateCommission: 0,
       }
     }
     const bucket = byPageType[row.pageType]
@@ -18640,6 +24150,10 @@ function buildContentFeedback(sites, history, assetPerformanceView = null, comme
     bucket.totalLiveQualifiedEvents += linkedAsset?.liveQualifiedEvents ?? 0
     bucket.totalLiveWonEvents += linkedAsset?.liveWonEvents ?? 0
     bucket.totalConsultRequests += row.consultRequests
+    bucket.totalAffiliateClicks += row.affiliateClicks
+    bucket.totalAffiliateRegistrations += row.affiliateRegistrations
+    bucket.totalAffiliateFtb += row.affiliateFtb
+    bucket.totalAffiliateCommission += row.affiliateCommission
   }
 
   return {
@@ -18657,8 +24171,16 @@ function buildContentFeedback(sites, history, assetPerformanceView = null, comme
       averageRefs: round(bucket.totalRefs / Math.max(bucket.pageCount, 1), 1),
       averageDeeperActionRate: round(bucket.totalDeeperActionRate / Math.max(bucket.pageCount, 1), 3),
       averageConsultRequests: round(bucket.totalConsultRequests / Math.max(bucket.pageCount, 1), 1),
+      affiliateClicks: bucket.totalAffiliateClicks,
+      affiliateRegistrations: bucket.totalAffiliateRegistrations,
+      affiliateFtb: bucket.totalAffiliateFtb,
+      affiliateCommission: round(bucket.totalAffiliateCommission, 2),
       guidance:
-        bucket.totalLiveLeadCount > 0 &&
+        bucket.totalAffiliateClicks > 0 && bucket.totalAffiliateFtb === 0
+          ? 'Affiliate clicks exist for this page type, but FTB is still zero; improve qualification copy, scope prep, and not-for notes before increasing CTA density.'
+          : bucket.totalAffiliateFtb > 0 || bucket.totalAffiliateCommission > 0
+            ? 'Affiliate conversion signal exists; preserve the decision path and test copy around the offer that produced revenue.'
+            : bucket.totalLiveLeadCount > 0 &&
           bucket.totalLiveQualifiedEvents === 0 &&
           bucket.totalLiveWonEvents === 0
           ? 'This page type is already generating leads, but not deeper action yet; add stronger consult bridges, qualification cues, and evidence-heavy recommendation logic.'
@@ -18689,6 +24211,91 @@ async function readJsonIfExists(filePath) {
   }
 }
 
+function buildOfflineFixtureResearch(siteSlug, researchDossier, sourcePack) {
+  const searchSignals = sourcePack?.searchSignals ?? {}
+  const serpResults = safeArray(sourcePack?.categories?.serp).slice(0, 5).map((item) => ({
+    ...item,
+    detectedYear: item.detectedYear ?? detectYear(`${item.title ?? ''} ${item.snippet ?? ''}`),
+    intent: item.intent ?? classifyIntent(`${item.title ?? ''} ${item.snippet ?? ''}`),
+  }))
+  const communityPainResults = safeArray(sourcePack?.categories?.community).slice(0, 4).map((item) => ({
+    ...item,
+    detectedYear: item.detectedYear ?? detectYear(`${item.title ?? ''} ${item.snippet ?? ''}`),
+    intent: item.intent ?? classifyIntent(`${item.title ?? ''} ${item.snippet ?? ''}`),
+  }))
+  const productSignals = safeArray(sourcePack?.categories?.product).slice(0, 4).map((item) => ({
+    ...item,
+    detectedYear: item.detectedYear ?? detectYear(`${item.title ?? ''} ${item.snippet ?? ''}`),
+    intent: item.intent ?? classifyIntent(`${item.title ?? ''} ${item.snippet ?? ''}`),
+  }))
+  const videoSignals = safeArray(sourcePack?.categories?.video).slice(0, 4).map((item) => ({
+    ...item,
+    detectedYear: item.detectedYear ?? detectYear(`${item.title ?? ''} ${item.snippet ?? ''}`),
+    intent: item.intent ?? classifyIntent(`${item.title ?? ''} ${item.snippet ?? ''}`),
+  }))
+  const realQueries = dedupe(
+    [
+      ...safeArray(searchSignals.suggestions),
+      ...safeArray(searchSignals.relatedQueries),
+      ...safeArray(researchDossier?.useCases),
+    ]
+      .map((item) => meaningfulText(item))
+      .filter(Boolean)
+      .slice(0, 8),
+  )
+
+  return {
+    keyword: sourcePack?.keyword ?? siteSlug,
+    topResults: serpResults,
+    communityPainResults,
+    productSignals,
+    videoSignals,
+    suggestions: realQueries,
+    relatedQueries: realQueries,
+    topIntents:
+      safeArray(searchSignals.topIntents).length > 0
+        ? safeArray(searchSignals.topIntents)
+        : deriveIntentSet(realQueries, sourcePack?.keyword ?? siteSlug),
+    gapSummary: {
+      comparisonCoverage: safeArray(serpResults).filter((result) => result.intent === 'comparison').length,
+      pricingCoverage: safeArray(serpResults).filter((result) => result.intent === 'pricing').length,
+      workflowCoverage: safeArray(serpResults).filter((result) => result.intent === 'workflow').length,
+      outdatedResultCount: safeArray(serpResults).filter((result) => {
+        if (result.detectedYear == null) return false
+        return result.detectedYear <= new Date().getUTCFullYear() - 1
+      }).length,
+      communityPainCount: communityPainResults.length,
+      productSignalCount: productSignals.length,
+      videoSignalCount: videoSignals.length,
+      gapOpportunities:
+        safeArray(searchSignals.gapOpportunities).length > 0
+          ? safeArray(searchSignals.gapOpportunities)
+          : ['offline fixture replay'],
+    },
+    faqCandidates: dedupe(
+      realQueries
+        .map((query) => meaningfulText(query))
+        .filter(Boolean)
+        .map((query) => JSON.stringify({ question: toQuestion(query), source: 'offline-fixture' })),
+    )
+      .map((item) => JSON.parse(item))
+      .slice(0, 6),
+  }
+}
+
+async function loadOfflinePipelineFixtures(siteSlug) {
+  const siteArtifactsDir = path.join(artifactsDir, siteSlug)
+  const [research, sourcePack] = await Promise.all([
+    readJsonIfExists(path.join(siteArtifactsDir, 'research-dossier.json')),
+    readJsonIfExists(path.join(siteArtifactsDir, 'source-pack.json')),
+  ])
+  if (!research || !sourcePack) return null
+  return {
+    research: buildOfflineFixtureResearch(siteSlug, research, sourcePack),
+    sourcePack,
+  }
+}
+
 async function fetchTrendTopics() {
   try {
     const response = await fetch(feedUrl, {
@@ -18697,6 +24304,9 @@ async function fetchTrendTopics() {
     })
 
     if (!response.ok) {
+      try {
+        await response.body?.cancel?.()
+      } catch {}
       throw new Error(`Feed request failed: ${response.status}`)
     }
 
@@ -18723,9 +24333,9 @@ async function fetchTrendTopics() {
   }
 }
 
-async function ensureDirectories() {
+async function ensureDirectories({ preserveOutputs = config.preserveGeneratedOutputs } = {}) {
   await mkdir(generatedDir, { recursive: true })
-  if (!config.preserveGeneratedOutputs) {
+  if (!preserveOutputs) {
     await rm(artifactsDir, { recursive: true, force: true })
   }
   await mkdir(artifactsDir, { recursive: true })
@@ -18734,7 +24344,7 @@ async function ensureDirectories() {
   await Promise.all(
     Object.values(wikiDirectoryMap).map((directory) => mkdir(directory, { recursive: true })),
   )
-  if (!config.preserveGeneratedOutputs) {
+  if (!preserveOutputs) {
     await rm(sitesRoot, { recursive: true, force: true })
   }
   await mkdir(sitesRoot, { recursive: true })
@@ -18787,7 +24397,8 @@ function hydrateWikiClaimCard(card, siteSlug) {
   const frontmatter = card.frontmatter ?? {}
   const hydrated = {
     id: frontmatter.id,
-    type: 'claim',
+    canonicalId: frontmatter.canonical_id ?? frontmatter.id,
+    type: frontmatter.type ?? 'claim',
     thesisId: frontmatter.thesis_id,
     clusterId: frontmatter.cluster_id,
     pageTypes: safeArray(frontmatter.page_types),
@@ -18803,9 +24414,20 @@ function hydrateWikiClaimCard(card, siteSlug) {
     counterpoint: getWikiSectionText(card.sections, 'Counterpoint / limitation'),
     bestPageTypes: getWikiSectionList(card.sections, 'Best page types to use this in'),
     reusePriority: frontmatter.reuse_priority ?? getWikiSectionText(card.sections, 'Reuse priority') ?? 'medium',
+    refreshPriority:
+      frontmatter.refresh_priority ??
+      getWikiSectionText(card.sections, 'Refresh priority') ??
+      frontmatter.reuse_priority ??
+      'medium',
     performanceNote: getWikiSectionText(card.sections, 'Performance note'),
     lifecycleDecision: frontmatter.lifecycle_decision ?? getWikiSectionText(card.sections, 'Lifecycle decision') ?? 'active',
     refreshCondition: getWikiSectionText(card.sections, 'Refresh condition'),
+    lastVerified: frontmatter.last_verified ?? getWikiSectionText(card.sections, 'Last verified'),
+    stalenessDays: frontmatter.staleness_days ?? getWikiSectionText(card.sections, 'Staleness days') ?? 14,
+    changeTriggers:
+      frontmatter.change_triggers ??
+      getWikiSectionList(card.sections, 'Change triggers') ??
+      [getWikiSectionText(card.sections, 'Refresh condition')],
     manualSource: card.filePath,
   }
   hydrated.qualityScore = preferFiniteNumber(
@@ -18826,17 +24448,22 @@ function hydrateWikiPageBriefCard(card) {
     pageType: frontmatter.page_type,
     targetIntent: frontmatter.target_intent,
     targetAsset: frontmatter.target_asset,
+    status: frontmatter.status ?? 'active',
     primaryClaimIds: safeArray(frontmatter.primary_claim_ids),
     secondaryClaimIds: safeArray(frontmatter.secondary_claim_ids),
     requiredSections: safeArray(frontmatter.required_sections),
     ctaStrategy: frontmatter.cta_strategy,
     reviewPriority: frontmatter.review_priority,
+    workflowSteps: safeArray(frontmatter.workflow_steps),
     pageGoal: getWikiSectionText(card.sections, 'Page goal'),
     visitorIntent: getWikiSectionText(card.sections, 'Visitor intent'),
     mustWinQuestions: getWikiSectionList(card.sections, 'Must-win questions'),
     requiredExamples: getWikiSectionList(card.sections, 'Required examples'),
     requiredCaveats: getWikiSectionList(card.sections, 'Required caveats'),
     failureConditions: getWikiSectionList(card.sections, 'Failure conditions'),
+    refreshTargets: getWikiSectionList(card.sections, 'Refresh targets'),
+    refreshTriggers: getWikiSectionList(card.sections, 'Refresh triggers'),
+    optimizationWriteback: getWikiSectionList(card.sections, 'Optimization writeback'),
     manualSource: card.filePath,
   }
   hydrated.completenessScore = preferFiniteNumber(
@@ -18847,33 +24474,105 @@ function hydrateWikiPageBriefCard(card) {
   return hydrated
 }
 
+function hydrateWikiSourceSummaryCard(card, siteSlug) {
+  const frontmatter = card.frontmatter ?? {}
+  const rawSourceId = normalizeWikiSourceId(
+    frontmatter.raw_source_id ?? frontmatter.source_id ?? frontmatter.id,
+    siteSlug,
+  )
+  return {
+    id: frontmatter.id,
+    type: frontmatter.type ?? 'source_summary',
+    thesisId: frontmatter.thesis_id,
+    clusterId: frontmatter.cluster_id,
+    sourceKind: frontmatter.source_kind ?? 'serp',
+    title: frontmatter.title ?? '',
+    url: frontmatter.url ?? '',
+    domain: frontmatter.domain ?? '',
+    status: frontmatter.status ?? 'active',
+    rawSourceId,
+    sourceSummary: getWikiSectionText(card.sections, 'Source summary'),
+    keyFacts: getWikiSectionList(card.sections, 'Key facts extracted'),
+    buyerPainSignals: getWikiSectionList(card.sections, 'Buyer pain signals'),
+    caveats: getWikiSectionList(card.sections, 'Caveats'),
+    refreshTrigger: getWikiSectionText(card.sections, 'Refresh trigger'),
+    lastVerified: frontmatter.last_verified ?? frontmatter.captured_at,
+    sourceIds: [normalizeWikiSourceId(frontmatter.id, siteSlug)],
+    manualSource: card.filePath,
+  }
+}
+
 function hydrateWikiAssetCard(card) {
   const frontmatter = card.frontmatter ?? {}
+  const cardType = frontmatter.type ?? 'conversion_asset'
+  const deliveryRules = getFirstWikiSectionList(card.sections, ['Delivery rules', 'Required user input'])
+  const bestFitUseCases = getFirstWikiSectionList(card.sections, ['Best-fit use cases', 'Best fit use cases'])
   const hydrated = {
     id: frontmatter.id,
-    type: 'conversion_asset',
+    type: cardType,
     thesisId: frontmatter.thesis_id,
+    clusterId: frontmatter.cluster_id,
     assetKind: frontmatter.asset_kind,
     status: frontmatter.status ?? 'active',
     intentStage: frontmatter.intent_stage,
     deliveryMode: frontmatter.delivery_mode,
     primaryPages: safeArray(frontmatter.primary_pages),
     conversionEvent: frontmatter.conversion_event,
+    clickEvent: frontmatter.click_event,
+    formEvent: frontmatter.form_event,
+    deliveryEvent: frontmatter.delivery_event,
     refreshCycle: frontmatter.refresh_cycle,
+    title:
+      frontmatter.title ??
+      titleCase(
+        extractWikiAssetSlug(frontmatter.id)
+          .replace(/-/g, ' ')
+          .replace(/\baudit\b/i, 'audit offer'),
+      ),
     slug: extractWikiAssetSlug(frontmatter.id),
-    promise: getWikiSectionText(card.sections, 'Asset promise'),
+    promise: getFirstWikiSectionText(card.sections, ['Asset promise', 'Offer promise', 'CTA promise']),
+    ctaPromise: getWikiSectionText(card.sections, 'CTA promise'),
     audience: getWikiSectionText(card.sections, 'Who it is for'),
-    summary: getWikiSectionText(card.sections, 'What the visitor receives'),
+    notFor: getWikiSectionText(card.sections, 'Who it is not for'),
+    summary: getFirstWikiSectionText(card.sections, [
+      'Asset summary',
+      'Offer summary',
+      'What the visitor receives',
+      'What the user receives',
+    ]),
+    whatUserReceives: getFirstWikiSectionList(card.sections, ['What the visitor receives', 'What the user receives']),
+    requiredUserInput: getWikiSectionList(card.sections, 'Required user input'),
+    expectedOutcome: getWikiSectionText(card.sections, 'Expected outcome'),
+    responseSla: getWikiSectionText(card.sections, 'Response SLA'),
+    nextCommercialStep: getWikiSectionText(card.sections, 'Next commercial step'),
     whyItConverts: getWikiSectionText(card.sections, 'Why it converts'),
     placementRules: getWikiSectionList(card.sections, 'Placement rules'),
-    deliveryRules: getWikiSectionList(card.sections, 'Delivery rules'),
+    deliveryRules,
     strongestUseCase: getWikiSectionText(card.sections, 'Strongest use case'),
     bestPageTypes: getWikiSectionList(card.sections, 'Best page types'),
+    bestFitUseCases:
+      safeArray(frontmatter.best_fit_use_cases).length > 0
+        ? safeArray(frontmatter.best_fit_use_cases)
+        : bestFitUseCases,
+    deeperAction:
+      frontmatter.deeper_action ??
+      getFirstWikiSectionText(card.sections, ['Next commercial step', 'Deeper action']),
+    performanceNote:
+      getFirstWikiSectionText(card.sections, ['Performance note', 'Conversion quality note', 'Asset performance view']),
     conversionQualityNote: getWikiSectionText(card.sections, 'Conversion quality note'),
     refreshPriority: frontmatter.refresh_priority ?? getWikiSectionText(card.sections, 'Refresh priority') ?? 'medium',
+    lastVerified: frontmatter.last_verified ?? getWikiSectionText(card.sections, 'Last verified'),
+    stalenessDays: frontmatter.staleness_days ?? getWikiSectionText(card.sections, 'Staleness days') ?? 30,
+    changeTriggers:
+      frontmatter.change_triggers ??
+      getWikiSectionList(card.sections, 'Change triggers') ??
+      getWikiSectionList(card.sections, 'Delivery rules'),
     acceptanceMode: frontmatter.acceptance_mode ?? getWikiSectionText(card.sections, 'Acceptance mode'),
     acceptanceStatus: frontmatter.acceptance_status ?? getWikiSectionText(card.sections, 'Acceptance status'),
     acceptedVersion: frontmatter.accepted_version ?? getWikiSectionText(card.sections, 'Accepted version'),
+    landingPath: frontmatter.landing_path ?? '',
+    thankYouPath: frontmatter.thank_you_path ?? '',
+    downloadPath: frontmatter.download_path ?? '',
     lastHumanReviewNote: getWikiSectionText(card.sections, 'Last human review note'),
     manualSource: card.filePath,
   }
@@ -18885,6 +24584,139 @@ function hydrateWikiAssetCard(card) {
   return hydrated
 }
 
+function hydrateWikiReviewCard(card) {
+  const frontmatter = card.frontmatter ?? {}
+  const hydrated = {
+    id: frontmatter.id,
+    type: 'review',
+    targetId: frontmatter.target_id,
+    targetType: frontmatter.target_type,
+    signalSource: frontmatter.signal_source,
+    finding: frontmatter.finding ?? getWikiSectionText(card.sections, 'What happened'),
+    decision: frontmatter.decision ?? getWikiSectionText(card.sections, 'Decision'),
+    action: frontmatter.action ?? getWikiSectionText(card.sections, 'Why it matters'),
+    owner: frontmatter.owner,
+    createdAt: frontmatter.created_at,
+    whatHappened: getWikiSectionText(card.sections, 'What happened'),
+    signalObserved: getWikiSectionList(card.sections, 'Signal observed'),
+    whyItMatters: getWikiSectionText(card.sections, 'Why it matters'),
+    nextRunChange: getWikiSectionList(card.sections, 'Next run change'),
+    manualSource: card.filePath,
+  }
+  hydrated.pageTypeHints = buildBacklogPageTypeHints(hydrated)
+  hydrated.deferred = isDeferredBacklogDecision(hydrated.decision)
+  hydrated.auditWarning = isAuditWarningBacklogItem(hydrated)
+  return hydrated
+}
+
+function hydrateWikiExperimentCard(card) {
+  const frontmatter = card.frontmatter ?? {}
+  const hydrated = {
+    id: frontmatter.id,
+    type: 'experiment',
+    targetId: frontmatter.target_id,
+    targetType: frontmatter.target_type,
+    signalSource: frontmatter.signal_source,
+    finding: frontmatter.finding ?? getWikiSectionText(card.sections, 'What happened'),
+    decision: frontmatter.decision ?? getWikiSectionText(card.sections, 'Decision'),
+    action: frontmatter.action ?? getWikiSectionText(card.sections, 'Why it matters'),
+    owner: frontmatter.owner,
+    createdAt: frontmatter.created_at,
+    whatHappened: getWikiSectionText(card.sections, 'What happened'),
+    signalObserved: getWikiSectionList(card.sections, 'Signal observed'),
+    whyItMatters: getWikiSectionText(card.sections, 'Why it matters'),
+    nextRunChange: getWikiSectionList(card.sections, 'Next run change'),
+    manualSource: card.filePath,
+  }
+  hydrated.pageTypeHints = buildBacklogPageTypeHints(hydrated)
+  hydrated.deferred = isDeferredBacklogDecision(hydrated.decision)
+  hydrated.auditWarning = isAuditWarningBacklogItem(hydrated)
+  return hydrated
+}
+
+function hydrateWikiProofCard(card) {
+  const frontmatter = card.frontmatter ?? {}
+  return {
+    id: frontmatter.id,
+    type: frontmatter.type ?? 'proof',
+    thesisId: frontmatter.thesis_id,
+    clusterId: frontmatter.cluster_id,
+    slug: extractWikiAssetSlug(frontmatter.id),
+    scenario: getWikiSectionText(card.sections, 'Scenario'),
+    beforeState: getWikiSectionText(card.sections, 'Before state'),
+    intervention: getWikiSectionText(card.sections, 'Intervention'),
+    fixApplied: getWikiSectionText(card.sections, 'Fix applied'),
+    finalOutput: getWikiSectionText(card.sections, 'Final output'),
+    lesson: getWikiSectionText(card.sections, 'Lesson'),
+    reusableArtifact: getWikiSectionText(card.sections, 'Reusable artifact'),
+    linkedAsset: frontmatter.linked_asset ?? getWikiSectionText(card.sections, 'Linked asset'),
+    linkedClaims:
+      safeArray(frontmatter.linked_claims).length > 0
+        ? safeArray(frontmatter.linked_claims)
+        : getWikiSectionList(card.sections, 'Linked claims'),
+    manualSource: card.filePath,
+  }
+}
+
+function hydrateWikiScenarioPackCard(card) {
+  const frontmatter = card.frontmatter ?? {}
+  return {
+    id: frontmatter.id,
+    type: frontmatter.type ?? 'scenario_pack',
+    thesisId: frontmatter.thesis_id,
+    clusterId: frontmatter.cluster_id,
+    slug: extractWikiAssetSlug(frontmatter.id),
+    scenario: getWikiSectionText(card.sections, 'Scenario'),
+    input: getWikiSectionText(card.sections, 'Input'),
+    expectedOutput: getWikiSectionText(card.sections, 'Expected output'),
+    commonFailure: getWikiSectionText(card.sections, 'Common failure'),
+    repairPrompt: getWikiSectionText(card.sections, 'Repair prompt'),
+    bestAsset: frontmatter.best_asset ?? getWikiSectionText(card.sections, 'Best asset'),
+    bestCta: getWikiSectionText(card.sections, 'Best CTA'),
+    manualSource: card.filePath,
+  }
+}
+
+function hydrateWikiToolRankingCard(card) {
+  const frontmatter = card.frontmatter ?? {}
+  return {
+    id: frontmatter.id,
+    type: frontmatter.type ?? 'tool_ranking',
+    thesisId: frontmatter.thesis_id,
+    clusterId: frontmatter.cluster_id,
+    pageType: normalizePageTemplateType(frontmatter.page_type ?? 'alternatives'),
+    status: frontmatter.status ?? 'active',
+    selectedTools: safeArray(frontmatter.selected_tools),
+    rejectedTools: safeArray(frontmatter.rejected_tools),
+    toolScores: safeArray(frontmatter.tool_scores),
+    sourceEvidence: safeArray(frontmatter.source_evidence),
+    evidenceGaps: safeArray(frontmatter.evidence_gaps),
+    updatedAt: frontmatter.updated_at ?? config.generatedAt,
+    notes: getWikiSectionList(card.sections, 'Ranking notes'),
+    manualSource: card.filePath,
+  }
+}
+
+function hydrateWikiRankingNotesCard(card) {
+  const frontmatter = card.frontmatter ?? {}
+  return {
+    id: frontmatter.id,
+    type: frontmatter.type ?? 'ranking_notes',
+    thesisId: frontmatter.thesis_id,
+    clusterId: frontmatter.cluster_id,
+    pageType: normalizePageTemplateType(frontmatter.page_type ?? 'alternatives'),
+    status: frontmatter.status ?? 'active',
+    rankingId: frontmatter.ranking_id ?? '',
+    sourceEvidence: safeArray(frontmatter.source_evidence),
+    evidenceGaps: safeArray(frontmatter.evidence_gaps),
+    updatedAt: frontmatter.updated_at ?? config.generatedAt,
+    notes: getWikiSectionList(card.sections, 'Ranking notes'),
+    reviewWriteback: getWikiSectionList(card.sections, 'Review writeback'),
+    experimentWriteback: getWikiSectionList(card.sections, 'Experiment writeback'),
+    manualSource: card.filePath,
+  }
+}
+
 function normalizePageTemplateType(pageType) {
   if (pageType === 'best-of') return 'best-tools'
   if (pageType === 'use-case') return 'use-cases'
@@ -18894,27 +24726,712 @@ function normalizePageTemplateType(pageType) {
 
 async function loadWikiSeedBundle(cluster) {
   const siteSlug = cluster.siteSlug
-  const [claimCards, briefCards, assetCards] = await Promise.all([
+  const [
+    sourceCards,
+    claimCards,
+    claimDraftCards,
+    briefCards,
+    assetCards,
+    offerCards,
+    proofCards,
+    scenarioPackCards,
+    reviewCards,
+    experimentCards,
+    toolRankingCards,
+    rankingNotesCards,
+  ] = await Promise.all([
+    readWikiCards('sources', `source.${siteSlug}.`),
     readWikiCards('claims', `claim.${siteSlug}.`),
+    readWikiCards('claims', `claim-draft.${siteSlug}.`),
     readWikiCards('pageBriefs', `page-brief.${siteSlug}.`),
     readWikiCards('assets', `asset.${siteSlug}.`),
+    readWikiCards('assets', `offer.${siteSlug}.`),
+    readWikiCards('assets', `proof.${siteSlug}.`),
+    readWikiCards('assets', `scenario-pack.${siteSlug}.`),
+    readWikiCards('reviews', `review.${siteSlug}.`),
+    readWikiCards('experiments', `experiment.${siteSlug}.`),
+    readWikiCards('rankings', `tool-ranking.${siteSlug}.`),
+    readWikiCards('rankings', `ranking-notes.${siteSlug}.`),
   ])
 
+  const canonicalClaims = claimCards
+    .map((card) => hydrateWikiClaimCard(card, siteSlug))
+    .filter(
+      (card) =>
+        card.id &&
+        (
+          meaningfulText(card.statement) ||
+          meaningfulText(card.whyItMatters) ||
+          meaningfulList(card.evidence).length > 0
+        ),
+    )
+  const canonicalClaimIds = new Set(canonicalClaims.map((card) => card.id))
+  const promotedDraftClaims = claimDraftCards
+    .map((card) => hydrateWikiClaimCard(card, siteSlug))
+    .filter(
+      (card) =>
+        meaningfulText(card.canonicalId) &&
+        !canonicalClaimIds.has(card.canonicalId) &&
+        meaningfulList(card.pageTypes).length > 0 &&
+        meaningfulList(card.sourceIds).length > 0 &&
+        meaningfulText(card.statement) &&
+        meaningfulText(card.whyItMatters),
+    )
+    .map((card) => ({
+      ...card,
+      id: card.canonicalId,
+      type: 'claim',
+      status: 'accepted',
+      lifecycleDecision: meaningfulText(card.lifecycleDecision) || 'active',
+    }))
+
   return {
-    claims: claimCards
-      .map((card) => hydrateWikiClaimCard(card, siteSlug))
-      .filter(
-        (card) =>
-          card.id &&
-          (
-            meaningfulText(card.statement) ||
-            meaningfulText(card.whyItMatters) ||
-            meaningfulList(card.evidence).length > 0
-          ),
-      ),
+    sourceSummaries: sourceCards.map((card) => hydrateWikiSourceSummaryCard(card, siteSlug)).filter((card) => card.id),
+    claims: [...canonicalClaims, ...promotedDraftClaims],
     pageBriefs: briefCards.map(hydrateWikiPageBriefCard).filter((card) => card.id && card.pageType),
     assets: assetCards.map(hydrateWikiAssetCard).filter((card) => card.id),
+    offers: offerCards.map(hydrateWikiAssetCard).filter((card) => card.id),
+    proofs: proofCards.map(hydrateWikiProofCard).filter((card) => card.id),
+    scenarioPacks: scenarioPackCards.map(hydrateWikiScenarioPackCard).filter((card) => card.id),
+    reviews: reviewCards.map(hydrateWikiReviewCard).filter((card) => card.id),
+    experiments: experimentCards.map(hydrateWikiExperimentCard).filter((card) => card.id),
+    toolRankings: toolRankingCards.map(hydrateWikiToolRankingCard).filter((card) => card.id),
+    rankingNotes: rankingNotesCards.map(hydrateWikiRankingNotesCard).filter((card) => card.id),
   }
+}
+
+async function promoteDraftClaimsToCanonical(cluster) {
+  const siteSlug = cluster.siteSlug
+  const draftCards = await readWikiCards('claims', `claim-draft.${siteSlug}.`)
+  const canonicalCards = await readWikiCards('claims', `claim.${siteSlug}.`)
+  const canonicalClaimMap = new Map(
+    canonicalCards
+      .map((card) => hydrateWikiClaimCard(card, siteSlug))
+      .filter((card) => card.id)
+      .map((card) => [card.id, card]),
+  )
+
+  for (const draftCard of draftCards) {
+    const draft = hydrateWikiClaimCard(draftCard, siteSlug)
+    if (
+      !meaningfulText(draft.canonicalId) ||
+      meaningfulList(draft.pageTypes).length === 0 ||
+      meaningfulList(draft.sourceIds).length === 0 ||
+      !meaningfulText(draft.statement) ||
+      !meaningfulText(draft.whyItMatters)
+    ) {
+      continue
+    }
+    const existingCanonical = canonicalClaimMap.get(draft.canonicalId) ?? null
+    await writeWikiCard(
+      'claims',
+      `claim.${siteSlug}.${draft.canonicalId.split('.').at(-1)}.md`,
+      {
+        id: draft.canonicalId,
+        type: 'claim',
+        thesis_id: draft.thesisId,
+        cluster_id: draft.clusterId,
+        page_types: draft.pageTypes,
+        claim_kind: draft.claimKind,
+        decision_stage: draft.decisionStage,
+        confidence: draft.confidence,
+        quality_score: preferFiniteNumber(draft.qualityScore, computeClaimQualityScore(draft)),
+        freshness: meaningfulText(draft.freshness) || 'generated',
+        reuse_priority: draft.reusePriority ?? 'medium',
+        refresh_priority: draft.refreshPriority ?? draft.reusePriority ?? 'medium',
+        lifecycle_decision: draft.lifecycleDecision ?? 'active',
+        source_ids: draft.sourceIds,
+        status:
+          existingCanonical && isPublishableWikiStatus(existingCanonical.status)
+            ? existingCanonical.status
+            : 'accepted',
+        last_verified: normalizeIsoDate(draft.lastVerified) || config.generatedAt.slice(0, 10),
+        staleness_days: Math.max(1, parsePositiveInt(draft.stalenessDays, 14)),
+        change_triggers: parseChangeTriggers(draft.changeTriggers, [draft.refreshCondition]),
+      },
+      [
+        { heading: 'Claim', lines: [draft.statement] },
+        { heading: 'Why it matters', lines: [draft.whyItMatters] },
+        { heading: 'Evidence', lines: formatMarkdownBullets(draft.evidence) },
+        { heading: 'Counterpoint / limitation', lines: [draft.counterpoint] },
+        { heading: 'Best page types to use this in', lines: formatMarkdownBullets(draft.bestPageTypes) },
+      ],
+    )
+  }
+}
+
+function buildCanonicalSourcePackFromWiki(cluster, wikiSeed, fallbackSourcePack) {
+  const summaries = safeArray(wikiSeed?.sourceSummaries)
+  const byKind = {
+    official: [],
+    competitive: [],
+    community: [],
+    workflow: [],
+    serp: [],
+    product: [],
+    video: [],
+    deepResearch: [],
+  }
+
+  for (const summary of summaries) {
+    const rawId = meaningfulText(summary.rawSourceId) || summary.id
+    const entry = {
+      id: rawId,
+      title: summary.title,
+      url: summary.url,
+      domain: summary.domain,
+      snippet: summary.sourceSummary || summary.keyFacts[0] || summary.buyerPainSignals[0] || summary.title,
+      reason: summary.sourceSummary || summary.keyFacts[0] || '',
+      intent: cluster.primaryKeyword,
+      category: summary.sourceKind,
+    }
+    const bucket = byKind[summary.sourceKind] ? summary.sourceKind : 'serp'
+    byKind[bucket].push(entry)
+  }
+
+  const categories = Object.fromEntries(
+    Object.entries(byKind).map(([key, value]) => [key, value]),
+  )
+
+  return {
+    ...(fallbackSourcePack ?? {}),
+    keyword: cluster.primaryKeyword,
+    categories,
+    sourceCounts: Object.fromEntries(
+      Object.entries(categories).map(([key, value]) => [key, safeArray(value).length]),
+    ),
+    firecrawlAgentDossier: null,
+  }
+}
+
+function buildCanonicalResearchFromWiki(cluster, wikiSeed, fallbackResearch) {
+  const briefs = safeArray(wikiSeed?.pageBriefs)
+  const reviews = safeArray(wikiSeed?.reviews)
+  const experiments = safeArray(wikiSeed?.experiments)
+  const rankingNotes = safeArray(wikiSeed?.rankingNotes)
+  const claims = safeArray(wikiSeed?.claims)
+
+  const topIntents = dedupe(
+    briefs.map((brief) => meaningfulText(brief.targetIntent)).filter(Boolean),
+  )
+  const suggestions = dedupe(
+    briefs.flatMap((brief) => safeArray(brief.refreshTargets)).filter(Boolean),
+  )
+  const gapOpportunities = dedupe(
+    [
+      ...rankingNotes.flatMap((item) => safeArray(item.evidenceGaps)),
+      ...reviews.flatMap((item) => safeArray(item.nextRunChange)),
+      ...experiments.flatMap((item) => safeArray(item.nextRunChange)),
+      ...claims.map((claim) => meaningfulText(claim.counterpoint)).filter(Boolean),
+    ].filter(Boolean),
+  )
+
+  return {
+    ...(fallbackResearch ?? {}),
+    topIntents: topIntents.length > 0 ? topIntents : safeArray(fallbackResearch?.topIntents),
+    suggestions: suggestions.length > 0 ? suggestions : safeArray(fallbackResearch?.suggestions),
+    gapSummary: {
+      ...(fallbackResearch?.gapSummary ?? {}),
+      gapOpportunities:
+        gapOpportunities.length > 0
+          ? gapOpportunities
+          : safeArray(fallbackResearch?.gapSummary?.gapOpportunities),
+    },
+  }
+}
+
+async function writeWikiFirstMutationCards({
+  cluster,
+  research,
+  rawSourcePack,
+  mutationPlan,
+  wikiSeed,
+}) {
+  const siteSlug = cluster.siteSlug
+  const thesisId = toWikiId('thesis', cluster.thesisKey)
+  const clusterId = toWikiId('cluster', siteSlug)
+  const sourceItems = dedupeBy(
+    [
+      ...safeArray(rawSourcePack?.categories?.official),
+      ...safeArray(rawSourcePack?.categories?.competitive),
+      ...safeArray(rawSourcePack?.categories?.community),
+      ...safeArray(rawSourcePack?.categories?.workflow),
+      ...safeArray(rawSourcePack?.categories?.serp),
+      ...safeArray(rawSourcePack?.categories?.deepResearch),
+    ],
+    'id',
+  )
+  const existingBriefMap = new Map(safeArray(wikiSeed?.pageBriefs).map((brief) => [brief.pageType, brief]))
+  const existingClaimMap = new Map(safeArray(wikiSeed?.claims).map((claim) => [claim.id, claim]))
+
+  function buildDraftClaimFileName(claimId) {
+    return `claim-draft.${siteSlug}.${claimId.split('.').at(-1)}.md`
+  }
+
+  function canPromoteGeneratedClaim(claim) {
+    return (
+      meaningfulText(claim?.statement) &&
+      meaningfulText(claim?.whyItMatters) &&
+      meaningfulList(claim?.sourceIds).length > 0 &&
+      meaningfulList(claim?.pageTypes).length > 0
+    )
+  }
+
+  function resolvePromotedClaimStatus(existingClaim, generatedClaim) {
+    if (existingClaim && isPublishableWikiStatus(existingClaim.status)) return existingClaim.status
+    if (meaningfulText(existingClaim?.status).toLowerCase() === 'draft') return 'accepted'
+    return canPromoteGeneratedClaim(generatedClaim) ? 'accepted' : 'draft'
+  }
+
+  function resolveBriefMutationStatus(existingBrief, brief) {
+    if (existingBrief && isPublishableWikiStatus(existingBrief.status)) return existingBrief.status
+    const hasCanonicalClaims =
+      meaningfulList(brief?.primaryClaimIds).length > 0 || meaningfulList(brief?.secondaryClaimIds).length > 0
+    return hasCanonicalClaims && meaningfulText(brief?.targetAsset) && meaningfulText(brief?.ctaStrategy)
+      ? 'accepted'
+      : 'draft'
+  }
+
+  await removeWikiCardsByPrefix(
+    'rankings',
+    `tool-ranking.${siteSlug}.`,
+    [`tool-ranking.${siteSlug}.alternatives.md`],
+  )
+  await removeWikiCardsByPrefix(
+    'rankings',
+    `ranking-notes.${siteSlug}.`,
+    [`ranking-notes.${siteSlug}.alternatives.md`],
+  )
+  await removeWikiCardsByPrefix(
+    'claims',
+    `claim-draft.${siteSlug}.`,
+    safeArray(mutationPlan?.generatedClaims).map((claim) => buildDraftClaimFileName(claim.id)),
+  )
+
+  for (const source of sourceItems) {
+    const sourceId = toWikiId('source', siteSlug, source.id)
+    await writeWikiCard(
+      'sources',
+      `source.${siteSlug}.${source.id}.md`,
+      {
+        id: sourceId,
+        type: 'source_summary',
+        thesis_id: thesisId,
+        cluster_id: clusterId,
+        source_kind: source.category,
+        raw_source_id: source.id,
+        title: source.title,
+        url: source.url,
+        domain: source.domain,
+        status: 'active',
+        captured_at: config.generatedAt,
+        last_verified: config.generatedAt.slice(0, 10),
+      },
+      [
+        { heading: 'Source summary', lines: [compactText(source.snippet || source.title, 220)] },
+        {
+          heading: 'Key facts extracted',
+          lines: formatMarkdownBullets([
+            source.title,
+            source.snippet || 'No extracted fact line recorded yet.',
+          ]),
+        },
+        {
+          heading: 'Buyer pain signals',
+          lines: formatMarkdownBullets(
+            looksLikeCommunitySource(source)
+              ? [source.snippet || 'Community signal captured from this source.']
+              : ['Use this source summary only through linked claim evidence.'],
+          ),
+        },
+        {
+          heading: 'Caveats',
+          lines: formatMarkdownBullets([
+            looksLikeCommunitySource(source)
+              ? 'Community evidence is directional and should stay attached to explicit claim caveats.'
+              : 'Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.',
+          ]),
+        },
+        {
+          heading: 'Refresh trigger',
+          lines: formatMarkdownBullets([
+            'Refresh when the upstream source summary, pricing line, or operating caveat changes materially.',
+          ]),
+        },
+      ],
+    )
+  }
+
+  for (const generatedClaim of safeArray(mutationPlan?.generatedClaims)) {
+    if (!generatedClaim?.id) continue
+    const claimHash = generatedClaim.id.split('.').at(-1)
+    await writeWikiCard(
+      'claims',
+      buildDraftClaimFileName(generatedClaim.id),
+      {
+        id: toWikiId('claim-draft', siteSlug, claimHash),
+        canonical_id: generatedClaim.id,
+        type: 'claim_draft',
+        thesis_id: generatedClaim.thesisId,
+        cluster_id: generatedClaim.clusterId,
+        page_types: generatedClaim.pageTypes,
+        claim_kind: generatedClaim.claimKind,
+        decision_stage: generatedClaim.decisionStage,
+        confidence: generatedClaim.confidence,
+        source_ids: generatedClaim.sourceIds.map((sourceId) => toWikiId('source', siteSlug, sourceId)),
+        status: 'draft',
+        last_verified: normalizeIsoDate(generatedClaim.lastVerified) || config.generatedAt.slice(0, 10),
+      },
+      [
+        { heading: 'Claim', lines: [generatedClaim.statement] },
+        { heading: 'Why it matters', lines: [generatedClaim.whyItMatters] },
+        { heading: 'Evidence', lines: formatMarkdownBullets(generatedClaim.evidence) },
+        { heading: 'Counterpoint / limitation', lines: [generatedClaim.counterpoint] },
+        { heading: 'Best page types to use this in', lines: formatMarkdownBullets(generatedClaim.bestPageTypes) },
+      ],
+    )
+    if (!canPromoteGeneratedClaim(generatedClaim)) continue
+    const existingClaim = existingClaimMap.get(generatedClaim.id) ?? null
+    await writeWikiCard(
+      'claims',
+      `claim.${siteSlug}.${claimHash}.md`,
+      {
+        id: generatedClaim.id,
+        type: 'claim',
+        thesis_id: generatedClaim.thesisId,
+        cluster_id: generatedClaim.clusterId,
+        page_types: generatedClaim.pageTypes,
+        claim_kind: generatedClaim.claimKind,
+        decision_stage: generatedClaim.decisionStage,
+        confidence: generatedClaim.confidence,
+        quality_score: preferFiniteNumber(
+          generatedClaim.qualityScore,
+          computeClaimQualityScore(generatedClaim),
+        ),
+        freshness: generatedClaim.freshness ?? 'generated',
+        reuse_priority: generatedClaim.reusePriority ?? 'medium',
+        refresh_priority: generatedClaim.refreshPriority ?? generatedClaim.reusePriority ?? 'medium',
+        lifecycle_decision: generatedClaim.lifecycleDecision ?? 'active',
+        source_ids: generatedClaim.sourceIds.map((sourceId) => toWikiId('source', siteSlug, sourceId)),
+        status: resolvePromotedClaimStatus(existingClaim, generatedClaim),
+        last_verified: normalizeIsoDate(generatedClaim.lastVerified) || config.generatedAt.slice(0, 10),
+        staleness_days: Math.max(1, parsePositiveInt(generatedClaim.stalenessDays, 14)),
+        change_triggers: parseChangeTriggers(
+          generatedClaim.changeTriggers,
+          [generatedClaim.refreshCondition],
+        ),
+      },
+      [
+        { heading: 'Claim', lines: [generatedClaim.statement] },
+        { heading: 'Why it matters', lines: [generatedClaim.whyItMatters] },
+        { heading: 'Evidence', lines: formatMarkdownBullets(generatedClaim.evidence) },
+        { heading: 'Counterpoint / limitation', lines: [generatedClaim.counterpoint] },
+        { heading: 'Best page types to use this in', lines: formatMarkdownBullets(generatedClaim.bestPageTypes) },
+      ],
+    )
+  }
+
+  for (const brief of safeArray(mutationPlan?.pageBriefs)) {
+    const existingBrief = existingBriefMap.get(brief.pageType) ?? null
+    const workflowPage =
+      safeArray(mutationPlan?.pages).find((page) => normalizePageTemplateType(page.type) === brief.pageType) ?? null
+    const workflowSteps = safeArray(existingBrief?.workflowSteps).length > 0
+      ? existingBrief.workflowSteps
+      : safeArray(workflowPage?.stepItems)
+    await writeWikiCard(
+      'pageBriefs',
+      `page-brief.${siteSlug}.${brief.pageType}.md`,
+      {
+        id: brief.id,
+        type: 'page_brief',
+        thesis_id: brief.thesisId,
+        cluster_id: brief.clusterId,
+        page_type: brief.pageType,
+        target_intent: brief.targetIntent,
+        target_asset: brief.targetAsset,
+        primary_claim_ids: brief.primaryClaimIds,
+        secondary_claim_ids: brief.secondaryClaimIds,
+        required_sections: brief.requiredSections,
+        cta_strategy: brief.ctaStrategy,
+        review_priority: brief.reviewPriority,
+        completeness_score: preferFiniteNumber(brief.completenessScore, computePageBriefCompletenessScore(brief)),
+        workflow_steps: workflowSteps,
+        status: resolveBriefMutationStatus(existingBrief, brief),
+      },
+      [
+        { heading: 'Page goal', lines: [brief.pageGoal] },
+        { heading: 'Visitor intent', lines: [brief.visitorIntent] },
+        { heading: 'Must-win questions', lines: formatMarkdownBullets(brief.mustWinQuestions) },
+        { heading: 'Required examples', lines: formatMarkdownBullets(brief.requiredExamples) },
+        { heading: 'Required caveats', lines: formatMarkdownBullets(brief.requiredCaveats) },
+        { heading: 'Failure conditions', lines: formatMarkdownBullets(brief.failureConditions) },
+        { heading: 'Refresh targets', lines: formatMarkdownBullets(brief.refreshTargets ?? []) },
+        {
+          heading: 'Refresh triggers',
+          lines: formatMarkdownBullets(
+            safeArray(existingBrief?.refreshTriggers).length > 0
+              ? existingBrief.refreshTriggers
+              : [
+                  `Trend signal triggered a refresh for ${brief.pageType}.`,
+                  ...safeArray(research?.gapSummary?.gapOpportunities).slice(0, 2),
+                ],
+          ),
+        },
+        {
+          heading: 'Optimization writeback',
+          lines: formatMarkdownBullets([
+            ...safeArray(existingBrief?.optimizationWriteback),
+            ...safeArray(wikiSeed?.reviews).slice(0, 2).flatMap((item) => safeArray(item.nextRunChange)),
+            ...safeArray(wikiSeed?.experiments).slice(0, 2).flatMap((item) => safeArray(item.nextRunChange)),
+          ]),
+        },
+      ],
+    )
+  }
+
+  if (!existingBriefMap.has('audit')) {
+    const auditSourceBrief =
+      safeArray(mutationPlan?.pageBriefs).find((brief) => brief.pageType === 'workflow') ??
+      safeArray(mutationPlan?.pageBriefs).find((brief) => brief.pageType === 'hub') ??
+      null
+    if (auditSourceBrief) {
+      await writeWikiCard(
+        'pageBriefs',
+        `page-brief.${siteSlug}.audit.md`,
+        {
+          id: toWikiId('page-brief', siteSlug, 'audit'),
+          type: 'page_brief',
+          thesis_id: thesisId,
+          cluster_id: clusterId,
+          page_type: 'audit',
+          target_intent: 'commercial_intent_audit',
+          target_asset: `${cluster.label} workflow audit`,
+          primary_claim_ids: meaningfulList(auditSourceBrief.primaryClaimIds).slice(0, 3),
+          secondary_claim_ids: meaningfulList(auditSourceBrief.secondaryClaimIds).slice(0, 2),
+          required_sections: ['cta_asset_or_consult'],
+          cta_strategy: 'consult_offer',
+          review_priority: 'high',
+          completeness_score: 100,
+          status: 'accepted',
+        },
+        [
+          { heading: 'Page goal', lines: ['Route high-intent visitors into a scoped workflow audit instead of another generic content loop.'] },
+          { heading: 'Visitor intent', lines: ['The visitor already has a live workflow, a named owner, and a concrete bottleneck to resolve.'] },
+          { heading: 'Must-win questions', lines: formatMarkdownBullets(['Who is this for?', 'What will the visitor receive?', 'What input is required?', 'What happens next after the request?']) },
+          { heading: 'Required examples', lines: formatMarkdownBullets(['One workflow bottleneck example', 'One next-step plan example']) },
+          { heading: 'Required caveats', lines: formatMarkdownBullets(['Not for broad category curiosity', 'Best when a real workflow question already exists']) },
+          { heading: 'Failure conditions', lines: formatMarkdownBullets(['The CTA feels like a generic contact form', 'The next commercial step is unclear']) },
+          { heading: 'Refresh targets', lines: formatMarkdownBullets(['Offer promise', 'Required user input', 'Response SLA']) },
+          { heading: 'Refresh triggers', lines: formatMarkdownBullets(['Refresh when the audit offer, CTA promise, or follow-up workflow changes materially.']) },
+          { heading: 'Optimization writeback', lines: formatMarkdownBullets(['Keep the audit CTA aligned with the strongest workflow bottleneck and next asset decision.']) },
+        ],
+      )
+    }
+  }
+
+  for (const asset of safeArray(mutationPlan?.conversionAssets)) {
+    await writeWikiCard(
+      'assets',
+      `asset.${siteSlug}.${asset.id.split('.').at(-1)}.md`,
+      {
+        id: asset.id,
+        type: 'conversion_asset',
+        thesis_id: asset.thesisId,
+        cluster_id: asset.clusterId,
+        asset_kind: asset.assetKind,
+        status: asset.status ?? 'active',
+        intent_stage: asset.intentStage,
+        delivery_mode: asset.deliveryMode,
+        primary_pages: asset.primaryPages,
+        conversion_event: asset.conversionEvent,
+        click_event: asset.clickEvent,
+        form_event: asset.formEvent,
+        delivery_event: asset.deliveryEvent,
+        refresh_cycle: asset.refreshCycle,
+        refresh_priority: asset.refreshPriority ?? 'medium',
+        title: asset.title,
+        landing_path: asset.landingPath,
+        thank_you_path: asset.thankYouPath,
+        download_path: asset.downloadPath,
+      },
+      [
+        { heading: 'Asset promise', lines: [asset.promise || asset.summary] },
+        { heading: 'Who it is for', lines: [asset.audience || cluster.audience] },
+        {
+          heading: 'What the visitor receives',
+          lines: formatMarkdownBullets(
+            safeArray(asset.deliverables).map((item) => `${item.label}: ${item.detail}`),
+          ),
+        },
+        { heading: 'Why it converts', lines: [asset.conversionQualityNote || asset.summary] },
+        { heading: 'Best-fit use cases', lines: formatMarkdownBullets(asset.useCaseLabels) },
+        { heading: 'Best page types', lines: formatMarkdownBullets(asset.bestPageTypes) },
+        { heading: 'Placement rules', lines: formatMarkdownBullets(asset.primaryPages) },
+        { heading: 'Delivery rules', lines: formatMarkdownBullets(asset.deliveryRules) },
+        { heading: 'CTA promise', lines: [asset.promise || asset.summary] },
+      ],
+    )
+  }
+
+  const auditBrief =
+    safeArray(mutationPlan?.pageBriefs).find((brief) => brief.pageType === 'audit') ??
+    existingBriefMap.get('audit') ??
+    null
+  const existingAuditOffer = safeArray(wikiSeed?.offers).find((offer) => normalizeWikiLookupKey(offer.slug) === 'audit') ?? null
+  const auditOfferTitle = existingAuditOffer?.title || `${cluster.label} workflow audit`
+  await writeWikiCard(
+    'assets',
+    `offer.${siteSlug}.audit.md`,
+    {
+      id: toWikiId('offer', siteSlug, 'audit'),
+      type: 'offer',
+      thesis_id: thesisId,
+      cluster_id: clusterId,
+      title: auditOfferTitle,
+      asset_kind: 'consult_offer',
+      status: isPublishableWikiStatus(existingAuditOffer?.status) ? existingAuditOffer.status : 'accepted',
+      intent_stage: 'commercial',
+      delivery_mode: 'consult',
+      primary_pages: safeArray(existingAuditOffer?.primaryPages).length > 0 ? existingAuditOffer.primaryPages : ['workflow', 'case-study', 'template-kit'],
+      conversion_event: meaningfulText(existingAuditOffer?.conversionEvent) || 'consult_interest',
+      deeper_action: meaningfulText(existingAuditOffer?.deeperAction) || 'Route the team into the narrowest next asset, fix, or implementation plan.',
+      refresh_priority: meaningfulText(existingAuditOffer?.refreshPriority) || 'high',
+      reuse_score: preferFiniteNumber(existingAuditOffer?.reuseScore, 0),
+      landing_path: meaningfulText(existingAuditOffer?.landingPath) || '/audit/',
+      thank_you_path: meaningfulText(existingAuditOffer?.thankYouPath) || '/audit/ready/',
+    },
+    [
+      { heading: 'Offer promise', lines: [meaningfulText(existingAuditOffer?.promise) || `Get a scoped workflow answer for ${cluster.primaryKeyword} instead of widening research again.`] },
+      { heading: 'Who it is for', lines: [meaningfulText(existingAuditOffer?.audience) || cluster.audience] },
+      { heading: 'Who it is not for', lines: [meaningfulText(existingAuditOffer?.notFor) || 'Broad category curiosity without a named workflow bottleneck yet.'] },
+      {
+        heading: 'What the user receives',
+        lines: formatMarkdownBullets(
+          safeArray(existingAuditOffer?.whatUserReceives).length > 0
+            ? existingAuditOffer.whatUserReceives
+            : [
+                'A narrower recommendation tied to the real workflow bottleneck.',
+                'The right next asset, fallback, or implementation move.',
+                'A concrete first fix to test in the next cycle.',
+              ],
+        ),
+      },
+      {
+        heading: 'Required user input',
+        lines: formatMarkdownBullets(
+          safeArray(existingAuditOffer?.requiredUserInput).length > 0
+            ? existingAuditOffer.requiredUserInput
+            : ['Work email', 'Team or role', 'Current workflow bottleneck', 'Desired outcome in the next 2 weeks'],
+        ),
+      },
+      { heading: 'Expected outcome', lines: [meaningfulText(existingAuditOffer?.expectedOutcome) || 'A tighter next-step plan grounded in the current workflow and evidence.'] },
+      { heading: 'Response SLA', lines: [meaningfulText(existingAuditOffer?.responseSla) || 'Reply after the current workflow queue is reviewed.'] },
+      { heading: 'CTA promise', lines: [meaningfulText(existingAuditOffer?.ctaPromise) || meaningfulText(existingAuditOffer?.promise) || `Ask for a scoped ${cluster.primaryKeyword} workflow audit.`] },
+      {
+        heading: 'Next commercial step',
+        lines: [
+          meaningfulText(existingAuditOffer?.nextCommercialStep) ||
+            meaningfulText(existingAuditOffer?.deeperAction) ||
+            `Use the audit to decide whether ${auditBrief?.targetAsset || 'the next asset'} or a deeper implementation move should happen next.`,
+        ],
+      },
+      {
+        heading: 'Delivery rules',
+        lines: formatMarkdownBullets(
+          safeArray(existingAuditOffer?.deliveryRules).length > 0
+            ? existingAuditOffer.deliveryRules
+            : [
+                'Use this CTA only when the visitor already has a live workflow bottleneck.',
+                'Keep low-friction asset CTAs available for lower-intent visitors.',
+                'Track this separately from download CTAs because it is a higher-intent commercial action.',
+              ],
+        ),
+      },
+      {
+        heading: 'Best-fit use cases',
+        lines: formatMarkdownBullets(
+          safeArray(existingAuditOffer?.bestFitUseCases).length > 0
+            ? existingAuditOffer.bestFitUseCases
+            : safeArray(research?.topIntents).slice(0, 3),
+        ),
+      },
+      { heading: 'Performance note', lines: [meaningfulText(existingAuditOffer?.performanceNote) || 'Use this when a live workflow question needs a narrower answer than a reusable asset can provide.'] },
+    ],
+  )
+
+  const toolRanking = mutationPlan?.toolRanking ?? { selected_tools: [], rejected_tools: [] }
+  const rankingId = toWikiId('tool-ranking', siteSlug, 'alternatives')
+  await writeWikiCard(
+    'rankings',
+    `tool-ranking.${siteSlug}.alternatives.md`,
+    {
+      id: rankingId,
+      type: 'tool_ranking',
+      thesis_id: thesisId,
+      cluster_id: clusterId,
+      page_type: 'alternatives',
+      status: 'active',
+      selected_tools: safeArray(toolRanking.selected_tools),
+      rejected_tools: safeArray(toolRanking.rejected_tools),
+      tool_scores: safeArray(toolRanking.selected_tools).map((tool) => ({
+        tool_id: tool.tool_id,
+        name: tool.name,
+        final_tool_score: tool.final_tool_score,
+      })),
+      source_evidence: safeArray(toolRanking.selected_tools).flatMap((tool) => safeArray(tool.source_ids)).slice(0, 12),
+      evidence_gaps: dedupe(safeArray(toolRanking.selected_tools).flatMap((tool) => safeArray(tool.evidence_gap))),
+      updated_at: config.generatedAt,
+    },
+    [
+      {
+        heading: 'Ranking notes',
+        lines: formatMarkdownBullets(
+          safeArray(toolRanking.selected_tools).slice(0, 4).map((tool) =>
+            `${tool.name}: ${tool.reason_for_inclusion || tool.recommendation || tool.best_for || 'No inclusion note recorded.'}`,
+          ),
+        ),
+      },
+    ],
+  )
+
+  await writeWikiCard(
+    'rankings',
+    `ranking-notes.${siteSlug}.alternatives.md`,
+    {
+      id: toWikiId('ranking-notes', siteSlug, 'alternatives'),
+      type: 'ranking_notes',
+      thesis_id: thesisId,
+      cluster_id: clusterId,
+      page_type: 'alternatives',
+      ranking_id: rankingId,
+      status: 'active',
+      source_evidence: safeArray(toolRanking.selected_tools).flatMap((tool) => safeArray(tool.source_ids)).slice(0, 12),
+      evidence_gaps: dedupe(safeArray(toolRanking.selected_tools).flatMap((tool) => safeArray(tool.evidence_gap))),
+      updated_at: config.generatedAt,
+    },
+    [
+      {
+        heading: 'Ranking notes',
+        lines: formatMarkdownBullets(
+          safeArray(toolRanking.selected_tools).slice(0, 4).map((tool) =>
+            `${tool.name}: ${tool.evidence_summary?.[0] || tool.best_for || 'No evidence summary recorded.'}`,
+          ),
+        ),
+      },
+      {
+        heading: 'Review writeback',
+        lines: formatMarkdownBullets(
+          safeArray(wikiSeed?.reviews).slice(0, 3).flatMap((item) => safeArray(item.nextRunChange)),
+        ),
+      },
+      {
+        heading: 'Experiment writeback',
+        lines: formatMarkdownBullets(
+          safeArray(wikiSeed?.experiments).slice(0, 3).flatMap((item) => safeArray(item.nextRunChange)),
+        ),
+      },
+    ],
+  )
 }
 
 async function exportWikiAssets({
@@ -18939,8 +25456,12 @@ async function exportWikiAssets({
       claims: [],
       pageBriefs: [],
       assets: [],
+      offers: [],
+      proofs: [],
+      scenarioPacks: [],
       reviews: [],
       experiments: [],
+      rankings: [],
     },
     sites: [],
   }
@@ -19039,6 +25560,12 @@ async function exportWikiAssets({
   for (const site of enrichedSites) {
     const clusterId = toWikiId('cluster', site.cluster.siteSlug)
     const thesisId = toWikiId('thesis', site.cluster.thesisKey)
+    const canonicalWikiSeed = site.wikiSeedBundle ?? {
+      claims: site.claims,
+      pageBriefs: site.pageBriefs,
+      toolRankings: [],
+      rankingNotes: [],
+    }
     const sourceItems = dedupeBy(
       [
         ...site.sourcePack.categories.official,
@@ -19049,6 +25576,10 @@ async function exportWikiAssets({
       ],
       'id',
     )
+    const canonicalClaims = safeArray(canonicalWikiSeed.claims).filter((claim) => {
+      const type = meaningfulText(claim?.type).toLowerCase()
+      return !type.includes('draft') && isPublishableWikiStatus(claim?.status)
+    })
     await Promise.all([
       removeWikiCardsByPrefix(
         'sources',
@@ -19058,17 +25589,27 @@ async function exportWikiAssets({
       removeWikiCardsByPrefix(
         'claims',
         `claim.${site.siteSlug}.`,
-        site.claims.map((claim) => `claim.${site.siteSlug}.${claim.id.split('.').at(-1)}.md`),
+        canonicalClaims.map((claim) => `claim.${site.siteSlug}.${claim.id.split('.').at(-1)}.md`),
       ),
       removeWikiCardsByPrefix(
         'pageBriefs',
         `page-brief.${site.siteSlug}.`,
-        site.pageBriefs.map((brief) => `page-brief.${site.siteSlug}.${brief.pageType}.md`),
+        safeArray(canonicalWikiSeed.pageBriefs).map((brief) => `page-brief.${site.siteSlug}.${brief.pageType}.md`),
       ),
       removeWikiCardsByPrefix(
         'assets',
         `asset.${site.siteSlug}.`,
         site.conversionAssets.map((asset) => `asset.${site.siteSlug}.${asset.id.split('.').at(-1)}.md`),
+      ),
+      removeWikiCardsByPrefix(
+        'rankings',
+        `tool-ranking.${site.siteSlug}.`,
+        safeArray(canonicalWikiSeed.toolRankings).map((item) => `tool-ranking.${site.siteSlug}.${item.pageType}.md`),
+      ),
+      removeWikiCardsByPrefix(
+        'rankings',
+        `ranking-notes.${site.siteSlug}.`,
+        safeArray(canonicalWikiSeed.rankingNotes).map((item) => `ranking-notes.${site.siteSlug}.${item.pageType}.md`),
       ),
     ])
     const clusterPath = await writeWikiCard(
@@ -19134,10 +25675,11 @@ async function exportWikiAssets({
         `source.${site.siteSlug}.${source.id}.md`,
         {
           id: sourceId,
-          type: 'source',
+          type: 'source_summary',
           thesis_id: thesisId,
           cluster_id: clusterId,
           source_kind: source.category,
+          raw_source_id: normalizeWikiSourceId(source.id, site.siteSlug),
           title: source.title,
           url: source.url,
           domain: source.domain,
@@ -19192,7 +25734,7 @@ async function exportWikiAssets({
       })
     }
 
-    for (const claim of site.claims) {
+    for (const claim of canonicalClaims) {
       const statement = preferMeaningfulText(
         claim.statement,
         `${titleCase(claim.claimKind || 'claim')} guidance for ${site.cluster.primaryKeyword}.`,
@@ -19211,7 +25753,7 @@ async function exportWikiAssets({
         `claim.${site.siteSlug}.${claim.id.split('.').at(-1)}.md`,
         {
           id: claim.id,
-          type: 'claim',
+          type: claim.type ?? 'claim',
           thesis_id: claim.thesisId,
           cluster_id: claim.clusterId,
           page_types: claim.pageTypes,
@@ -19221,9 +25763,13 @@ async function exportWikiAssets({
           quality_score: preferFiniteNumber(claim.qualityScore, computeClaimQualityScore(claim)),
           freshness: claim.freshness,
           reuse_priority: claim.reusePriority ?? 'medium',
+          refresh_priority: claim.refreshPriority ?? claim.reusePriority ?? 'medium',
           lifecycle_decision: claim.lifecycleDecision ?? 'active',
           source_ids: claim.sourceIds.map((sourceId) => toWikiId('source', site.siteSlug, sourceId)),
           status: claim.status,
+          last_verified: normalizeIsoDate(claim.lastVerified) || config.generatedAt.slice(0, 10),
+          staleness_days: Math.max(1, parsePositiveInt(claim.stalenessDays, 14)),
+          change_triggers: parseChangeTriggers(claim.changeTriggers, [claim.refreshCondition]),
         },
         [
           {
@@ -19258,6 +25804,10 @@ async function exportWikiAssets({
           lines: [claim.reusePriority ?? 'medium'],
         },
         {
+          heading: 'Refresh priority',
+          lines: [claim.refreshPriority ?? claim.reusePriority ?? 'medium'],
+        },
+        {
           heading: 'Quality score',
           lines: [String(preferFiniteNumber(claim.qualityScore, computeClaimQualityScore(claim)))],
         },
@@ -19273,12 +25823,24 @@ async function exportWikiAssets({
             heading: 'Refresh condition',
             lines: [claim.refreshCondition],
           },
+          {
+            heading: 'Last verified',
+            lines: [normalizeIsoDate(claim.lastVerified) || config.generatedAt.slice(0, 10)],
+          },
+          {
+            heading: 'Staleness days',
+            lines: [String(Math.max(1, parsePositiveInt(claim.stalenessDays, 14)))],
+          },
+          {
+            heading: 'Change triggers',
+            lines: formatMarkdownBullets(parseChangeTriggers(claim.changeTriggers, [claim.refreshCondition])),
+          },
         ],
       )
       exported.files.claims.push({ id: claim.id, siteSlug: site.siteSlug, path: claimPath })
     }
 
-    for (const brief of site.pageBriefs) {
+    for (const brief of safeArray(canonicalWikiSeed.pageBriefs)) {
       const primaryClaims = brief.primaryClaimIds
         .map((claimId) => site.claims.find((claim) => claim.id === claimId))
         .filter(Boolean)
@@ -19298,11 +25860,13 @@ async function exportWikiAssets({
           page_type: brief.pageType,
           target_intent: brief.targetIntent,
           target_asset: brief.targetAsset,
+          status: brief.status ?? 'active',
           primary_claim_ids: brief.primaryClaimIds,
           secondary_claim_ids: brief.secondaryClaimIds,
           required_sections: brief.requiredSections,
           cta_strategy: brief.ctaStrategy,
           review_priority: brief.reviewPriority,
+          workflow_steps: safeArray(brief.workflowSteps),
           completeness_score: preferFiniteNumber(
             brief.completenessScore,
             computePageBriefCompletenessScore(brief),
@@ -19384,6 +25948,7 @@ async function exportWikiAssets({
           id: asset.id,
           type: 'conversion_asset',
           thesis_id: asset.thesisId,
+          title: asset.title,
           asset_kind: asset.assetKind,
           status: asset.status,
           intent_stage: asset.intentStage,
@@ -19395,6 +25960,9 @@ async function exportWikiAssets({
           delivery_event: asset.deliveryEvent,
           refresh_cycle: asset.refreshCycle,
           refresh_priority: asset.refreshPriority ?? 'medium',
+          last_verified: normalizeIsoDate(asset.lastVerified) || config.generatedAt.slice(0, 10),
+          staleness_days: Math.max(1, parsePositiveInt(asset.stalenessDays, 30)),
+          change_triggers: parseChangeTriggers(asset.changeTriggers),
           reuse_score: preferFiniteNumber(asset.reuseScore, computeAssetReuseScore(asset)),
           acceptance_mode: asset.acceptance?.acceptanceMode ?? '',
           acceptance_status: asset.acceptance?.acceptanceStatus ?? '',
@@ -19470,6 +26038,18 @@ async function exportWikiAssets({
           lines: [asset.refreshPriority ?? 'medium'],
         },
         {
+          heading: 'Last verified',
+          lines: [normalizeIsoDate(asset.lastVerified) || config.generatedAt.slice(0, 10)],
+        },
+        {
+          heading: 'Staleness days',
+          lines: [String(Math.max(1, parsePositiveInt(asset.stalenessDays, 30)))],
+        },
+        {
+          heading: 'Change triggers',
+          lines: formatMarkdownBullets(parseChangeTriggers(asset.changeTriggers)),
+        },
+        {
           heading: 'Reuse score',
           lines: [String(preferFiniteNumber(asset.reuseScore, computeAssetReuseScore(asset)))],
         },
@@ -19490,6 +26070,146 @@ async function exportWikiAssets({
         ],
       )
       exported.files.assets.push({ id: asset.id, siteSlug: site.siteSlug, path: assetPath })
+    }
+
+    if (site.commercialOffer) {
+      const offer = site.commercialOffer
+      const offerPath = await writeWikiCard(
+        'assets',
+        `offer.${site.siteSlug}.audit.md`,
+        {
+          id: toWikiId('offer', site.siteSlug, 'audit'),
+          type: 'offer',
+          thesis_id: toWikiId('thesis', site.cluster.thesisKey),
+          cluster_id: clusterId,
+          title: offer.title,
+          asset_kind: 'consult_offer',
+          status: 'active',
+          intent_stage: 'commercial',
+          delivery_mode: 'consult',
+          primary_pages: offer.followUpPages,
+          conversion_event: offer.commercialEvent,
+          deeper_action: offer.nextCommercialStep,
+          refresh_priority: 'high',
+          reuse_score: 0,
+          landing_path: offer.landingPath,
+          thank_you_path: offer.thankYouPath,
+        },
+        [
+          { heading: 'Offer promise', lines: [offer.promise || offer.summary] },
+          { heading: 'Who it is for', lines: [offer.audience] },
+          { heading: 'Who it is not for', lines: [offer.notFor] },
+          { heading: 'What the user receives', lines: formatMarkdownBullets(offer.whatUserReceives) },
+          { heading: 'Required user input', lines: formatMarkdownBullets(offer.requiredUserInput) },
+          { heading: 'Expected outcome', lines: [offer.expectedOutcome] },
+          { heading: 'Response SLA', lines: [offer.responseSla] },
+          { heading: 'CTA promise', lines: [offer.ctaPromise] },
+          { heading: 'Next commercial step', lines: [offer.nextCommercialStep] },
+          { heading: 'Delivery rules', lines: formatMarkdownBullets(offer.deliveryRules) },
+          { heading: 'Best-fit use cases', lines: formatMarkdownBullets(offer.bestFitUseCases) },
+          { heading: 'Performance note', lines: [offer.performanceNote] },
+        ],
+      )
+      exported.files.offers.push({ id: toWikiId('offer', site.siteSlug, 'audit'), siteSlug: site.siteSlug, path: offerPath })
+    }
+
+    for (const proof of safeArray(site.wikiControl?.proofs)) {
+      const proofPath = await writeWikiCard(
+        'assets',
+        `proof.${site.siteSlug}.${proof.slug || shortHash(proof.id, 8)}.md`,
+        {
+          id: proof.id,
+          type: proof.type ?? 'proof',
+          thesis_id: proof.thesisId,
+          cluster_id: proof.clusterId,
+          linked_asset: proof.linkedAsset,
+          linked_claims: proof.linkedClaims,
+        },
+        [
+          { heading: 'Scenario', lines: [proof.scenario] },
+          { heading: 'Before state', lines: [proof.beforeState] },
+          { heading: 'Intervention', lines: [proof.intervention] },
+          { heading: 'Fix applied', lines: [proof.fixApplied] },
+          { heading: 'Final output', lines: [proof.finalOutput] },
+          { heading: 'Reusable artifact', lines: [proof.reusableArtifact] },
+          { heading: 'Lesson', lines: [proof.lesson] },
+        ],
+      )
+      exported.files.proofs.push({ id: proof.id, siteSlug: site.siteSlug, path: proofPath })
+    }
+
+    for (const scenarioPack of safeArray(site.wikiControl?.scenarioPacks)) {
+      const scenarioPath = await writeWikiCard(
+        'assets',
+        `scenario-pack.${site.siteSlug}.${scenarioPack.slug || shortHash(scenarioPack.id, 8)}.md`,
+        {
+          id: scenarioPack.id,
+          type: scenarioPack.type ?? 'scenario_pack',
+          thesis_id: scenarioPack.thesisId,
+          cluster_id: scenarioPack.clusterId,
+          best_asset: scenarioPack.bestAsset,
+        },
+        [
+          { heading: 'Scenario', lines: [scenarioPack.scenario] },
+          { heading: 'Input', lines: [scenarioPack.input] },
+          { heading: 'Expected output', lines: [scenarioPack.expectedOutput] },
+          { heading: 'Common failure', lines: [scenarioPack.commonFailure] },
+          { heading: 'Repair prompt', lines: [scenarioPack.repairPrompt] },
+          { heading: 'Best asset', lines: [scenarioPack.bestAsset] },
+          { heading: 'Best CTA', lines: [scenarioPack.bestCta] },
+        ],
+      )
+      exported.files.scenarioPacks.push({ id: scenarioPack.id, siteSlug: site.siteSlug, path: scenarioPath })
+    }
+
+    for (const ranking of safeArray(canonicalWikiSeed.toolRankings)) {
+      const rankingPath = await writeWikiCard(
+        'rankings',
+        `tool-ranking.${site.siteSlug}.${ranking.pageType}.md`,
+        {
+          id: ranking.id,
+          type: ranking.type ?? 'tool_ranking',
+          thesis_id: ranking.thesisId,
+          cluster_id: ranking.clusterId,
+          page_type: ranking.pageType,
+          status: ranking.status ?? 'active',
+          selected_tools: safeArray(ranking.selectedTools),
+          rejected_tools: safeArray(ranking.rejectedTools),
+          tool_scores: safeArray(ranking.toolScores),
+          source_evidence: safeArray(ranking.sourceEvidence),
+          evidence_gaps: safeArray(ranking.evidenceGaps),
+          updated_at: ranking.updatedAt ?? config.generatedAt,
+        },
+        [
+          { heading: 'Ranking notes', lines: formatMarkdownBullets(ranking.notes) },
+        ],
+      )
+      exported.files.rankings.push({ id: ranking.id, siteSlug: site.siteSlug, path: rankingPath })
+    }
+
+    for (const rankingNotes of safeArray(canonicalWikiSeed.rankingNotes)) {
+      const rankingNotesPath = await writeWikiCard(
+        'rankings',
+        `ranking-notes.${site.siteSlug}.${rankingNotes.pageType}.md`,
+        {
+          id: rankingNotes.id,
+          type: rankingNotes.type ?? 'ranking_notes',
+          thesis_id: rankingNotes.thesisId,
+          cluster_id: rankingNotes.clusterId,
+          page_type: rankingNotes.pageType,
+          ranking_id: rankingNotes.rankingId,
+          status: rankingNotes.status ?? 'active',
+          source_evidence: safeArray(rankingNotes.sourceEvidence),
+          evidence_gaps: safeArray(rankingNotes.evidenceGaps),
+          updated_at: rankingNotes.updatedAt ?? config.generatedAt,
+        },
+        [
+          { heading: 'Ranking notes', lines: formatMarkdownBullets(rankingNotes.notes) },
+          { heading: 'Review writeback', lines: formatMarkdownBullets(rankingNotes.reviewWriteback) },
+          { heading: 'Experiment writeback', lines: formatMarkdownBullets(rankingNotes.experimentWriteback) },
+        ],
+      )
+      exported.files.rankings.push({ id: rankingNotes.id, siteSlug: site.siteSlug, path: rankingNotesPath })
     }
 
     const reviewFinding = `Gate 2 is ${site.gates.publish.status}; Gate 3 is ${site.gates.expansion.day30.status}; lifecycle is ${site.lifecycle.state}.`
@@ -19595,6 +26315,9 @@ async function exportWikiAssets({
         claimCount: site.claims.length,
         pageBriefCount: site.pageBriefs.length,
         assetCount: site.conversionAssets.length,
+        offerCount: safeArray(site.wikiControl?.offers).length > 0 || site.commercialOffer ? 1 : 0,
+        proofCount: safeArray(site.wikiControl?.proofs).length,
+        scenarioPackCount: safeArray(site.wikiControl?.scenarioPacks).length,
         sourceCount: sourceItems.length,
         experimentCount: experimentCards.length,
       }),
@@ -19638,10 +26361,14 @@ async function exportWikiAssets({
       `- claims: ${exported.counts.claims}`,
       `- page briefs: ${exported.counts.pageBriefs}`,
       `- assets: ${exported.counts.assets}`,
+      `- offers: ${exported.counts.offers}`,
+      `- proofs: ${exported.counts.proofs}`,
+      `- scenario packs: ${exported.counts.scenarioPacks}`,
       `- reviews: ${exported.counts.reviews}`,
       `- experiments: ${exported.counts.experiments}`,
+      `- rankings: ${exported.counts.rankings}`,
       '',
-      'This directory is the canonical content-asset store for thesis, cluster, source, claim, brief, asset, and review cards.',
+      'This directory is the canonical content-asset store for thesis, cluster, source, claim, brief, asset, offer, proof, scenario-pack, and review cards.',
       'Runtime artifacts still live under public/generated and storage/.',
       '',
     ].join('\n'),
@@ -19651,7 +26378,27 @@ async function exportWikiAssets({
 }
 
 async function runPipeline() {
-  await ensureDirectories()
+  const forceFullRebuild = pipelineRunMode === 'weekly-refresh'
+  const managedRefreshMode = pipelineRunMode !== 'full'
+  const selectedSiteSlugs = new Set(
+    [...pipelineCliOptions.selectedSites].map((value) => meaningfulText(value)).filter(Boolean),
+  )
+  const manualSelectedPages = new Set(
+    [...pipelineCliOptions.selectedPages].map((value) => normalizePageSelectionKey(value)).filter(Boolean),
+  )
+  const previousUpdateState = (await readJsonIfExists(contentUpdateStatePath)) ?? { sites: [] }
+  const previousUpdateSiteMap = new Map(
+    safeArray(previousUpdateState?.sites).map((site) => [site.siteSlug, site]),
+  )
+
+  await ensureDirectories({
+    preserveOutputs:
+      config.preserveGeneratedOutputs ||
+      pipelineRunMode !== 'weekly-refresh' ||
+      selectedSiteSlugs.size > 0 ||
+      manualSelectedPages.size > 0,
+  })
+  await Promise.all(legacyPublicRoutePaths.map((routePath) => removePublicRoute(routePath)))
   const reviewOverrideIndex = buildReviewOverrideIndex(await readJsonIfExists(reviewOverridesPath))
   const previousHistory = (await readJsonIfExists(historyPath)) ?? []
   const previousFeedback = await readJsonIfExists(feedbackPath)
@@ -19664,9 +26411,11 @@ async function runPipeline() {
   )
   const activeContentPlaybookIndex = buildContentPlaybookIndex(activeContentPlaybook)
 
-  const discoveredTopicInputs = dedupe(
-    [...seedTopics, ...(await fetchTrendTopics())].map((topic) => JSON.stringify(topic)),
-  ).map((topic) => JSON.parse(topic))
+  const discoveredTopicInputs = managedRefreshMode
+    ? []
+    : dedupe(
+      [...seedTopics, ...(await fetchTrendTopics())].map((topic) => JSON.stringify(topic)),
+    ).map((topic) => JSON.parse(topic))
   const discoveredTopics = []
   for (const topic of discoveredTopicInputs) {
     discoveredTopics.push(await enrichTopicWithLiveSignals(topic))
@@ -19684,10 +26433,15 @@ async function runPipeline() {
   const watchlist = routedOpportunities.filter((item) => item.status === 'watch')
   const rejected = routedOpportunities.filter((item) => item.status === 'rejected')
   const routingSummary = buildRoutingSummary(routedOpportunities)
-  const clusters = clusterApprovedOpportunities(routedOpportunities)
+  const clusters = (
+    managedRefreshMode
+      ? buildManagedRefreshClusters(selectedSiteSlugs)
+      : clusterApprovedOpportunities(routedOpportunities)
+  ).filter((cluster) => selectedSiteSlugs.size === 0 || selectedSiteSlugs.has(cluster.siteSlug))
 
   const sites = []
   const publishGateBySiteSlug = new Map()
+  const siteRuntimeUpdateState = []
 
   for (const cluster of clusters) {
     const siteDir = path.join(sitesRoot, cluster.siteSlug)
@@ -19696,18 +26450,45 @@ async function runPipeline() {
     await mkdir(siteDir, { recursive: true })
     await mkdir(factsDir, { recursive: true })
 
-    const research = await fetchPublishResearch(cluster.primaryKeyword)
-    const rawSourcePack = await buildSourcePack(cluster, research)
+    const offlineFixtures = config.offlineFixturesEnabled
+      ? await loadOfflinePipelineFixtures(cluster.siteSlug)
+      : null
+    if (config.offlineFixturesEnabled && !offlineFixtures) {
+      throw new Error(`Offline fixtures are enabled but missing for ${cluster.siteSlug}.`)
+    }
+    const research = offlineFixtures?.research ?? await fetchPublishResearch(cluster.primaryKeyword)
+    const rawSourcePack = offlineFixtures?.sourcePack ?? await buildSourcePack(cluster, research)
     const sourcePack = attachSourceAuthorityScores(rawSourcePack, cluster, 'comparison')
-    const wikiSeed = await loadWikiSeedBundle(cluster)
     await writeJson(path.join(siteArtifactsDir, 'source-pack.json'), sourcePack)
-    const pagePlanning = await buildPageModels(
+    const wikiSeed = await loadWikiSeedBundle(cluster)
+    const wikiMutationPlan = await buildPageModels(
       cluster,
       research,
       sourcePack,
       reviewOverrideIndex,
       activeContentPlaybookIndex,
       wikiSeed,
+      { mode: 'mutation' },
+    )
+    await writeWikiFirstMutationCards({
+      cluster,
+      research,
+      rawSourcePack: sourcePack,
+      mutationPlan: wikiMutationPlan,
+      wikiSeed,
+    })
+    await promoteDraftClaimsToCanonical(cluster)
+    const wikiCanonicalSeed = await loadWikiSeedBundle(cluster)
+    const canonicalSourcePack = buildCanonicalSourcePackFromWiki(cluster, wikiCanonicalSeed, sourcePack)
+    const canonicalResearch = buildCanonicalResearchFromWiki(cluster, wikiCanonicalSeed, research)
+    const pagePlanning = await buildPageModels(
+      cluster,
+      canonicalResearch,
+      canonicalSourcePack,
+      reviewOverrideIndex,
+      activeContentPlaybookIndex,
+      wikiCanonicalSeed,
+      { mode: 'wiki-first' },
     )
     await writeJson(path.join(siteArtifactsDir, 'research-dossier.json'), pagePlanning.researchDossier)
     await writeJson(path.join(siteArtifactsDir, 'facts-extraction.json'), pagePlanning.factsExtraction)
@@ -19738,21 +26519,27 @@ async function runPipeline() {
       ...asset,
       visualAsset: siteVisualBundle.assetVisuals[asset.slug] ?? null,
     }))
+    const previousSiteState = previousUpdateSiteMap.get(cluster.siteSlug) ?? null
     const siteRecord = {
       siteSlug: cluster.siteSlug,
       siteName: cluster.thesisName,
       cluster,
       designProfileKey: cluster.designProfileKey,
       designProfile: cluster.designProfile,
-      research,
-      sourcePack,
+      research: canonicalResearch,
+      sourcePack: canonicalSourcePack,
+      rawResearch: research,
+      rawSourcePack: sourcePack,
       claims: pagePlanning.claims,
+      generatedClaims: pagePlanning.generatedClaims ?? [],
       pageBriefs: pagePlanning.pageBriefs,
       factsExtraction: pagePlanning.factsExtraction,
       researchDossier: pagePlanning.researchDossier,
       toolRanking: pagePlanning.toolRanking,
       comparisonDebugReport: pagePlanning.comparisonDebugReport,
       conversionAssets,
+      wikiControl: pagePlanning.wikiControl,
+      wikiSeedBundle: wikiCanonicalSeed,
       visualAssets: siteVisualBundle.manifest,
       homePath: `/generated-sites/${cluster.siteSlug}/index.html`,
       publicHomePath: '/',
@@ -19762,6 +26549,7 @@ async function runPipeline() {
       pageArtifacts: [],
       audit: null,
       commercialOffer: null,
+      previousUpdateState: previousSiteState,
     }
 
     const consultOffer = buildConsultOfferRecord(siteRecord)
@@ -19848,31 +26636,94 @@ async function runPipeline() {
     siteRecord.designReviewReport = buildSiteDesignReviewReport(siteRecord, renderedPages)
     const publishGate = evaluatePublishGate(siteRecord)
     publishGateBySiteSlug.set(siteRecord.siteSlug, publishGate)
+    siteRecord.dependencyPages = renderedPages
+    const currentClaims = safeArray(siteRecord.claims).map(summarizeClaimSnapshot)
+    const generatedClaims = safeArray(siteRecord.generatedClaims).map(summarizeClaimSnapshot)
+    const wikiClaims = safeArray(wikiSeed?.claims).map(summarizeClaimSnapshot)
+    const currentAssets = safeArray(siteRecord.conversionAssets).map(summarizeAssetSnapshot)
+    const wikiAssets = safeArray(wikiSeed?.assets).map(summarizeAssetSnapshot)
+    const currentTools = buildToolState(siteRecord.toolRanking, siteRecord.factsExtraction)
+    const previousTools = safeArray(previousSiteState?.tools)
+    const dependencyGraph = buildPageDependencyGraph([siteRecord])
+    const changedClaims = detectEntityChanges(wikiClaims, generatedClaims, {
+      entityType: 'claim',
+      keyField: 'id',
+      labelField: 'statement',
+    })
+    const changedAssets = detectEntityChanges(wikiAssets, currentAssets, {
+      entityType: 'asset',
+      keyField: 'slug',
+      labelField: 'title',
+    }).map((entry) => ({
+      ...entry,
+      slug: entry.id,
+    }))
+    const changedTools = detectEntityChanges(previousTools, currentTools, {
+      entityType: 'tool',
+      keyField: 'toolId',
+      labelField: 'name',
+    })
+    const previousPublishGateStatus = meaningfulText(previousSiteState?.publishGateStatus)
+    const publishGateChanged =
+      Boolean(previousPublishGateStatus) && previousPublishGateStatus !== publishGate.status
+    const siteUpdateQueue = buildSiteUpdateQueue({
+      site: siteRecord,
+      dependencyGraph,
+      changedClaims,
+      changedTools,
+      changedAssets,
+      currentClaims,
+      currentAssets,
+      currentTools,
+      manualSelectedPages,
+      forceFullRebuild,
+      publishGateChanged,
+    })
+    const writeTargets = selectSiteWriteTargets({
+      site: siteRecord,
+      updateQueueEntries: siteUpdateQueue,
+      manualSelectedPages,
+      forceFullRebuild,
+      publishGateChanged,
+      previousSiteState,
+    })
     const previewOnlyPageSlugs = new Set(siteRecord.publicHome ? ['index'] : [])
 
     for (const page of renderedPages) {
-      const previewHtml = applyNoindexDirective(page.html)
-      await writeFile(path.join(siteDir, page.fileName), `${previewHtml}\n`)
+      if (writeTargets.pageSlugsToWrite.has(page.slug)) {
+        const previewHtml = applyNoindexDirective(page.html)
+        await writeFile(path.join(siteDir, page.fileName), `${previewHtml}\n`)
 
-      if (page.publicPath) {
-        const publicHtml =
-          publishGate.status === 'pass' ? page.html : applyNoindexDirective(page.html)
-        await writePublicRouteHtml(page.publicPath, publicHtml)
+        if (page.publicPath) {
+          const publicHtml =
+            isReleaseEligiblePublishGate(publishGate) ? page.html : applyNoindexDirective(page.html)
+          await writePublicRouteHtml(page.publicPath, publicHtml)
+        }
       }
     }
 
     if (siteRecord.publicHome) {
       const renderedPublicHome = renderPublicHomeHtml(siteRecord, siteRecord.publicHome)
       siteRecord.publicHomeCanonicalUrl = renderedPublicHome.canonicalUrl
+      siteRecord.publicHomeRendered = renderedPublicHome
     }
 
     for (const assetPage of [...renderedAssetPages, ...renderedConsultPages]) {
-      const previewHtml = applyNoindexDirective(assetPage.html)
-      await writeFile(path.join(siteDir, assetPage.fileName), `${previewHtml}\n`)
-      const finalHtml =
-        publishGate.status === 'pass' ? assetPage.html : applyNoindexDirective(assetPage.html)
-      if (assetPage.routePath) {
-        await writePublicRouteHtml(assetPage.routePath, finalHtml)
+      const assetSlugMatch = assetPage.fileName.match(/^asset-([a-z0-9-]+)(?:-thank-you)?\.html$/)
+      const assetSlug = assetSlugMatch?.[1] ?? null
+      const releaseReady = isReleaseEligiblePublishGate(publishGate)
+      const shouldWriteAssetPage =
+        !assetSlug ||
+        writeTargets.assetSlugsToWrite.has(assetSlug) ||
+        publishGateChanged ||
+        forceFullRebuild
+      if (shouldWriteAssetPage) {
+        const previewHtml = applyNoindexDirective(assetPage.html)
+        await writeFile(path.join(siteDir, assetPage.fileName), `${previewHtml}\n`)
+        const finalHtml = releaseReady ? assetPage.html : applyNoindexDirective(assetPage.html)
+        if (assetPage.routePath) {
+          await writePublicRouteHtml(assetPage.routePath, finalHtml)
+        }
       }
     }
 
@@ -19897,12 +26748,31 @@ async function runPipeline() {
       reviewSignals: page.reviewSignals,
       sourceReferenceCount: page.sourceReferences?.length ?? 0,
       materialSlotCount: page.materialSlots?.length ?? 0,
-      commercialModuleCount: page.commercialModules?.length ?? 0,
+      commercialModuleCount:
+        (page.commercialModules?.length ?? 0) +
+        (page.affiliateModules?.length ?? 0),
+      affiliateModuleCount: page.affiliateModules?.length ?? 0,
+      affiliateDisclosureRequired: page.affiliateDisclosureRequired ?? false,
+      commercialIntentScore: page.commercialIntentScore ?? 0,
       visualAssetPath: page.visualAsset?.url ?? '',
       visualAssetStatus: page.visualAsset?.mode ?? 'none',
       indexingDirective:
-        publishGate.status === 'pass' && !previewOnlyPageSlugs.has(page.slug) ? 'index' : 'noindex',
+        isReleaseEligiblePublishGate(publishGate) && !previewOnlyPageSlugs.has(page.slug) ? 'index' : 'noindex',
     }))
+    siteRuntimeUpdateState.push({
+      siteSlug: siteRecord.siteSlug,
+      changedClaims,
+      changedTools,
+      changedAssets,
+      staleClaims: currentClaims.filter((entry) => entry.isStale),
+      staleAssets: currentAssets.filter((entry) => entry.isStale),
+      staleTools: currentTools.filter((entry) => entry.isStale),
+      dependencyGraph,
+      updateQueue: siteUpdateQueue,
+      writeTargets,
+      publishGateChanged,
+      publishGateStatus: publishGate.status,
+    })
     sites.push(siteRecord)
   }
 
@@ -19920,16 +26790,16 @@ async function runPipeline() {
   const sitemapXml = buildSitemapXml(seoReport.queuedUrls)
   const robotsTxt = buildRobotsTxt()
   const llmsTxt = buildLlmsTxt(
-    sites.filter((site) => publishGateBySiteSlug.get(site.siteSlug)?.status === 'pass'),
+    sites.filter((site) => isReleaseEligiblePublishGate(publishGateBySiteSlug.get(site.siteSlug))),
   )
   const primaryReleaseSite =
-    sites.find((site) => publishGateBySiteSlug.get(site.siteSlug)?.status === 'pass') ?? sites[0] ?? null
+    sites.find((site) => isReleaseEligiblePublishGate(publishGateBySiteSlug.get(site.siteSlug))) ?? sites[0] ?? null
 
   let rootHtml = buildRootIndexHtml(primaryReleaseSite)
   if (primaryReleaseSite?.publicHome) {
     const renderedPublicHome = renderPublicHomeHtml(primaryReleaseSite, primaryReleaseSite.publicHome)
     rootHtml =
-      publishGateBySiteSlug.get(primaryReleaseSite.siteSlug)?.status === 'pass'
+      isReleaseEligiblePublishGate(publishGateBySiteSlug.get(primaryReleaseSite.siteSlug))
         ? renderedPublicHome.html
         : applyNoindexDirective(renderedPublicHome.html)
   }
@@ -20033,6 +26903,62 @@ async function runPipeline() {
       lifecycle,
     }
   })
+  const globalDependencyGraph = buildPageDependencyGraph(enrichedSites)
+  const contentUpdateSites = enrichedSites.map((site) => {
+    const runtimeState = siteRuntimeUpdateState.find((entry) => entry.siteSlug === site.siteSlug) ?? {
+      changedClaims: [],
+      changedTools: [],
+      changedAssets: [],
+      staleClaims: [],
+      staleAssets: [],
+      staleTools: [],
+      updateQueue: [],
+      writeTargets: {
+        updatedPages: [],
+        updatedAssets: [],
+      },
+      publishGateChanged: false,
+      publishGateStatus: site.gates?.publish?.status ?? 'unknown',
+    }
+    return {
+      siteSlug: site.siteSlug,
+      keyword: site.cluster.primaryKeyword,
+      changedClaims: runtimeState.changedClaims,
+      changedTools: runtimeState.changedTools,
+      changedAssets: runtimeState.changedAssets,
+      staleClaims: runtimeState.staleClaims,
+      staleAssets: runtimeState.staleAssets,
+      staleTools: runtimeState.staleTools,
+      updatedPages: runtimeState.writeTargets.updatedPages,
+      updatedAssets: runtimeState.writeTargets.updatedAssets,
+      updateQueue: runtimeState.updateQueue,
+      publishGateChanged: runtimeState.publishGateChanged,
+      publishGateStatus: runtimeState.publishGateStatus,
+    }
+  })
+  const contentUpdateReport = {
+    generatedAt: config.generatedAt,
+    runMode: pipelineRunMode,
+    sites: contentUpdateSites,
+    summary: {
+      changedClaims: contentUpdateSites.reduce((sum, site) => sum + site.changedClaims.length, 0),
+      changedTools: contentUpdateSites.reduce((sum, site) => sum + site.changedTools.length, 0),
+      changedAssets: contentUpdateSites.reduce((sum, site) => sum + site.changedAssets.length, 0),
+      staleClaims: contentUpdateSites.reduce((sum, site) => sum + site.staleClaims.length, 0),
+      staleTools: contentUpdateSites.reduce((sum, site) => sum + site.staleTools.length, 0),
+      staleAssets: contentUpdateSites.reduce((sum, site) => sum + site.staleAssets.length, 0),
+      updatedPages: contentUpdateSites.reduce((sum, site) => sum + site.updatedPages.length, 0),
+      updatedAssets: contentUpdateSites.reduce((sum, site) => sum + site.updatedAssets.length, 0),
+      queuedPages: contentUpdateSites.reduce((sum, site) => sum + site.updateQueue.length, 0),
+    },
+  }
+  await writeJson(contentUpdateReportPath, contentUpdateReport)
+  await writeMarkdown(contentUpdateReportMarkdownPath, buildContentUpdateReportMarkdown(contentUpdateReport))
+  await writeJson(pageDependencyGraphPath, globalDependencyGraph)
+  await writeJson(updateQueuePath, {
+    generatedAt: config.generatedAt,
+    entries: contentUpdateSites.flatMap((site) => site.updateQueue),
+  })
   const decisionRows = buildDecisionRows(enrichedSites)
   await writeFile(decisionLogPath, buildDecisionMarkdown(decisionRows))
   const reviewQueue = buildReviewQueue(enrichedSites)
@@ -20051,6 +26977,7 @@ async function runPipeline() {
   await writeMarkdown(assetReviewQueueMarkdownPath, buildAssetReviewQueueMarkdown(assetReviewQueue))
   await writeJson(reviewOverridesTemplatePath, buildReviewOverrideTemplate(enrichedSites))
   const commercialOpsSnapshot = await readJsonIfExists(path.join(storageDir, 'commercial-ops.json'))
+  const affiliatePerformanceSnapshot = await readJsonIfExists(path.join(storageDir, 'affiliate-performance.json'))
   const commercialIntentModel = buildCommercialIntentModel(enrichedSites)
   const assetPerformanceView = buildAssetPerformanceView(enrichedSites, commercialOpsSnapshot)
   const contentFeedback = buildContentFeedback(
@@ -20058,6 +26985,7 @@ async function runPipeline() {
     history,
     assetPerformanceView,
     commercialOpsSnapshot,
+    affiliatePerformanceSnapshot,
   )
   await writeJson(feedbackPath, contentFeedback)
   const contentPlaybook = buildContentPlaybook(
@@ -20073,6 +27001,7 @@ async function runPipeline() {
     seoQueues,
     assetPerformanceView,
     commercialOpsSnapshot,
+    affiliatePerformanceSnapshot,
   )
   const sourceRefreshQueue = buildSourceRefreshQueue(enrichedSites)
   const wikiWritebackQueue = buildWikiWritebackQueue(
@@ -20091,7 +27020,7 @@ async function runPipeline() {
         commercialIntentModel,
       )
     : null
-  const autoRelease = await maybeRunAutoRelease(primaryReleaseSite)
+  const autoRelease = await maybeRunAutoRelease(primaryReleaseSite, contentUpdateReport)
   const wikiExport = await exportWikiAssets({
     thesisRegistry,
     enrichedSites,
@@ -20354,6 +27283,9 @@ async function runPipeline() {
         enrichedSites.reduce((sum, site) => sum + site.monitoring.revenue, 0),
         2,
       ),
+      affiliateClicks: preferFiniteNumber(affiliatePerformanceSnapshot?.summary?.clicks),
+      affiliateFtb: preferFiniteNumber(affiliatePerformanceSnapshot?.summary?.ftb),
+      affiliateCommissionUsd: round(preferFiniteNumber(affiliatePerformanceSnapshot?.summary?.commission), 2),
     },
     stages: stageResults,
     opportunities: {
@@ -20396,7 +27328,9 @@ async function runPipeline() {
     commerce: {
       intent: commercialIntentModel,
       assetPerformance: assetPerformanceView,
+      affiliatePerformance: affiliatePerformanceSnapshot,
       liveOpsSnapshotAvailable: Boolean(commercialOpsSnapshot),
+      affiliateSnapshotAvailable: Boolean(affiliatePerformanceSnapshot),
     },
     contentOps: {
       reviewQueue,
@@ -20404,10 +27338,13 @@ async function runPipeline() {
       pageRefreshPlans,
       sourceRefreshQueue,
       wikiWritebackQueue,
+      contentUpdateReport,
       feedback: contentFeedback,
       playbook: contentPlaybook,
       artifactIndexUrl: new URL('/generated/content-artifacts/', `${config.baseUrl}/`).toString(),
       wikiIndexUrl: new URL('/generated/wiki-index.json', `${config.baseUrl}/`).toString(),
+      dependencyGraphUrl: new URL('/generated/page-dependency-graph.json', `${config.baseUrl}/`).toString(),
+      updateQueueUrl: new URL('/generated/update-queue.json', `${config.baseUrl}/`).toString(),
       wiki: {
         rootDir: wikiExport.rootDir,
         counts: wikiExport.counts,
@@ -20496,9 +27433,13 @@ async function runPipeline() {
     generatedAt: config.generatedAt,
     history: history.slice(-6),
   })
+  await writeJson(
+    contentUpdateStatePath,
+    buildContentUpdateStateSnapshot(enrichedSites, contentUpdateReport, globalDependencyGraph),
+  )
 
   console.log(
-    `Pipeline complete: ${approved.length} approved opportunities, ${clusters.length} clusters, ${enrichedSites.length} deployed sites.`,
+    `Pipeline complete: ${approved.length} approved opportunities, ${clusters.length} clusters, ${enrichedSites.length} deployed sites, ${contentUpdateReport.summary.updatedPages} page update(s).`,
   )
 }
 

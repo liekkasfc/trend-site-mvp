@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "minCommercialIntentScore": 65,
+  "offerMaxAgeDays": 30,
+  "maxAffiliateModulesPerPage": 2,
+  "maxAffiliateCtasPerPage": 3,
+  "insufficientDataClicks": 100,
+  "conversionReviewClicks": 100,
+  "highPriorityConversionReviewClicks": 500,
+  "minPublishedDaysForPerformanceDecision": 14
+}

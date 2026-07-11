@@ -23,6 +23,7 @@ public/*.txt
 !public/robots.txt
 storage/*.json
 storage/*.md
+storage/imports/
 !storage/review-overrides.template.json
 
 # Editor directories and files

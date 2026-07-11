@@ -65,6 +65,25 @@ type Cluster = {
   conversionAsset?: string
 }
 
+type AffiliateModule = {
+  programId: string
+  programName: string
+  offerId: string
+  category: string
+  position: string
+  variant: string
+  label: string
+  href: string
+  trackingCode: string
+  disclosure: string
+  lastVerifiedAt: string | null
+  linkRel: string
+  ctaTitle: string
+  fit: string
+  notFor: string
+  serviceCategory: string
+}
+
 type SitePage = {
   slug: string
   navLabel?: string
@@ -83,6 +102,10 @@ type SitePage = {
   sourceReferenceCount?: number
   materialSlotCount?: number
   commercialModuleCount?: number
+  affiliateModuleCount?: number
+  affiliateModules?: AffiliateModule[]
+  affiliateDisclosureRequired?: boolean
+  commercialIntentScore?: number
   reviewSignals?: {
     needsSpotCheck: boolean
     reasons: string[]
@@ -104,6 +127,7 @@ type SitePage = {
     beforeAfterCount: number
     deliveryFlowCount: number
     proofModuleCount: number
+    affiliateModuleCount?: number
   }
   indexingDirective?: string
 }
@@ -514,6 +538,10 @@ type ContentFeedback = {
     averageVerdicts: number
     averageExamples: number
     averageRefs: number
+    affiliateClicks?: number
+    affiliateRegistrations?: number
+    affiliateFtb?: number
+    affiliateCommission?: number
     guidance: string
   }>
   siteRecommendations: Array<{
@@ -621,6 +649,9 @@ type PipelineReport = {
     assets: number
     averageAuditScore: number
     totalForecastRevenue: number
+    affiliateClicks?: number
+    affiliateFtb?: number
+    affiliateCommissionUsd?: number
   }
   stages: StageResult[]
   opportunities: {
@@ -691,6 +722,13 @@ type PipelineReport = {
       }>
       candidateBacklog: CandidateBacklogItem[]
     }
+  }
+  commerce?: {
+    intent: unknown
+    assetPerformance: unknown
+    affiliatePerformance: unknown
+    liveOpsSnapshotAvailable: boolean
+    affiliateSnapshotAvailable: boolean
   }
   contentOps: {
     reviewQueue: ReviewQueueEntry[]

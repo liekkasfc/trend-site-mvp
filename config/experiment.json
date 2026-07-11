@@ -11,6 +11,24 @@
   "ctaLabel": "Download the short-form prompt pack",
   "conversionAsset": "Prompt pack + workflow checklist",
   "pageTemplates": ["hub", "alternatives", "faq", "workflow"],
+  "commercialPageTemplates": ["diy-vs-hire", "cost-guide", "hire-service"],
+  "commercialPages": [
+    {
+      "pageType": "diy-vs-hire",
+      "slug": "ai-video-diy-vs-freelancer",
+      "publicPath": "/guides/ai-video-diy-vs-freelancer/"
+    },
+    {
+      "pageType": "cost-guide",
+      "slug": "ai-video-production-cost",
+      "publicPath": "/cost/ai-video-production-cost/"
+    },
+    {
+      "pageType": "hire-service",
+      "slug": "ai-video-editor",
+      "publicPath": "/hire/ai-video-editor/"
+    }
+  ],
   "expansionIdeas": [
     "add tool-vs-tool comparison pages",
     "publish prompt recipe breakdowns",
