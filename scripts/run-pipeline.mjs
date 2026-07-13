@@ -23,6 +23,17 @@ const {
   scoreCommercialIntent,
   selectAffiliateModulesForPage,
 } = await import('./affiliate-lib.mjs')
+const {
+  getThesisContract,
+  keywordAlignsWithThesis,
+  buildClusterDefaultsFromContract,
+} = await import('./thesis-contract.mjs')
+const {
+  runThesisAlignmentGate,
+  writeThesisAlignmentReport,
+  filterSitemapUrls,
+} = await import('./thesis-alignment-gate.mjs')
+const { applyThesisPublicRewrite } = await import('./apply-thesis-public-rewrite.mjs')
 
 const projectRoot = process.cwd()
 const publicDir = path.join(projectRoot, 'public')
@@ -5004,6 +5015,30 @@ function suggestCandidateKey(opportunity) {
 }
 
 function routeOpportunity(opportunity) {
+  const thesisContract = getThesisContract(experiment)
+  // Generic standalone keywords cannot append into the product-demo thesis alone.
+  if (
+    experiment.thesisKey === 'video-creation' &&
+    !keywordAlignsWithThesis(opportunity.keyword, thesisContract) &&
+    !keywordAlignsWithThesis(
+      `${opportunity.keyword} ${opportunity.theme ?? ''} ${safeArray(opportunity.keywordVariants).join(' ')}`,
+      thesisContract,
+    )
+  ) {
+    return {
+      status: 'reject_or_watch',
+      matchedThesisKey: null,
+      matchedDomain: null,
+      score: 0,
+      hardBlockReasons: ['keyword_failed_thesis_contract_generic_guard'],
+      breakdown: null,
+      candidateKey: null,
+      reasons: [
+        'keyword lacks product-demo / SaaS context required by the video-creation thesis contract',
+      ],
+    }
+  }
+
   const routeCandidates = routableTheses
     .map((thesis) => evaluateRouteAgainstThesis(opportunity, thesis))
     .toSorted((left, right) => {
@@ -27023,7 +27058,18 @@ async function runPipeline() {
   )
 
   const seoReport = buildSeoReport(sites, publishGateBySiteSlug)
-  const sitemapXml = buildSitemapXml(seoReport.queuedUrls)
+  // Contract-driven public copy pass so regenerated HTML stays product-demo aligned.
+  await applyThesisPublicRewrite({ experiment })
+  const thesisAlignmentReport = await runThesisAlignmentGate({ experiment })
+  await writeThesisAlignmentReport(thesisAlignmentReport)
+  const sitemapUrls = filterSitemapUrls(seoReport.queuedUrls, thesisAlignmentReport)
+  seoReport.queuedUrls = sitemapUrls
+  seoReport.thesisAlignment = {
+    status: thesisAlignmentReport.status,
+    siteScore: thesisAlignmentReport.siteScore,
+    blockedPaths: thesisAlignmentReport.sitemapBlockedPaths,
+  }
+  const sitemapXml = buildSitemapXml(sitemapUrls)
   const robotsTxt = buildRobotsTxt()
   const llmsTxt = buildLlmsTxt(
     sites.filter((site) => isReleaseEligiblePublishGate(publishGateBySiteSlug.get(site.siteSlug))),
@@ -27042,9 +27088,15 @@ async function runPipeline() {
     rootHtml = applyRobotsDirective(renderedPublicHome.html, publicHomeIndexingDirective)
   }
   await writeFile(path.join(publicDir, 'index.html'), rootHtml)
+  // Re-apply contract rewrite after public home render so hub stays thesis-aligned.
+  await applyThesisPublicRewrite({ experiment })
   await writeFile(path.join(publicDir, 'sitemap.xml'), sitemapXml)
   await writeFile(path.join(publicDir, 'robots.txt'), robotsTxt)
   await writeFile(path.join(publicDir, 'llms.txt'), llmsTxt)
+  await writeFile(
+    path.join(generatedDir, 'thesis-alignment-report.json'),
+    `${JSON.stringify(thesisAlignmentReport, null, 2)}\n`,
+  )
 
   const currentRunNumber = previousHistory.length + 1
   const previousRun = previousHistory.at(-1) ?? null
