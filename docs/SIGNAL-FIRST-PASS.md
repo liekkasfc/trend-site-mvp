@@ -85,6 +85,20 @@
 
 生成策略：**定点**「证据刷新 + LLM 改写 + Gate 严审」，不是全站 heuristic→LLM。
 
+#### WP2 状态（2026-07-14）
+
+已在生产 HTML 完成第一轮人工 content pass（marker: `data-content-pass="2026-07-14"`）：
+
+| 页 | 主要改动 |
+|----|----------|
+| `/workflow/` | 5-step 叙事、修 garbled watch-out、if/then 块、Runway/Pika 默认栈、资产 CTA 承诺 |
+| `/compare/` | 10 分钟 shortlist、4 工具角色、switch rules、Checklist 承诺 |
+| `/pricing/` | $20 地板 + 30–90 min review、去重复 verdicts、成本 if/then |
+| `/free-vs-paid/` | 升级边界、清掉 community dump、补 secondary audit CTA |
+| `/prompt-pack/` | 30 分钟时间盒、who/not-for、Runway/Pika 绑定 |
+
+后续若跑 pipeline 全量 regenerate，需把同等约束写回 page brief / claim，避免覆盖。
+
 ### WP3 — 小分发（不扩站）
 
 | 动作 | 数量 | 目的 |

@@ -168,3 +168,14 @@ page.ctaHref.includes('/generated-sites/')
 
 > 五个生产 URL 都活着且默认可索引；搜索几乎无点击；CTA 主路径大多已接资产/audit，但 Phase 1 验收仍用过期 `/generated-sites/` 规则制造假失败；lead 有交付与 follow-up 字段，尚无 qualified/won/revenue。  
 > 下一步：修验收与占位 CTA → 内容竞争力 pass → 小分发 → 只看真实信号。
+
+## 9. Content competitiveness pass 记录（2026-07-14）
+
+生产 HTML 已完成 WP2 第一轮（见 `SIGNAL-FIRST-PASS.md` WP2 状态）。对照基线前的页面：
+
+- 修复了 garbled community dump 充当 watch-out / claim 的问题
+- 强化命名工具（Runway / Pika / Seedance / Kling）、数字（$20 地板、5–8s shot、30–90 min review）
+- 每页增加 if/then 推荐逻辑与更明确的资产承诺 CTA 文案
+- `/free-vs-paid/` 补上 secondary `/audit/` CTA
+
+**注意：** 这是对 `public/*.html` 的定点改写。全量 `pipeline` regenerate 可能覆盖，需把约束回写到 wiki brief/claim 后再自动化。
