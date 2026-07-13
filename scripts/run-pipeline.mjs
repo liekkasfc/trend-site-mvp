@@ -14996,7 +14996,7 @@ function renderPublicHomeSelector(page) {
                   <p class="selector-result-copy" data-selector-result-summary></p>
                   <p class="selector-result-note" data-selector-result-why></p>
                   <div class="selector-result-actions">
-                    <a class="cta-button" data-selector-result-link href="/">Open recommendation</a>
+                    <a class="cta-button" data-selector-result-link href="/prompt-pack/">Open recommendation</a>
                     <button class="secondary-cta selector-reset" type="button" data-selector-reset>Reset answers</button>
                   </div>
                   <div class="selector-result-secondary" data-selector-result-secondary></div>
@@ -23399,9 +23399,60 @@ function buildPhase1RevenueValidation(site, wikiSiteSummary = null) {
   const highIntentPageCount = site.pages.length
   const wikiCoreCount =
     (site.claims?.length ?? 0) + (site.pageBriefs?.length ?? 0) + (site.conversionAssets?.length ?? 0)
-  const allPageCtasRouteToAssets = site.pages.every(
-    (page) => typeof page.ctaHref === 'string' && page.ctaHref.includes('/generated-sites/'),
+  // Production CTAs use public asset/offer routes (/prompt-pack/, /audit/, ...).
+  // Legacy generated-sites asset landings remain accepted for older artifacts.
+  const conversionCtaPaths = dedupe(
+    [
+      ...safeArray(site.conversionAssets).flatMap((asset) => [
+        asset.landingPath,
+        asset.thankYouPath,
+        asset.downloadPath,
+      ]),
+      site.commercialOffer?.landingPath,
+      site.commercialOffer?.thankYouPath,
+      '/prompt-pack/',
+      '/comparison-worksheet/',
+      '/workflow-checklist/',
+      '/audit/',
+    ]
+      .filter(Boolean)
+      .map((value) => {
+        try {
+          const raw = String(value).trim()
+          const pathOnly = /^https?:\/\//i.test(raw) ? new URL(raw).pathname : raw
+          return pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`
+        } catch {
+          return ''
+        }
+      })
+      .filter(Boolean),
   )
+  const isConversionCtaHref = (href) => {
+    if (typeof href !== 'string' || !href.trim()) return false
+    let pathOnly = href.trim()
+    try {
+      if (/^https?:\/\//i.test(pathOnly)) pathOnly = new URL(pathOnly).pathname
+    } catch {
+      return false
+    }
+    if (!pathOnly.startsWith('/')) pathOnly = `/${pathOnly}`
+    if (
+      pathOnly.startsWith('/prompt-pack') ||
+      pathOnly.startsWith('/comparison-worksheet') ||
+      pathOnly.startsWith('/workflow-checklist') ||
+      pathOnly.startsWith('/audit')
+    ) {
+      return true
+    }
+    if (pathOnly.includes('/generated-sites/') && /(?:asset-|audit)/i.test(pathOnly)) {
+      return true
+    }
+    return conversionCtaPaths.some((allowed) => {
+      const base = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed
+      return pathOnly === allowed || pathOnly === base || pathOnly.startsWith(`${base}/`)
+    })
+  }
+  const allPageCtasRouteToAssets = site.pages.every((page) => isConversionCtaHref(page.ctaHref))
   const ga4EventFlowReady = Boolean(googleConfig.ga4MeasurementId)
   const liveMonitoringReady =
     site.monitoring?.rankingSource === 'gsc' ||
