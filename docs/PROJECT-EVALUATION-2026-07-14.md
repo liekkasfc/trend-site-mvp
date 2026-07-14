@@ -1,8 +1,10 @@
 # 热词建站项目评估：Trend Site Pipeline
 
 > 评估日期：2026-07-14  
+> 修订：2026-07-14（口径修正 + Signal First Pass 对齐）  
 > 评估范围：仓库现状、样板站 `automiora.com`、pipeline 产物与文档  
-> 结论摘要：**产品判断很准、工程闭环已经打通，但离“能稳定赚钱的内容操作系统”还差一截；当前是高质量单 thesis 样板，不是可规模化工厂。**
+> 结论摘要：**产品判断很准、工程闭环已经打通，但离“能稳定赚钱的内容操作系统”还差一截；当前是高质量单 thesis 样板，不是可规模化工厂（强 MVP / 弱生意）。**  
+> 执行跟进：见 [SIGNAL-FIRST-PASS.md](./SIGNAL-FIRST-PASS.md) / [SIGNAL-BASELINE.md](./SIGNAL-BASELINE.md)
 
 ---
 
@@ -49,15 +51,20 @@
 
 ### 2.2 业务结果（仍然早期）
 
-来自仓库内 live monitoring（约 5 月中旬快照）：
+流量数据有版本差，但不改结论——**几乎没有真实搜索流量**：
 
-| 指标 | 数值 | 含义 |
-|------|------|------|
-| GSC impressions | 9 | 几乎没有搜索可见度 |
-| GSC clicks | 0 | 还没进入流量漏斗 |
-| GA4 sessions | 19 | 主要是自测/内部流量 |
-| conversions / revenue | 0 | 收益闭环未验证 |
-| Phase1 validation | `needs_work` | 系统自己也认为未过扩张门槛 |
+| 快照来源 | impressions | clicks | sessions | 说明 |
+|----------|-------------|--------|----------|------|
+| `public/generated/live-monitoring-refresh.json`（2026-07-09 live） | 9 | 0 | 19 | GSC/GA4 live 拉取 |
+| `automations/automiora-change-alert/memory.md`（2026-06-01 监测） | 11 | 0 | 45 | 后因 OAuth 失效回退快照 |
+
+| 商业结果（`storage/commercial-ops.json` 等） | 数值 |
+|-----------------------------------------------|------|
+| asset leads / delivered | 11 / 11 |
+| open followups | 4 |
+| qualified / won | **0 / 0** |
+| revenue | **$0** |
+| Phase1 validation | `needs_work` |
 
 **结论：链路“能跑”已证明；“能获客、能赚钱”尚未证明。**
 
@@ -99,7 +106,7 @@
 
 这是典型 **MVP 冲刺产物**：产品思想先进，代码形态还停留在“一个超级脚本”。
 
-#### B. 内容引擎默认仍是 heuristic
+#### B. 内容引擎默认仍是 heuristic（需**定点**升级，而非全局一刀切）
 
 配置侧默认：
 
@@ -107,23 +114,26 @@
 CONTENT_AI_PROVIDER = heuristic
 ```
 
-说明很多“内容生成”仍是规则/模板/启发式拼装，而不是稳定的 LLM 研究员管线。  
-Firecrawl / OpenAI 等是增强层，不是默认质心。  
-**内容竞争力缺口与这个默认强相关。**
+说明很多“内容生成”仍是规则/模板/启发式拼装。Firecrawl / OpenAI 等是增强层，不是默认质心。  
+**方向正确，但不建议全局默认切到 LLM。** 更稳的是只对 5–8 个高意图页启用「证据刷新 + LLM 改写 + Gate 严审」。
 
 #### C. 前端角色偏弱
 
 `src/App.tsx` 是 operator 控制台，站点主体是生成 HTML 静态页。  
 对内部运营够用；对“像成熟商业站”的体验 polish，还要靠生成模板与设计系统收敛。
 
-#### D. 发布面与 demo 路径仍有痕迹
+#### D. 生产面 vs `generated-sites` 调试面（勿混为主任务）
 
-样板 `generated-sites/.../index.html` 仍见 `noindex, nofollow` 与 demo 路径痕迹；线上根路径已有 `/workflow/`、`/prompt-pack/` 等，但仓库产物混杂 **demo 生成态** 与 **prod 根站态**，新人容易搞混“哪份才是线上真相”。
+- **线上生产主路径**是根站：`https://automiora.com/`、`/workflow/`、`/compare/`、`/prompt-pack/`、`/audit/` 等。
+- `public/generated-sites/...` 更像 **调试 / 镜像面**；其中大量 `noindex` 是预期行为。
+- `robots.txt` 已 `Disallow: /generated-sites/`。
+- **不要把「修 generated-sites noindex」当主任务**；精力应放在生产 URL 的可索引性、内容竞争力与 CTA 映射。
 
 #### E. 可复制性未验证
 
 第二个 thesis 仍是 candidate；多站点调度、失败隔离、跨 thesis 资产边界都未真实验收。  
-现在更像 **单站高级样板系统**，不是 **多站无人值守 OS**。
+现在更像 **单站高级样板系统**，不是 **多站无人值守 OS**。  
+**下一步不要先扩 thesis，也不要先拆大单体。**
 
 ---
 
@@ -149,7 +159,10 @@ AI 工具/工作流类搜索需求真实，且变化快——传统编辑站跟�
 
 1. **流量未起** → 一切转化优化都是空转
 2. **内容还不够“研究员级”** → 难进竞争 SERP
-3. **Lead 后端只到交付**，还没到 follow-up / 成交经营
+3. **Lead 后端已超过“只到交付”**，但经营结果仍空  
+   - 已有 follow-up / qualified / won 字段与 commercial ops 汇总  
+   - 真实结果仍是 `0 qualified / 0 won / $0 revenue`  
+   - 缺的是**真实成交路径与人工跟进结果**，不是字段本身
 4. **Affiliate 已接管道**，但页面与 offer 的深度绑定仍偏薄
 5. **预测收入**（pipeline 里有 forecast）和真实 GSC/GA4 **严重脱节**——内部 forecast 不能当成功指标
 
@@ -192,35 +205,32 @@ AI 工具/工作流类搜索需求真实，且变化快——传统编辑站跟�
 
 ## 7. 建议的下一阶段（按 ROI）
 
-### P0（4–8 周，只服务一个站）
+### 立即执行：Signal First Pass（优先于拆单体 / 扩 thesis）
 
-1. **把 5–8 个高意图页做到“可进 SERP 竞争”**  
-   free-vs-paid / alternatives / pricing / workflow / template-kit  
-   每页硬指标：命名实体、具体数字、对比逻辑、失败模式、明确推荐
-2. **默认内容路径从 heuristic 切到“证据 + LLM 改写 + Gate 2 严审”**  
-   生成可以自动化，放行标准要抬高
-3. **首页首屏商业化**：给谁、解决什么、凭什么信、下一步是什么
-4. **资产真交付感**：下载后 3 分钟可开工（不是 lead magnet 壳）
-5. **盯真指标**：impressions → top queries → CTR → sessions → asset delivery → deeper action
+分支：`codex/automiora-signal-first-pass`  
+详案：[SIGNAL-FIRST-PASS.md](./SIGNAL-FIRST-PASS.md)
 
-通过门槛建议：
+1. 锁定 5 个生产 URL：`/`、`/workflow/`、`/compare/`、`/prompt-pack/`、`/audit/`
+2. 写真实 baseline（GSC / sitemap / robots / CTA / lead）
+3. 修 Phase 1 唯一明确失败：强页 CTA 必须接到匹配资产或 audit（验收标准也要从“认 `/generated-sites/`”改成“认生产资产路由”）
+4. 对 `workflow / compare / pricing / free-vs-paid / prompt-pack` 做内容竞争力 pass
+5. 小分发不扩站：1 X + 1 Reddit/IH + 5–10 outreach，只看真实点击与资产动作
+6. 工程只补贴近测试：public route indexability、CTA mapping、Gate 2 / page model——**不先大规模拆 `run-pipeline.mjs`**
 
-- 至少有一批页进入稳定曝光
+### 通过门槛
+
+- 至少有一批生产页进入稳定曝光观察
 - 有非自测点击
-- 至少 1 条真实 lead → 跟进 → 商业意图 路径
+- CTA 验收与生产路由一致
+- 至少 1 条可解释的 lead → follow-up 路径（合格/成交可以仍为 0，但字段与队列要在用）
 
-### P1（工程债，与内容并行但不抢主线）
+### 有信号后再做
 
-- 拆 `run-pipeline.mjs`：至少拆成 `discover / route / research / generate / gate / render / update / report`
-- 给 Gate 2、thesis routing、page model schema 加测试
-- 分清 `public/` 生产面 vs `generated-sites` 调试面
-
-### P2（有流量后再做）
-
-- lead lifecycle / follow-up
+- 定点 LLM 改写扩到更多页型
 - asset 表现回写 Wiki 优先级
 - title/hero 版本实验
 - 第二个 thesis 复制验证
+- 单体拆分（工程债，不抢收益验证主线）
 
 ---
 
@@ -235,16 +245,18 @@ AI 工具/工作流类搜索需求真实，且变化快——传统编辑站跟�
 
 **一句话决策建议：**
 
-> 别急着把系统做大。把 `automiora.com` / AI video workflow **做成一个真正有搜索曝光和可解释转化路径的样板站**；成功后再谈 OS 化与多 thesis。  
-> 工程上优先拆单体、补测试；产品上优先内容与转化，而不是更多自动化。
+> 别急着把系统做大，也别先拆大单体。先用 **Signal First Pass** 在 `automiora.com` 五个生产 URL 上建立真实 baseline、修 CTA 映射、做 5 页内容竞争力 pass，并用小分发验证点击与资产动作。  
+> 成功后再谈 OS 化、多 thesis 与大规模重构。
 
 ---
 
 ## 9. 相关文档
 
+- [SIGNAL-FIRST-PASS.md](./SIGNAL-FIRST-PASS.md) — 当前执行计划
+- [SIGNAL-BASELINE.md](./SIGNAL-BASELINE.md) — 生产 URL 真实 baseline
 - [PRD.md](./PRD.md) — 产品定义与目标形态
 - [SYSTEM.md](./SYSTEM.md) — 系统结构与链路
-- [CURRENT-GAPS-V2.md](./CURRENT-GAPS-V2.md) — 当前缺口与收益优先级（主路线图）
+- [CURRENT-GAPS-V2.md](./CURRENT-GAPS-V2.md) — 当前缺口与收益优先级
 - [GAP-ROADMAP.md](./GAP-ROADMAP.md) — 早期缺口路线图（部分结论可能偏旧）
 - [OPERATION.md](./OPERATION.md) — 日常运行与发布操作
 - [REPO-LAYOUT.md](./REPO-LAYOUT.md) — 仓库边界与产物分层

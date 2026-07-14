@@ -23,6 +23,17 @@ const {
   scoreCommercialIntent,
   selectAffiliateModulesForPage,
 } = await import('./affiliate-lib.mjs')
+const {
+  getThesisContract,
+  keywordAlignsWithThesis,
+  buildClusterDefaultsFromContract,
+} = await import('./thesis-contract.mjs')
+const {
+  runThesisAlignmentGate,
+  writeThesisAlignmentReport,
+  filterSitemapUrls,
+} = await import('./thesis-alignment-gate.mjs')
+const { applyThesisPublicRewrite } = await import('./apply-thesis-public-rewrite.mjs')
 
 const projectRoot = process.cwd()
 const publicDir = path.join(projectRoot, 'public')
@@ -5004,6 +5015,30 @@ function suggestCandidateKey(opportunity) {
 }
 
 function routeOpportunity(opportunity) {
+  const thesisContract = getThesisContract(experiment)
+  // Generic standalone keywords cannot append into the product-demo thesis alone.
+  if (
+    experiment.thesisKey === 'video-creation' &&
+    !keywordAlignsWithThesis(opportunity.keyword, thesisContract) &&
+    !keywordAlignsWithThesis(
+      `${opportunity.keyword} ${opportunity.theme ?? ''} ${safeArray(opportunity.keywordVariants).join(' ')}`,
+      thesisContract,
+    )
+  ) {
+    return {
+      status: 'reject_or_watch',
+      matchedThesisKey: null,
+      matchedDomain: null,
+      score: 0,
+      hardBlockReasons: ['keyword_failed_thesis_contract_generic_guard'],
+      breakdown: null,
+      candidateKey: null,
+      reasons: [
+        'keyword lacks product-demo / SaaS context required by the video-creation thesis contract',
+      ],
+    }
+  }
+
   const routeCandidates = routableTheses
     .map((thesis) => evaluateRouteAgainstThesis(opportunity, thesis))
     .toSorted((left, right) => {
@@ -14996,7 +15031,7 @@ function renderPublicHomeSelector(page) {
                   <p class="selector-result-copy" data-selector-result-summary></p>
                   <p class="selector-result-note" data-selector-result-why></p>
                   <div class="selector-result-actions">
-                    <a class="cta-button" data-selector-result-link href="/">Open recommendation</a>
+                    <a class="cta-button" data-selector-result-link href="/prompt-pack/">Open recommendation</a>
                     <button class="secondary-cta selector-reset" type="button" data-selector-reset>Reset answers</button>
                   </div>
                   <div class="selector-result-secondary" data-selector-result-secondary></div>
@@ -23399,9 +23434,60 @@ function buildPhase1RevenueValidation(site, wikiSiteSummary = null) {
   const highIntentPageCount = site.pages.length
   const wikiCoreCount =
     (site.claims?.length ?? 0) + (site.pageBriefs?.length ?? 0) + (site.conversionAssets?.length ?? 0)
-  const allPageCtasRouteToAssets = site.pages.every(
-    (page) => typeof page.ctaHref === 'string' && page.ctaHref.includes('/generated-sites/'),
+  // Production CTAs use public asset/offer routes (/prompt-pack/, /audit/, ...).
+  // Legacy generated-sites asset landings remain accepted for older artifacts.
+  const conversionCtaPaths = dedupe(
+    [
+      ...safeArray(site.conversionAssets).flatMap((asset) => [
+        asset.landingPath,
+        asset.thankYouPath,
+        asset.downloadPath,
+      ]),
+      site.commercialOffer?.landingPath,
+      site.commercialOffer?.thankYouPath,
+      '/prompt-pack/',
+      '/comparison-worksheet/',
+      '/workflow-checklist/',
+      '/audit/',
+    ]
+      .filter(Boolean)
+      .map((value) => {
+        try {
+          const raw = String(value).trim()
+          const pathOnly = /^https?:\/\//i.test(raw) ? new URL(raw).pathname : raw
+          return pathOnly.startsWith('/') ? pathOnly : `/${pathOnly}`
+        } catch {
+          return ''
+        }
+      })
+      .filter(Boolean),
   )
+  const isConversionCtaHref = (href) => {
+    if (typeof href !== 'string' || !href.trim()) return false
+    let pathOnly = href.trim()
+    try {
+      if (/^https?:\/\//i.test(pathOnly)) pathOnly = new URL(pathOnly).pathname
+    } catch {
+      return false
+    }
+    if (!pathOnly.startsWith('/')) pathOnly = `/${pathOnly}`
+    if (
+      pathOnly.startsWith('/prompt-pack') ||
+      pathOnly.startsWith('/comparison-worksheet') ||
+      pathOnly.startsWith('/workflow-checklist') ||
+      pathOnly.startsWith('/audit')
+    ) {
+      return true
+    }
+    if (pathOnly.includes('/generated-sites/') && /(?:asset-|audit)/i.test(pathOnly)) {
+      return true
+    }
+    return conversionCtaPaths.some((allowed) => {
+      const base = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed
+      return pathOnly === allowed || pathOnly === base || pathOnly.startsWith(`${base}/`)
+    })
+  }
+  const allPageCtasRouteToAssets = site.pages.every((page) => isConversionCtaHref(page.ctaHref))
   const ga4EventFlowReady = Boolean(googleConfig.ga4MeasurementId)
   const liveMonitoringReady =
     site.monitoring?.rankingSource === 'gsc' ||
@@ -26972,7 +27058,18 @@ async function runPipeline() {
   )
 
   const seoReport = buildSeoReport(sites, publishGateBySiteSlug)
-  const sitemapXml = buildSitemapXml(seoReport.queuedUrls)
+  // Contract-driven public copy pass so regenerated HTML stays product-demo aligned.
+  await applyThesisPublicRewrite({ experiment })
+  const thesisAlignmentReport = await runThesisAlignmentGate({ experiment })
+  await writeThesisAlignmentReport(thesisAlignmentReport)
+  const sitemapUrls = filterSitemapUrls(seoReport.queuedUrls, thesisAlignmentReport)
+  seoReport.queuedUrls = sitemapUrls
+  seoReport.thesisAlignment = {
+    status: thesisAlignmentReport.status,
+    siteScore: thesisAlignmentReport.siteScore,
+    blockedPaths: thesisAlignmentReport.sitemapBlockedPaths,
+  }
+  const sitemapXml = buildSitemapXml(sitemapUrls)
   const robotsTxt = buildRobotsTxt()
   const llmsTxt = buildLlmsTxt(
     sites.filter((site) => isReleaseEligiblePublishGate(publishGateBySiteSlug.get(site.siteSlug))),
@@ -26991,9 +27088,15 @@ async function runPipeline() {
     rootHtml = applyRobotsDirective(renderedPublicHome.html, publicHomeIndexingDirective)
   }
   await writeFile(path.join(publicDir, 'index.html'), rootHtml)
+  // Re-apply contract rewrite after public home render so hub stays thesis-aligned.
+  await applyThesisPublicRewrite({ experiment })
   await writeFile(path.join(publicDir, 'sitemap.xml'), sitemapXml)
   await writeFile(path.join(publicDir, 'robots.txt'), robotsTxt)
   await writeFile(path.join(publicDir, 'llms.txt'), llmsTxt)
+  await writeFile(
+    path.join(generatedDir, 'thesis-alignment-report.json'),
+    `${JSON.stringify(thesisAlignmentReport, null, 2)}\n`,
+  )
 
   const currentRunNumber = previousHistory.length + 1
   const previousRun = previousHistory.at(-1) ?? null

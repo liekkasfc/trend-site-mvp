@@ -19,6 +19,10 @@ import {
   COMMERCIAL_PAGE_SPECS,
   parseBooleanFlag,
 } from './affiliate-lib.mjs'
+import {
+  runThesisAlignmentGate,
+  writeThesisAlignmentReport,
+} from './thesis-alignment-gate.mjs'
 
 async function checkUrl(url, options = {}) {
   const response = await fetch(url, {
@@ -174,6 +178,33 @@ export async function runReleaseHealth(options = {}) {
         COMMERCIAL_PAGE_SPECS.map((spec) => checkCommercialPage(siteBaseUrl, spec)),
       )),
     )
+  }
+
+  let thesisAlignment = null
+  if (options.includeThesisGate !== false) {
+    try {
+      thesisAlignment = await runThesisAlignmentGate()
+      await writeThesisAlignmentReport(thesisAlignment)
+      checks.push({
+        label: 'Thesis alignment gate',
+        url: `${trimTrailingSlash(siteBaseUrl)}/`,
+        method: 'LOCAL',
+        status: thesisAlignment.status === 'pass' ? 200 : 422,
+        ok: thesisAlignment.releaseAllowed === true || thesisAlignment.status !== 'fail',
+        bodyPreview: '',
+        note: `siteScore=${thesisAlignment.siteScore}; status=${thesisAlignment.status}; blocked=${(thesisAlignment.sitemapBlockedPaths || []).join(',') || 'none'}`,
+      })
+    } catch (error) {
+      checks.push({
+        label: 'Thesis alignment gate',
+        url: `${trimTrailingSlash(siteBaseUrl)}/`,
+        method: 'LOCAL',
+        status: 500,
+        ok: false,
+        bodyPreview: '',
+        note: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 
   return {

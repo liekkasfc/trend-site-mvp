@@ -1,15 +1,96 @@
 {
   "thesisKey": "video-creation",
-  "thesisLabel": "AI Video Workflow",
+  "thesisLabel": "AI Product Demo Video Workflow",
   "siteSlug": "ai-video-workflow-short-form-demo",
-  "thesisName": "AI video workflow for short-form product and demo content",
-  "siteDefinition": "A decision site for indie hackers, product marketers, and content operators who need to turn scripts, screenshots, and product updates into short-form demo videos quickly.",
-  "targetAudience": "indie hackers, product marketers, and content operators shipping short-form product/demo videos",
-  "offer": "tool comparisons, workflow guides, and a reusable prompt pack",
+  "thesisName": "AI product demo video workflows for SaaS founders, product marketers, and indie hackers",
+  "siteDefinition": "A practical decision and execution site that helps SaaS teams turn product screenshots, screen recordings, scripts, release notes, and feature updates into short product demo videos with AI.",
+  "targetAudience": "SaaS founders, indie hackers, product marketers, developer advocates, and small product teams",
+  "primaryOutcome": "Create a clear 15-60 second SaaS product demo video without wasting time and credits on broad AI video experimentation.",
+  "jobToBeDone": "When a SaaS team launches a product or feature, help them choose the right workflow, prepare the source assets, generate the required shots, review failures, and publish a usable product demo video.",
+  "primaryInputs": [
+    "product screenshots",
+    "screen recordings",
+    "feature descriptions",
+    "release notes",
+    "product scripts"
+  ],
+  "primaryOutputs": [
+    "short SaaS product demo video",
+    "feature launch video",
+    "Product Hunt launch video",
+    "product update video",
+    "onboarding walkthrough video"
+  ],
+  "primarySearchIntent": "Help the visitor make or buy a SaaS product demo video.",
+  "offer": "tested tool comparisons, product-demo workflows, prompt recipes, cost guidance, production templates, and qualified editor recommendations",
   "monetization": ["affiliate", "template-sale", "lead-gen"],
-  "leadMagnet": "Short-form AI video workflow prompt pack",
-  "ctaLabel": "Download the short-form prompt pack",
-  "conversionAsset": "Prompt pack + workflow checklist",
+  "leadMagnet": "SaaS Product Demo Video Workflow Pack",
+  "ctaLabel": "Get the Product Demo Workflow Pack",
+  "secondaryCtaLabel": "See the Product Demo Workflow",
+  "conversionAsset": "Product demo prompt pack, shot planner, workflow checklist, and comparison worksheet",
+  "excludedAudience": [
+    "AI art filmmakers",
+    "music video creators",
+    "general entertainment video creators",
+    "faceless content farms",
+    "cinematic storytelling users without a product-demo use case"
+  ],
+  "forbiddenPositioning": [
+    "general AI video portal",
+    "all-purpose AI video generator directory",
+    "generic prompt library",
+    "AI news site",
+    "creative AI video inspiration gallery"
+  ],
+  "thesisContract": {
+    "requiredAudienceTerms": [
+      "SaaS founder",
+      "indie hacker",
+      "product marketer",
+      "product team"
+    ],
+    "requiredInputTerms": [
+      "product screenshot",
+      "screen recording",
+      "feature update",
+      "release note",
+      "product script"
+    ],
+    "requiredOutcomeTerms": [
+      "product demo video",
+      "feature launch video",
+      "product walkthrough"
+    ],
+    "requiredContextTerms": [
+      "SaaS",
+      "product",
+      "feature",
+      "launch",
+      "demo"
+    ],
+    "forbiddenPrimaryContexts": [
+      "music video",
+      "AI film",
+      "cinematic story",
+      "faceless channel",
+      "anime video",
+      "general social media content"
+    ],
+    "genericKeywordGuard": {
+      "standaloneBlocked": ["video", "prompt", "short-form"],
+      "requireWithAny": [
+        "product demo",
+        "saas",
+        "product launch",
+        "feature update",
+        "feature announcement",
+        "walkthrough",
+        "screenshot",
+        "product",
+        "launch"
+      ]
+    }
+  },
   "pageTemplates": ["hub", "alternatives", "faq", "workflow"],
   "commercialPageTemplates": ["diy-vs-hire", "cost-guide", "hire-service"],
   "commercialPages": [
@@ -30,19 +111,22 @@
     }
   ],
   "expansionIdeas": [
-    "add tool-vs-tool comparison pages",
-    "publish prompt recipe breakdowns",
+    "add tool-vs-tool comparison pages for product demos",
+    "publish product-demo prompt recipe breakdowns",
     "attach real product demo teardown examples"
   ],
   "discoveryKeywords": [
-    "video",
-    "veo",
-    "kling",
-    "seedance",
-    "short-form",
-    "demo",
-    "image to video",
-    "prompt"
+    "ai product demo video",
+    "saas demo video",
+    "product screenshot to video",
+    "product launch video",
+    "feature announcement video",
+    "product walkthrough video",
+    "runway product demo",
+    "pika product demo",
+    "ai video workflow for saas",
+    "product demo video cost",
+    "hire product demo video editor"
   ],
   "maxSitesPerRun": 1,
   "gateRules": {
@@ -100,77 +184,17 @@
         "top20ProxyPositionMax": 20,
         "declineCheckpointsToStop": 2
       }
+    },
+    "thesisAlignment": {
+      "passScore": 85,
+      "maxDuplicateRatio": 0.25,
+      "blockSitemapOnHardFail": true,
+      "blockReleaseOnSiteFail": true
     }
   },
   "seedTopics": [
     {
-      "keyword": "AI video workflow",
-      "source": "Seed portfolio",
-      "region": "US",
-      "githubStars": 220,
-      "githubStarGrowth30d": 74,
-      "xLikes": 420,
-      "discussionCount7d": 4,
-      "trend28OverPrev28": 1.18,
-      "multiPeak90d": true,
-      "cpcUsd": 1.7,
-      "serpAffiliatePages": 3,
-      "relatedProducts": 4,
-      "forumPainThreads": 3,
-      "outdatedSerpResults": 2,
-      "supportPageIdeas": [
-        "best ai video workflow",
-        "ai video workflow guide",
-        "free vs paid ai video tools",
-        "ai video prompt library"
-      ]
-    },
-    {
-      "keyword": "image to video workflow",
-      "source": "Seed portfolio",
-      "region": "US",
-      "githubStars": 168,
-      "githubStarGrowth30d": 55,
-      "xLikes": 362,
-      "discussionCount7d": 3,
-      "trend28OverPrev28": 1.22,
-      "multiPeak90d": true,
-      "cpcUsd": 1.5,
-      "serpAffiliatePages": 2,
-      "relatedProducts": 5,
-      "forumPainThreads": 2,
-      "outdatedSerpResults": 1,
-      "supportPageIdeas": [
-        "image to video app comparison",
-        "image to video workflow guide",
-        "best prompts for image to video",
-        "free image to video tools"
-      ]
-    },
-    {
-      "keyword": "Veo vs Kling vs Seedance",
-      "source": "Seed portfolio",
-      "region": "US",
-      "githubStars": 0,
-      "githubStarGrowth30d": 0,
-      "xLikes": 640,
-      "discussionCount7d": 5,
-      "trend28OverPrev28": 1.31,
-      "multiPeak90d": true,
-      "cpcUsd": 1.2,
-      "serpAffiliatePages": 2,
-      "relatedProducts": 3,
-      "forumPainThreads": 2,
-      "outdatedSerpResults": 2,
-      "supportPageIdeas": [
-        "veo vs kling comparison",
-        "seedance workflow guide",
-        "best video model for product demos",
-        "video model pricing comparison"
-      ]
-    },
-    {
-      "keyword": "AI product demo video",
+      "keyword": "ai product demo video",
       "source": "Seed portfolio",
       "region": "US",
       "githubStars": 104,
@@ -186,31 +210,75 @@
       "outdatedSerpResults": 2,
       "supportPageIdeas": [
         "ai product demo workflow",
-        "best ai tools for demo videos",
+        "best ai tools for product demo videos",
         "product screenshot to demo video",
-        "short-form product demo examples"
+        "saas product demo examples"
       ]
     },
     {
-      "keyword": "AI video prompt library",
+      "keyword": "saas demo video",
       "source": "Seed portfolio",
       "region": "US",
-      "githubStars": 92,
-      "githubStarGrowth30d": 26,
-      "xLikes": 308,
+      "githubStars": 120,
+      "githubStarGrowth30d": 42,
+      "xLikes": 290,
       "discussionCount7d": 3,
-      "trend28OverPrev28": 1.14,
+      "trend28OverPrev28": 1.15,
       "multiPeak90d": true,
-      "cpcUsd": 1.1,
+      "cpcUsd": 1.9,
       "serpAffiliatePages": 2,
-      "relatedProducts": 2,
+      "relatedProducts": 3,
+      "forumPainThreads": 3,
+      "outdatedSerpResults": 1,
+      "supportPageIdeas": [
+        "saas product demo video workflow",
+        "feature launch video tools",
+        "product walkthrough video guide",
+        "product update video template"
+      ]
+    },
+    {
+      "keyword": "product screenshot to video",
+      "source": "Seed portfolio",
+      "region": "US",
+      "githubStars": 168,
+      "githubStarGrowth30d": 55,
+      "xLikes": 362,
+      "discussionCount7d": 3,
+      "trend28OverPrev28": 1.22,
+      "multiPeak90d": true,
+      "cpcUsd": 1.5,
+      "serpAffiliatePages": 2,
+      "relatedProducts": 5,
       "forumPainThreads": 2,
       "outdatedSerpResults": 1,
       "supportPageIdeas": [
-        "best prompts for ai video",
-        "prompt pack for product demos",
-        "veo prompt guide",
-        "kling prompt examples"
+        "screenshot to product demo workflow",
+        "ui to video for saas",
+        "best prompts for product screenshot videos",
+        "product demo shot planner"
+      ]
+    },
+    {
+      "keyword": "product launch video",
+      "source": "Seed portfolio",
+      "region": "US",
+      "githubStars": 95,
+      "githubStarGrowth30d": 30,
+      "xLikes": 310,
+      "discussionCount7d": 3,
+      "trend28OverPrev28": 1.14,
+      "multiPeak90d": true,
+      "cpcUsd": 1.8,
+      "serpAffiliatePages": 2,
+      "relatedProducts": 3,
+      "forumPainThreads": 2,
+      "outdatedSerpResults": 1,
+      "supportPageIdeas": [
+        "product hunt launch video",
+        "feature announcement video workflow",
+        "product update video cost",
+        "hire product demo video editor"
       ]
     },
     {

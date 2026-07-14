@@ -1,0 +1,356 @@
+{
+  "version": 1,
+  "thesisKey": "video-creation",
+  "pages": [
+    {
+      "path": "/",
+      "pageType": "hub",
+      "audience": ["SaaS founders", "product marketers", "indie hackers"],
+      "job": "Start a product demo video from product screenshots, screen recordings, or feature updates",
+      "primaryQueryCluster": [
+        "ai product demo video",
+        "saas product demo video",
+        "ai product demo workflow"
+      ],
+      "primaryOutcome": "Choose the right path and start the first SaaS product demo video",
+      "primaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "secondaryCta": {
+        "label": "See the Product Demo Workflow",
+        "href": "/workflow/"
+      },
+      "requiredTerms": {
+        "audience": ["SaaS", "founder", "marketer", "indie"],
+        "inputs": ["screenshot", "recording", "release", "feature"],
+        "outcomes": ["product demo", "demo video", "15-60", "seconds"]
+      },
+      "forbiddenPositioning": [
+        "general AI video portal",
+        "AI video generator directory",
+        "Create an AI video"
+      ],
+      "maxSections": 8,
+      "highValue": true
+    },
+    {
+      "path": "/workflow/",
+      "pageType": "workflow",
+      "audience": ["SaaS founders", "product marketers", "indie hackers"],
+      "job": "Run an operator playbook from source asset to publishable product demo",
+      "primaryQueryCluster": [
+        "ai product demo video workflow",
+        "saas demo video workflow",
+        "product screenshot to video workflow"
+      ],
+      "primaryOutcome": "Complete a 5-step product demo pilot with named owners and failure repairs",
+      "primaryCta": {
+        "label": "Get Comparison Worksheet",
+        "href": "/comparison-worksheet/"
+      },
+      "secondaryCta": {
+        "label": "Get Workflow Audit",
+        "href": "/audit/"
+      },
+      "stepRequirements": ["input", "action", "output", "owner", "failure mode", "review checkpoint"],
+      "highValue": true
+    },
+    {
+      "path": "/compare/",
+      "pageType": "alternatives",
+      "audience": ["SaaS founders", "product marketers"],
+      "job": "Pick the first AI tool worth testing for product demos",
+      "primaryQueryCluster": [
+        "best ai video tool for product demos",
+        "runway vs pika for product demo",
+        "ai product demo video tool comparison"
+      ],
+      "primaryOutcome": "Lock primary tool, fallback, and switch trigger for product demos",
+      "primaryCta": {
+        "label": "Get Workflow Checklist",
+        "href": "/workflow-checklist/"
+      },
+      "secondaryCta": {
+        "label": "Get Workflow Audit",
+        "href": "/audit/"
+      },
+      "comparisonFields": ["best for", "not for", "switch trigger", "pricing", "UI/text handling"],
+      "highValue": true
+    },
+    {
+      "path": "/pricing/",
+      "pageType": "pricing",
+      "audience": ["SaaS founders", "product marketers"],
+      "job": "Budget generation credits plus review cost for product demo pilots",
+      "primaryQueryCluster": [
+        "ai product demo video pricing",
+        "ai video tool cost for saas demo"
+      ],
+      "primaryOutcome": "Know when paid tools are worth it after review and rework",
+      "primaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "secondaryCta": {
+        "label": "Request Workflow Audit",
+        "href": "/audit/"
+      },
+      "highValue": true
+    },
+    {
+      "path": "/free-vs-paid/",
+      "pageType": "free-vs-paid",
+      "audience": ["indie hackers", "SaaS founders"],
+      "job": "Decide when free tools are enough for a product demo pilot",
+      "primaryQueryCluster": [
+        "free vs paid ai product demo tools"
+      ],
+      "primaryOutcome": "Name the free path breakpoint and upgrade trigger",
+      "primaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "secondaryCta": {
+        "label": "Get Workflow Audit",
+        "href": "/audit/"
+      },
+      "highValue": true
+    },
+    {
+      "path": "/use-cases/",
+      "pageType": "use-cases",
+      "audience": ["product marketers", "SaaS founders"],
+      "job": "Map allowed product-demo scenarios only",
+      "primaryQueryCluster": [
+        "saas product demo use cases",
+        "product hunt launch video"
+      ],
+      "primaryOutcome": "Pick one allowed scenario and start the matching workflow",
+      "allowedScenarios": [
+        "SaaS feature launch",
+        "Product Hunt launch",
+        "product update/changelog video",
+        "onboarding walkthrough",
+        "homepage product demo",
+        "sales enablement demo"
+      ],
+      "primaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "secondaryCta": {
+        "label": "See the Product Demo Workflow",
+        "href": "/workflow/"
+      },
+      "highValue": true
+    },
+    {
+      "path": "/templates/",
+      "pageType": "template-kit",
+      "audience": ["product marketers", "indie hackers"],
+      "job": "Open working product-demo assets with blank and filled examples",
+      "primaryQueryCluster": [
+        "product demo video templates",
+        "saas demo prompt pack"
+      ],
+      "primaryOutcome": "Start a filled product-demo template within three minutes",
+      "primaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "secondaryCta": {
+        "label": "See the Product Demo Workflow",
+        "href": "/workflow/"
+      },
+      "highValue": true
+    },
+    {
+      "path": "/case-study/",
+      "pageType": "case-study",
+      "audience": ["product marketers", "SaaS founders"],
+      "job": "Show a worked product-demo example with before/after and failures",
+      "primaryQueryCluster": [
+        "product demo video example",
+        "saas demo before after"
+      ],
+      "primaryOutcome": "Understand what failed and what changed in a worked example",
+      "primaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "secondaryCta": {
+        "label": "See the Product Demo Workflow",
+        "href": "/workflow/"
+      },
+      "evidenceRules": {
+        "allowWorkedExample": true,
+        "requireLabel": ["worked example", "internal test", "production scenario"],
+        "forbidFabricatedMetrics": true
+      },
+      "highValue": true
+    },
+    {
+      "path": "/faq/",
+      "pageType": "faq",
+      "audience": ["SaaS founders", "product marketers", "indie hackers"],
+      "job": "Answer product-demo workflow objections",
+      "primaryQueryCluster": ["ai product demo video faq"],
+      "primaryOutcome": "Clear blockers before the first pilot",
+      "primaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "secondaryCta": {
+        "label": "See the Product Demo Workflow",
+        "href": "/workflow/"
+      },
+      "highValue": false
+    },
+    {
+      "path": "/best-tools/",
+      "pageType": "best-tools",
+      "audience": ["product marketers", "SaaS founders"],
+      "job": "Shortlist tools for SaaS product demos",
+      "primaryQueryCluster": ["best ai tools for product demo videos"],
+      "primaryOutcome": "Pick a product-demo shortlist without tool sprawl",
+      "primaryCta": {
+        "label": "Get Workflow Checklist",
+        "href": "/workflow-checklist/"
+      },
+      "secondaryCta": {
+        "label": "Open tool comparison",
+        "href": "/compare/"
+      },
+      "highValue": true
+    },
+    {
+      "path": "/prompt-pack/",
+      "pageType": "conversion-asset",
+      "audience": ["SaaS founders", "product marketers", "indie hackers"],
+      "job": "Deliver the Product Demo Workflow Pack",
+      "primaryQueryCluster": ["product demo prompt pack"],
+      "primaryOutcome": "Download a first-run product demo pack",
+      "primaryCta": {
+        "label": "Request the asset",
+        "href": "/prompt-pack/ready/"
+      },
+      "secondaryCta": {
+        "label": "See the Product Demo Workflow",
+        "href": "/workflow/"
+      },
+      "highValue": true
+    },
+    {
+      "path": "/audit/",
+      "pageType": "consult-offer",
+      "audience": ["SaaS founders", "product marketers"],
+      "job": "Request a product-demo workflow audit",
+      "primaryQueryCluster": ["product demo workflow audit"],
+      "primaryOutcome": "Book a focused product-demo workflow review",
+      "primaryCta": {
+        "label": "Request audit",
+        "href": "/audit/ready/"
+      },
+      "secondaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "highValue": false
+    },
+    {
+      "path": "/comparison-worksheet/",
+      "pageType": "conversion-asset",
+      "audience": ["product marketers", "SaaS founders"],
+      "job": "Score product-demo tools with primary and fallback",
+      "primaryQueryCluster": ["product demo tool comparison worksheet"],
+      "primaryOutcome": "Lock primary tool and switch trigger",
+      "primaryCta": {
+        "label": "Request the asset",
+        "href": "/comparison-worksheet/ready/"
+      },
+      "secondaryCta": {
+        "label": "Open tool comparison",
+        "href": "/compare/"
+      },
+      "highValue": false
+    },
+    {
+      "path": "/workflow-checklist/",
+      "pageType": "conversion-asset",
+      "audience": ["product marketers", "indie hackers"],
+      "job": "Checklist a product-demo pilot from source to publish",
+      "primaryQueryCluster": ["product demo workflow checklist"],
+      "primaryOutcome": "Run a named product-demo pilot checklist",
+      "primaryCta": {
+        "label": "Request the asset",
+        "href": "/workflow-checklist/ready/"
+      },
+      "secondaryCta": {
+        "label": "See the Product Demo Workflow",
+        "href": "/workflow/"
+      },
+      "highValue": false
+    },
+    {
+      "path": "/guides/ai-video-diy-vs-freelancer/",
+      "pageType": "diy-vs-hire",
+      "audience": ["SaaS founders", "product marketers"],
+      "job": "Make a SaaS product demo video yourself vs hire a freelancer",
+      "primaryQueryCluster": [
+        "diy vs hire product demo video",
+        "saas demo video freelancer"
+      ],
+      "primaryOutcome": "Choose DIY product-demo path or hire path",
+      "primaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "secondaryCta": {
+        "label": "Hire a product demo editor",
+        "href": "/hire/ai-video-editor/"
+      },
+      "highValue": true
+    },
+    {
+      "path": "/cost/ai-video-production-cost/",
+      "pageType": "cost-guide",
+      "audience": ["SaaS founders", "product marketers"],
+      "job": "Estimate cost to produce a 15-60 second SaaS product demo video",
+      "primaryQueryCluster": [
+        "product demo video cost",
+        "saas demo video production cost"
+      ],
+      "primaryOutcome": "Budget credits, review, and optional editor cost",
+      "primaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "secondaryCta": {
+        "label": "Open pricing notes",
+        "href": "/pricing/"
+      },
+      "highValue": true
+    },
+    {
+      "path": "/hire/ai-video-editor/",
+      "pageType": "hire-service",
+      "audience": ["SaaS founders", "product marketers"],
+      "job": "Hire an editor for a SaaS product demo or feature launch video",
+      "primaryQueryCluster": [
+        "hire product demo video editor",
+        "feature launch video editor"
+      ],
+      "primaryOutcome": "Shortlist an editor path for product demos",
+      "primaryCta": {
+        "label": "Compare DIY vs hire",
+        "href": "/guides/ai-video-diy-vs-freelancer/"
+      },
+      "secondaryCta": {
+        "label": "Get the Product Demo Workflow Pack",
+        "href": "/prompt-pack/"
+      },
+      "highValue": true
+    }
+  ]
+}
