@@ -8,9 +8,11 @@ raw_source_id: "deep-research-blog-ai-workflow-generate-youtube-vi-75579dec"
 title: "How to Build an AI Workflow That Generates a Complete YouTube Video from One Prompt | MindStudio"
 url: "https://www.mindstudio.ai/blog/ai-workflow-generate-youtube-video-one-prompt#main-content"
 domain: "mindstudio.ai"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 70
 status: "active"
-captured_at: "2026-07-11T08:03:41.027Z"
-last_verified: "2026-07-11"
 ---
 ## Source summary
 
@@ -19,16 +21,17 @@ last_verified: "2026-07-11"
 ## Key facts extracted
 
 - How to Build an AI Workflow That Generates a Complete YouTube Video from One Prompt | MindStudio
-- **Synthesia** — Similar capability, slightly different avatar library and pricing model.
+- Intent: ai video workflow
+- Category: deep-research
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

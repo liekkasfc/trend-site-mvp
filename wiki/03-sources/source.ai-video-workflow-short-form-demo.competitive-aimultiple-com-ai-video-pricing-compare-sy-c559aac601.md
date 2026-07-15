@@ -8,27 +8,30 @@ raw_source_id: "competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac60
 title: "AI Video Pricing: Compare Synthesia & Invideo AI"
 url: "https://aimultiple.com/ai-video-pricing"
 domain: "aimultiple.com"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 74
 status: "active"
-captured_at: "2026-07-11T08:03:41.027Z"
-last_verified: "2026-07-11"
 ---
 ## Source summary
 
-The content focuses on comparing AI video pricing across various platforms, detailing their features, pricing plans, and capabilities. It highlights the differences in starting prices, additional features like voiceover...
+The content focuses on comparing AI video pricing across various platforms, detailing their features, pricing plans, and capabilities
 
 ## Key facts extracted
 
 - AI Video Pricing: Compare Synthesia & Invideo AI
-- The content focuses on comparing AI video pricing across various platforms, detailing their features, pricing plans, and capabilities. It highlights the differences in starting prices, additional features like voiceover capabilities and ed...
+- Intent: ai video workflow
+- Category: competitive
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

@@ -8,27 +8,30 @@ raw_source_id: "deep-research-blog-ultimate-guide-to-ai-generated--3e38add5"
 title: "Ultimate Guide to AI-Generated Kids' Video Scripts"
 url: "https://longstories.ai/blog/ultimate-guide-to-ai-generated-kids-video-scripts"
 domain: "longstories.ai"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 70
 status: "active"
-captured_at: "2026-05-11T06:14:40.097Z"
-last_verified: "2026-05-11"
 ---
 ## Source summary
 
-Children's storytelling is entering a new era, driven by advancements in AI technology. The global AI market is expected to soar from $58.3 billion in 2021 to $309.6 billion by 2026, while media and entertainment are pr...
+Children's storytelling is entering a new era, driven by advancements in AI technology. The global AI market is expected to soar from $58.3 billion in 2021 to $309.6 billion by 2026, while media and entertainment are
 
 ## Key facts extracted
 
 - Ultimate Guide to AI-Generated Kids' Video Scripts
-- Children's storytelling is entering a new era, driven by advancements in AI technology. The global AI market is expected to soar from $58.3 billion in 2021 to $309.6 billion by 2026, while media and entertainment are pr...
+- Intent: ai video workflow
+- Category: deep-research
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

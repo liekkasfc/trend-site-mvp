@@ -9,7 +9,7 @@ title: "How to Automate Your Video Editing Workflow with AI in 2026"
 url: "https://www.nemovideo.com/blog/how-to-automate-video-editing-workflow-ai"
 domain: "nemovideo.com"
 published_at: null
-captured_at: "2026-05-10T14:58:49.371Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 70
 status: "active"

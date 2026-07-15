@@ -19,6 +19,10 @@ import {
   COMMERCIAL_PAGE_SPECS,
   parseBooleanFlag,
 } from './affiliate-lib.mjs'
+import {
+  evaluateHomepageCompositionHtml,
+  loadHomepageBudget,
+} from './homepage-composition-gate.mjs'
 
 async function checkUrl(url, options = {}) {
   const response = await fetch(url, {
@@ -35,6 +39,7 @@ async function checkUrl(url, options = {}) {
     status: response.status,
     ok: response.ok,
     bodyPreview: bodyText.slice(0, 240),
+    ...(options.includeBody ? { body: bodyText } : {}),
     contentType: response.headers.get('content-type') ?? '',
   }
 }
@@ -116,11 +121,40 @@ export async function runReleaseHealth(options = {}) {
   const assetPaths = getAssetFilePaths(siteSlug, assetSlug)
   const checks = []
 
-  const root = await checkUrl(trimTrailingSlash(siteBaseUrl))
+  const root = await checkUrl(trimTrailingSlash(siteBaseUrl), { includeBody: true })
   checks.push({
     label: 'Site root',
     ...root,
+    body: undefined,
     note: root.bodyPreview.includes('Redirecting') ? 'Root redirect shell is present.' : '',
+  })
+
+  const homepageBudget = await loadHomepageBudget()
+  const homepageComposition = evaluateHomepageCompositionHtml(root.body ?? '', {
+    budget: homepageBudget,
+    path: '/',
+  })
+  checks.push({
+    label: 'Homepage composition gate',
+    url: root.url,
+    method: 'GET',
+    status: root.status,
+    ok: root.ok && homepageComposition.status === 'pass',
+    bodyPreview: root.bodyPreview,
+    contentType: root.contentType,
+    note:
+      homepageComposition.status === 'pass'
+        ? `sections=${homepageComposition.majorSectionCount}; words=${homepageComposition.visibleWordCount}`
+        : homepageComposition.violations
+            .slice(0, 3)
+            .map((item) => item.code)
+            .join(', '),
+    report: {
+      status: homepageComposition.status,
+      majorSectionCount: homepageComposition.majorSectionCount,
+      visibleWordCount: homepageComposition.visibleWordCount,
+      violations: homepageComposition.violations,
+    },
   })
 
   const landing = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}${assetPaths.liveLandingRoute}`)

@@ -12,7 +12,7 @@ freshness: "manual"
 reuse_priority: ""
 refresh_priority: ""
 lifecycle_decision: ""
-source_ids: ["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"]
+source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","source.ai-video-workflow-short-form-demo.workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"]
 status: "accepted"
 last_verified: "2026-05-11"
 staleness_days: 14
@@ -42,3 +42,34 @@ Broad pilots make it harder to isolate which step actually caused failure or rew
 - workflow
 - template-kit
 - case-study
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+100
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-05-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

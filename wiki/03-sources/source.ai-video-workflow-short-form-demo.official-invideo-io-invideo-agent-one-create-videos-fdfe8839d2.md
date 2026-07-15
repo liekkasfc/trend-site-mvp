@@ -8,27 +8,30 @@ raw_source_id: "official-invideo-io-invideo-agent-one-create-videos-fdfe8839d2"
 title: "Invideo Agent One - Create videos without limits"
 url: "https://invideo.io/"
 domain: "invideo.io"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 92
 status: "active"
-captured_at: "2026-07-11T08:03:41.027Z"
-last_verified: "2026-07-11"
 ---
 ## Source summary
 
-The AI video platform 'Invideo' is designed for creatives, offering tools that automate video production tasks, allowing users to focus on creativity. Its AI agents manage tasks like context storage and scene editing, e...
+The content introduces an AI video platform named InVideo, designed for creatives, allowing them to focus on their projects while AI agents handle technical details
 
 ## Key facts extracted
 
 - Invideo Agent One - Create videos without limits
-- The AI video platform 'Invideo' is designed for creatives, offering tools that automate video production tasks, allowing users to focus on creativity. Its AI agents manage tasks like context storage and scene editing, enabling seamless mul...
+- Intent: ai video workflow
+- Category: official
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

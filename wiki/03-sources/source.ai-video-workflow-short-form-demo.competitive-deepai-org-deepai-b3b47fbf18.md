@@ -9,7 +9,7 @@ title: "DeepAI"
 url: "https://deepai.org/"
 domain: "deepai.org"
 published_at: null
-captured_at: "2026-07-11T14:10:32.162Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 74
 status: "active"

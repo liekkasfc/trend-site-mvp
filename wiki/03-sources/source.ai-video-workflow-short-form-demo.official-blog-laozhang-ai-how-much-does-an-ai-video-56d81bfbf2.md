@@ -8,27 +8,30 @@ raw_source_id: "official-blog-laozhang-ai-how-much-does-an-ai-video-56d81bfbf2"
 title: "How Much Does an AI Video Generator Cost in 2026? (Complete ..."
 url: "https://blog.laozhang.ai/en/posts/how-much-does-ai-video-generator-cost"
 domain: "blog.laozhang.ai"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 92
 status: "active"
-captured_at: "2026-07-11T08:03:41.027Z"
-last_verified: "2026-07-11"
 ---
 ## Source summary
 
-The cost of AI video generators in 2026 ranges from free tiers with limitations to professional plans exceeding $200/month. Key price points include: - **$0/month**: Free tiers available on platforms like Pika and Kling...
+The cost of AI video generators in 2026 ranges from free tiers with limitations to professional plans exceeding $200/month
 
 ## Key facts extracted
 
 - How Much Does an AI Video Generator Cost in 2026? (Complete ...
-- The cost of AI video generators in 2026 ranges from free tiers with limitations to professional plans exceeding $200/month. Key price points include: - **$0/month**: Free tiers available on platforms like Pika and Kling AI allow limited te...
+- Intent: ai video workflow
+- Category: official
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

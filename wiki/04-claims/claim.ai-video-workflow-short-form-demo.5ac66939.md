@@ -12,7 +12,7 @@ freshness: "manual"
 reuse_priority: ""
 refresh_priority: ""
 lifecycle_decision: ""
-source_ids: ["serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35"]
+source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","source.ai-video-workflow-short-form-demo.serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35"]
 status: "accepted"
 last_verified: "2026-07-11"
 staleness_days: 14
@@ -42,3 +42,34 @@ A use case page gets weak when multiple jobs collapse into the same generic reco
 - workflow
 - use-cases
 - case-study
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+100
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-07-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

@@ -8,27 +8,30 @@ raw_source_id: "competitive-imagine-art-how-much-ai-video-generators-c-809f456f0
 title: "How Much AI Video Generators Cost — Top 15 Tools ..."
 url: "https://www.imagine.art/blogs/ai-video-generators-cost"
 domain: "imagine.art"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 74
 status: "active"
-captured_at: "2026-07-11T08:03:41.027Z"
-last_verified: "2026-07-11"
 ---
 ## Source summary
 
-The content provides an overview of AI video generator pricing for 15 tools, comparing costs, features, and different plans available. It categorizes pricing into three models: subscription-based, credit-based, and ente...
+The content provides an overview of AI video generator pricing for 15 tools, comparing costs, features, and different plans available
 
 ## Key facts extracted
 
 - How Much AI Video Generators Cost — Top 15 Tools ...
-- The content provides an overview of AI video generator pricing for 15 tools, comparing costs, features, and different plans available. It categorizes pricing into three models: subscription-based, credit-based, and enterprise/API pricing....
+- Intent: ai video workflow
+- Category: competitive
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

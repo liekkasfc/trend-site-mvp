@@ -8,27 +8,30 @@ raw_source_id: "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
 title: "5 Steps to Build an AI Video Workflow - LongStories.ai"
 url: "https://longstories.ai/blog/build-ai-video-workflow"
 domain: "longstories.ai"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 78
 status: "active"
-captured_at: "2026-05-11T06:14:40.097Z"
-last_verified: "2026-05-11"
 ---
 ## Source summary
 
-The article outlines a five-step process for building an efficient AI video workflow: 1. **Define Goals and Audience**: Establish the video's purpose (educational, promotional) and know your audience's preferences. 2. *...
+The article outlines a five-step process for building an efficient AI video workflow: 1. **Define Goals and Audience**: Establish the video's purpose (educational, promotional) and know your audience's preferences. 2
 
 ## Key facts extracted
 
 - 5 Steps to Build an AI Video Workflow - LongStories.ai
-- The article outlines a five-step process for building an efficient AI video workflow: 1. **Define Goals and Audience**: Establish the video's purpose (educational, promotional) and know your audience's preferences. 2. **Choose AI Tools**:...
+- Intent: ai video workflow
+- Category: workflow
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

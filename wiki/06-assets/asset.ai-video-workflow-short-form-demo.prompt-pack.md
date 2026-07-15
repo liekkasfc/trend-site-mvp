@@ -14,7 +14,7 @@ form_event: "asset_form_submit"
 delivery_event: "asset_delivery"
 refresh_cycle: "monthly"
 refresh_priority: "medium"
-last_verified: "2026-07-11"
+last_verified: "2026-07-14"
 staleness_days: 30
 change_triggers: ["Landing copy changed","Delivery flow changed","Primary tool shortlist changed","Workflow steps changed"]
 reuse_score: 61
@@ -113,7 +113,7 @@ medium
 
 ## Last verified
 
-2026-07-11
+2026-07-14
 
 ## Staleness days
 
@@ -132,8 +132,8 @@ medium
 
 ## Asset performance view
 
-- Strongest path: template-kit -> prompt-pack
-- Submit rate: 36%
-- Delivery rate: 30.2%
-- Deeper action rate: 12.7%
-- These rates are modeled from page intent, asset acceptance, and CTA placement until per-asset GA4 event splits are available.
+- Strongest path: /generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack.html
+- Submit rate: 95%
+- Delivery rate: 95%
+- Deeper action rate: 0%
+- Live ops data: 11 lead(s), 11 delivered, 0 qualified, 0 won, $0 revenue.

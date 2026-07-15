@@ -12,7 +12,7 @@ freshness: "manual"
 reuse_priority: ""
 refresh_priority: ""
 lifecycle_decision: ""
-source_ids: ["community-reddit-com-andrew-ng-building-faster-with-ae3571962b","community-news-ycombinator-com-since-subreddits-rela-801e908404"]
+source_ids: ["source.ai-video-workflow-short-form-demo.community-reddit-com-andrew-ng-building-faster-with-ae3571962b","source.ai-video-workflow-short-form-demo.community-news-ycombinator-com-since-subreddits-rela-801e908404"]
 status: "accepted"
 last_verified: "2026-07-11"
 staleness_days: 14
@@ -42,3 +42,34 @@ Failure modes shift by audience and use case, so they should be refreshed as new
 - pricing
 - free-vs-paid
 - case-study
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+100
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-07-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

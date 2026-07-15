@@ -6,9 +6,9 @@ target_type: "cluster"
 signal_source: "optimization"
 finding: "Clear audit warnings before scaling"
 decision: "test"
-action: "15 audit issue(s) remain open."
+action: "17 audit issue(s) remain open."
 owner: "pipeline"
-created_at: "2026-07-11T14:10:32.162Z"
+created_at: "2026-07-14T09:11:40.376Z"
 ---
 ## What happened
 
@@ -16,7 +16,7 @@ Clear audit warnings before scaling
 
 ## Signal observed
 
-15 audit issue(s) remain open.
+17 audit issue(s) remain open.
 
 ## Why it matters
 
@@ -29,4 +29,4 @@ Run this as the next optimization experiment.
 ## Next run change
 
 - Apply to pages: index, alternatives, workflow
-- Primary claim anchor: The right next step is to grab prompt pack before opening more tabs.
+- Primary claim anchor: Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.

@@ -8,27 +8,30 @@ raw_source_id: "workflow-ability-ai-ai-video-production-workflow-th-4713b9139b"
 title: "AI video production workflow: the step-by-step guide - Ability.ai"
 url: "https://www.ability.ai/blog/ai-video-production-workflow"
 domain: "ability.ai"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 78
 status: "active"
-captured_at: "2026-05-11T06:14:40.097Z"
-last_verified: "2026-05-11"
 ---
 ## Source summary
 
-The article outlines a structured AI video production workflow, emphasizing its efficiency and effectiveness in creating high-quality video content. The process, demonstrated through the viral success of a David Beckham...
+The article outlines a structured AI video production workflow, emphasizing its efficiency and effectiveness in creating high-quality video content
 
 ## Key facts extracted
 
 - AI video production workflow: the step-by-step guide - Ability.ai
-- The article outlines a structured AI video production workflow, emphasizing its efficiency and effectiveness in creating high-quality video content. The process, demonstrated through the viral success of a David Beckham ad, illustrates a s...
+- Intent: ai video workflow
+- Category: workflow
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

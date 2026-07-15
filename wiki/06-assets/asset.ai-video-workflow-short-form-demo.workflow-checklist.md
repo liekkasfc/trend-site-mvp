@@ -14,7 +14,7 @@ form_event: "asset_form_submit"
 delivery_event: "asset_delivery"
 refresh_cycle: "monthly"
 refresh_priority: "low"
-last_verified: "2026-07-11"
+last_verified: "2026-07-14"
 staleness_days: 14
 change_triggers: ["Landing copy changed","Delivery flow changed","Primary tool shortlist changed","Workflow steps changed"]
 reuse_score: 37
@@ -93,7 +93,7 @@ low
 
 ## Last verified
 
-2026-07-11
+2026-07-14
 
 ## Staleness days
 

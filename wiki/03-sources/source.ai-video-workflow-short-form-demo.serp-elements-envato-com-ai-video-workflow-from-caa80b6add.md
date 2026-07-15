@@ -9,7 +9,7 @@ title: "AI video workflow: From idea to publish with Envato"
 url: "https://elements.envato.com/learn/ai-video-workflow"
 domain: "elements.envato.com"
 published_at: null
-captured_at: "2026-05-10T14:58:49.371Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 70
 status: "active"

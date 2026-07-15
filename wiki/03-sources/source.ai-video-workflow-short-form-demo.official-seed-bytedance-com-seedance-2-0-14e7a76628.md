@@ -9,7 +9,7 @@ title: "Seedance 2.0"
 url: "https://seed.bytedance.com/en/seedance2_0"
 domain: "seed.bytedance.com"
 published_at: null
-captured_at: "2026-07-11T14:10:32.162Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 92
 status: "active"

@@ -1,16 +1,22 @@
 ---
-id: "claim-draft.ai-video-workflow-short-form-demo.ac20682c"
-canonical_id: "claim.ai-video-workflow-short-form-demo.use-case.ac20682c"
-type: "claim_draft"
+id: "claim.ai-video-workflow-short-form-demo.use-case.322dee84"
+type: "claim"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_types: ["hub","workflow","use-cases","case-study"]
 claim_kind: "use_case"
 decision_stage: "discover"
-confidence: 0.82
-source_ids: ["source.ai-video-workflow-short-form-demo.deep-research-blog-ai-workflow-generate-youtube-vi-75579dec","source.ai-video-workflow-short-form-demo.competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601"]
-status: "draft"
-last_verified: "2026-07-11"
+confidence: 0.7
+quality_score: 96
+freshness: "manual"
+reuse_priority: ""
+refresh_priority: ""
+lifecycle_decision: ""
+source_ids: ["source.ai-video-workflow-short-form-demo.deep-research-blog-ai-workflow-generate-youtube-vi-75579dec"]
+status: "accepted"
+last_verified: "2026-07-14"
+staleness_days: 14
+change_triggers: []
 ---
 ## Claim
 
@@ -36,3 +42,34 @@ A use case page gets weak when multiple jobs collapse into the same generic reco
 - workflow
 - use-cases
 - case-study
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+96
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-07-14
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

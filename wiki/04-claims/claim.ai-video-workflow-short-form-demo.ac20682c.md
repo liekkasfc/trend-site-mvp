@@ -12,7 +12,7 @@ freshness: "manual"
 reuse_priority: ""
 refresh_priority: ""
 lifecycle_decision: ""
-source_ids: ["deep-research-blog-ai-workflow-generate-youtube-vi-75579dec","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601"]
+source_ids: ["source.ai-video-workflow-short-form-demo.deep-research-blog-ai-workflow-generate-youtube-vi-75579dec","source.ai-video-workflow-short-form-demo.competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601"]
 status: "accepted"
 last_verified: "2026-07-11"
 staleness_days: 14
@@ -42,3 +42,34 @@ A use case page gets weak when multiple jobs collapse into the same generic reco
 - workflow
 - use-cases
 - case-study
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+100
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-07-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

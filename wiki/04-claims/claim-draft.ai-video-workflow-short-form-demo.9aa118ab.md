@@ -10,7 +10,7 @@ decision_stage: "compare"
 confidence: 0.82
 source_ids: ["source.ai-video-workflow-short-form-demo.official-runwayml-com-runway-pricing-2d8653383f","source.ai-video-workflow-short-form-demo.official-pika-art-pika-pricing-4d74a5c6ee"]
 status: "draft"
-last_verified: "2026-07-11"
+last_verified: "2026-07-14"
 ---
 ## Claim
 
@@ -22,9 +22,9 @@ Visible pricing hides the operational cost of setup drag, rework, and unclear ou
 
 ## Evidence
 
-- Runway pricing: Official Runway pricing page covering plans, credits, and subscription options.
-- Pika pricing: Official Pika pricing page covering plans, credits, and subscription details.
-- Kling pricing: Official Kling pricing page covering plans, credits, and subscription details.
+- Runway pricing: 625 credits monthly = 52s of Gen-4.5, 104s of Gen-4 Turbo, or 78 Gen-4 Images (1080p).
+- Pika pricing: Credits + Plan 20 credits<br>Free 35 credits<br>Paid 65 credits<br>Paid
+- Kling 3.0: Complete Guide to Features, Pricing & How to Access (2026): In one commonly cited Pro configuration, a plan around $32.56 per month provides 3,000 credits, which translates into roughly 6 minutes of 720p or 4 minutes of 1080p video per month, depending on your mix of durations and audio usage
 
 ## Counterpoint / limitation
 

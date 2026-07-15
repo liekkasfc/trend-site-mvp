@@ -8,27 +8,30 @@ raw_source_id: "serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35"
 title: "Fully automated AI video generation & multi-platform publishing - N8N"
 url: "https://n8n.io/workflows/3442-fully-automated-ai-video-generation-and-multi-platform-publishing/"
 domain: "n8n.io"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 70
 status: "active"
-captured_at: "2026-07-11T08:03:41.027Z"
-last_verified: "2026-07-11"
 ---
 ## Source summary
 
-The n8n automation template facilitates fully automated AI video generation and multi-platform publishing. It converts ideas from a Google Sheet into engaging short-form videos with AI-generated captions, voiceovers, an...
+The n8n automation template facilitates fully automated AI video generation and multi-platform publishing
 
 ## Key facts extracted
 
 - Fully automated AI video generation & multi-platform publishing - N8N
-- The n8n automation template facilitates fully automated AI video generation and multi-platform publishing. It converts ideas from a Google Sheet into engaging short-form videos with AI-generated captions, voiceovers, and platform-specific...
+- Intent: ai video workflow
+- Category: serp
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

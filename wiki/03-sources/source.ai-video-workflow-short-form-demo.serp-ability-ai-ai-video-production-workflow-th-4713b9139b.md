@@ -9,14 +9,14 @@ title: "AI video production workflow: the step-by-step guide"
 url: "https://www.ability.ai/blog/ai-video-production-workflow"
 domain: "ability.ai"
 published_at: null
-captured_at: "2026-05-10T14:58:49.371Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 70
 status: "active"
 ---
 ## Source summary
 
-The article discusses the structured workflow for AI video production, exemplified by PJ Ace's success with a viral David Beckham ad that garnered 233 million views using a multi-step process. It emphasizes the importan...
+The article discusses the structured workflow for AI video production, exemplified by PJ Ace's success with a viral David Beckham ad that garnered 233 million views using a multi-step process
 
 ## Key facts extracted
 

@@ -10,7 +10,7 @@ decision_stage: "compare"
 confidence: 0.94
 source_ids: ["source.ai-video-workflow-short-form-demo.official-runwayml-com-runway-pricing-2d8653383f","source.ai-video-workflow-short-form-demo.official-learn-runwayml-com-runway-docs-83afeee7c9","source.ai-video-workflow-short-form-demo.official-runwayml-com-runway-official-changelog-169f3a9512"]
 status: "draft"
-last_verified: "2026-07-11"
+last_verified: "2026-07-14"
 ---
 ## Claim
 

@@ -8,10 +8,8 @@ A first-run prompt pack for turning one source asset into a short-form demo with
 - screenshot-to-video launch clips
 
 ## Why this asset exists
-- First-pilot cost anchor: A visible public benchmark starts at $20 for a 3-12 min workflow. The prompt pack earns the click only if it shortens review waste on that first pilot.
-- Why a prompt pack matters later: AriaFlow sells workflow controls like autopilot, scheduling, and one workspace. That is the point where a reusable prompt pack matters more than another blank generation box.
-- Business-proof standard: Synthesia uses 160+ languages and up to 90% time-and-cost savings as buyer language. The pack should create cleaner inputs for that kind of business workflow, not just prettier prompts.
-- Operator pain signal: Operators are still comparing which workflow keeps quality stable as models change. The pack reduces trial-and-error by making the brief, prompt blocks, and review criteria explicit.
+- Feature-release screenshot set into a short-form product demo: The operator had screenshots, release notes, and a CTA, but no fixed brief, no stable shot order, and no reviewer-ready success bar. The first draft risk was a generic opening and a late CTA. Intervention: Use the Prompt Pack to lock the input, write the first-pass brief, generate hook options, build a 4-6 scene sequence, and define one reviewer note before the first render. Final output: A reviewer-ready short-form demo brief with a usable opening hook, a clearer screenshot sequence, and one CTA line that could be reused on the next release cycle.
+- What the proof teaches: The pack is most useful when it reduces first-run ambiguity. It should make the first pass narrower, the first failure easier to name, and the second run faster than the first.
 
 ## What is inside
 - Brief intake block: A one-screen intake for source asset, target channel, conversion goal, reviewer, and publish-ready definition before prompting begins.

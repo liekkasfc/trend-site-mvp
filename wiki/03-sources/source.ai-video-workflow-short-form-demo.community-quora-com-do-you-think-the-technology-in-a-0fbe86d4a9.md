@@ -8,27 +8,30 @@ raw_source_id: "community-quora-com-do-you-think-the-technology-in-a-0fbe86d4a9"
 title: "Do you think the technology in AI-generated videos will be misused?"
 url: "https://www.quora.com/Do-you-think-the-technology-in-AI-generated-videos-will-be-misused"
 domain: "quora.com"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 58
 status: "active"
-captured_at: "2026-05-11T06:14:40.097Z"
-last_verified: "2026-05-11"
 ---
 ## Source summary
 
-The discussion focuses on the potential misuse of AI-generated videos and images. Contributors highlight that AI technology, like any tool, can be exploited for both beneficial and harmful purposes. Misuses mentioned in...
+The discussion focuses on the potential misuse of AI-generated videos and images. Contributors highlight that AI technology, like any tool, can be exploited for both beneficial and harmful purposes
 
 ## Key facts extracted
 
 - Do you think the technology in AI-generated videos will be misused?
-- The discussion focuses on the potential misuse of AI-generated videos and images. Contributors highlight that AI technology, like any tool, can be exploited for both beneficial and harmful purposes. Misuses mentioned include disinformation...
+- Intent: ai video workflow
+- Category: community
 
 ## Buyer pain signals
 
-- The discussion focuses on the potential misuse of AI-generated videos and images. Contributors highlight that AI technology, like any tool, can be exploited for both beneficial and harmful purposes. Misuses mentioned include disinformation...
+- The discussion focuses on the potential misuse of AI-generated videos and images. Contributors highlight that AI technology, like any tool, can be exploited for both beneficial and harmful purposes
 
 ## Caveats
 
-- Community evidence is directional and should stay attached to explicit claim caveats.
+- Community sources are directional; verify operational claims before publishing them as facts.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

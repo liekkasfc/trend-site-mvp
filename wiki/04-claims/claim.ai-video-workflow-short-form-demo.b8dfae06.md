@@ -12,7 +12,7 @@ freshness: "manual"
 reuse_priority: ""
 refresh_priority: ""
 lifecycle_decision: ""
-source_ids: ["community-reddit-com-show-ih-i-hated-the-fragmented-a567e68c28","community-news-ycombinator-com-all-ai-videos-are-har-e3d2b2756c"]
+source_ids: ["source.ai-video-workflow-short-form-demo.community-reddit-com-show-ih-i-hated-the-fragmented-a567e68c28","source.ai-video-workflow-short-form-demo.community-news-ycombinator-com-all-ai-videos-are-har-e3d2b2756c"]
 status: "accepted"
 last_verified: "2026-05-11"
 staleness_days: 14
@@ -42,3 +42,34 @@ Failure modes shift by audience and use case, so they should be refreshed as new
 - pricing
 - free-vs-paid
 - case-study
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+100
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-05-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

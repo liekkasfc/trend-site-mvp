@@ -14,7 +14,7 @@ refresh_priority: ""
 lifecycle_decision: ""
 source_ids: ["source.ai-video-workflow-short-form-demo.official-runwayml-com-runway-pricing-2d8653383f","source.ai-video-workflow-short-form-demo.official-pika-art-pika-pricing-4d74a5c6ee"]
 status: "accepted"
-last_verified: "2026-07-11"
+last_verified: "2026-07-14"
 staleness_days: 14
 change_triggers: []
 ---
@@ -28,8 +28,8 @@ Visitors searching this topic usually need a path to choose and act, not another
 
 ## Evidence
 
-- 4 search results and 4 workflow examples informed this guide.
-- Popular reader needs: workflow, overview, comparison, pricing.
+- 4 search results and 2 workflow examples informed this guide.
+- Popular reader needs: workflow, comparison, pricing, prompt.
 
 ## Counterpoint / limitation
 
@@ -62,7 +62,7 @@ If the visitor only wants a basic glossary answer, a full decision page can feel
 
 ## Last verified
 
-2026-07-11
+2026-07-14
 
 ## Staleness days
 

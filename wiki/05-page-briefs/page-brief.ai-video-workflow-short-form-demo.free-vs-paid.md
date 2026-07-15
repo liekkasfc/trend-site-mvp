@@ -7,8 +7,8 @@ page_type: "free-vs-paid"
 target_intent: "upgrade_decision"
 target_asset: "AI Video Workflow prompt pack"
 status: "active"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.failure-mode.9eb3ee95","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.failure-mode.64fb9ffa"]
-secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.a9652179"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f","claim.ai-video-workflow-short-form-demo.failure-mode.91504777"]
+secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf"]
 required_sections: ["Free path","Paid path","Upgrade trigger","CTA asset"]
 cta_strategy: "comparison_to_asset"
 review_priority: "high"
@@ -32,9 +32,9 @@ Know the upgrade trigger before wasting cycles on the wrong tier.
 ## Required claims
 
 - Buyers should compare workflow cost and review overhead before they compare plan names.
-- As AI VIDEO technology keeps advancing, each AI ARTIST individually is honing their craft through the different workflows for footage generation. Which workflow is giving you the best results so far?
-- Buyers should compare workflow cost and review overhead before they compare plan names.
-- video must be longer than 10 seconds, no loops only 1 video submission per day your video must fit types of ai video content, otherwise is considered 'test footage' and removed title of post should include a name for your video; otherwise it cannot be found by the sub search box self promotion and links only allowed in the comments of your own ...
+- Honestly just curious what everyone is actually doing with these tools lately. Are you guys actually making money with this?
+- The weekly workflow structure: · Monday: Analysis & Planning (2 hours) · Tuesday-Wednesday: Batch Generation (6 hours total) · Thursday: ...
+- The weekly workflow structure: · Monday: Analysis & Planning (2 hours) · Tuesday-Wednesday: Batch Generation (6 hours total) · Thursday: ...
 
 ## Required examples
 
@@ -71,6 +71,7 @@ comparison_to_asset -> AI Video Workflow prompt pack
 - This page is already in the CTR optimization queue.
 - This page is already in the visibility / indexing queue.
 - 1 low-evidence paragraph(s) should be replaced with stronger proof.
+- Live leads are arriving for prompt-pack, but deeper action is still zero; strengthen qualification, consult bridge, and proof density on this page.
 - The consult CTA exists, but the site still has no consult requests; tighten the higher-intent bridge and buyer language.
 - The site audit still has open issues, so this page should absorb the strongest supporting evidence next.
 
@@ -79,6 +80,6 @@ comparison_to_asset -> AI Video Workflow prompt pack
 - Explain when free still works and when the workflow cost makes paid rational.
 - page_brief:page-brief.ai-video-workflow-short-form-demo.free-vs-paid
 - conversion_asset:prompt-pack
-- claim:claim.ai-video-workflow-short-form-demo.pricing.4a485d25
-- claim:claim.ai-video-workflow-short-form-demo.failure-mode.9eb3ee95
+- claim:claim.ai-video-workflow-short-form-demo.pricing.9aa118ab
+- claim:claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c
 - claim:claim.ai-video-workflow-short-form-demo.caveat.22d99525

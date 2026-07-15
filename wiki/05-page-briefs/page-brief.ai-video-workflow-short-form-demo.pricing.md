@@ -7,8 +7,8 @@ page_type: "pricing"
 target_intent: "commercial_evaluation"
 target_asset: "AI Video Workflow prompt pack"
 status: "active"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.caveat.a9652179","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.caveat.22d99525"]
-secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.failure-mode.9eb3ee95","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf"]
+secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f","claim.ai-video-workflow-short-form-demo.failure-mode.91504777"]
 required_sections: ["Pricing facts","Hidden cost","Upgrade trigger","CTA asset"]
 cta_strategy: "comparison_to_asset"
 review_priority: "high"
@@ -33,7 +33,7 @@ Estimate real operating cost before clicking out or upgrading.
 
 - Buyers should compare workflow cost and review overhead before they compare plan names.
 - Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.
-- Buyers should compare workflow cost and review overhead before they compare plan names.
+- Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.
 - Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.
 
 ## Required examples
@@ -69,6 +69,7 @@ comparison_to_asset -> AI Video Workflow prompt pack
 
 - This page is already in the CTR optimization queue.
 - This page is already in the visibility / indexing queue.
+- Live leads are arriving for prompt-pack, but deeper action is still zero; strengthen qualification, consult bridge, and proof density on this page.
 - The consult CTA exists, but the site still has no consult requests; tighten the higher-intent bridge and buyer language.
 - The site audit still has open issues, so this page should absorb the strongest supporting evidence next.
 
@@ -77,6 +78,6 @@ comparison_to_asset -> AI Video Workflow prompt pack
 - Keep the commercial comparison grounded in public anchors, hidden cost, and a believable upgrade trigger.
 - page_brief:page-brief.ai-video-workflow-short-form-demo.pricing
 - conversion_asset:prompt-pack
-- claim:claim.ai-video-workflow-short-form-demo.pricing.4a485d25
-- claim:claim.ai-video-workflow-short-form-demo.caveat.a9652179
-- claim:claim.ai-video-workflow-short-form-demo.comparison.a46ee378
+- claim:claim.ai-video-workflow-short-form-demo.pricing.9aa118ab
+- claim:claim.ai-video-workflow-short-form-demo.caveat.22d99525
+- claim:claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c

@@ -1,16 +1,22 @@
 ---
-id: "claim-draft.ai-video-workflow-short-form-demo.3a209114"
-canonical_id: "claim.ai-video-workflow-short-form-demo.conversion.3a209114"
-type: "claim_draft"
+id: "claim.ai-video-workflow-short-form-demo.conversion.d39f9439"
+type: "claim"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_types: ["hub","faq","template-kit","use-cases"]
 claim_kind: "conversion"
 decision_stage: "buy"
 confidence: 0.7
-source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"]
-status: "draft"
-last_verified: "2026-07-11"
+quality_score: 96
+freshness: "manual"
+reuse_priority: ""
+refresh_priority: ""
+lifecycle_decision: ""
+source_ids: ["source.ai-video-workflow-short-form-demo.serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9"]
+status: "accepted"
+last_verified: "2026-07-14"
+staleness_days: 14
+change_triggers: []
 ---
 ## Claim
 
@@ -36,3 +42,34 @@ If visitors want hands-on help, a consult CTA can outperform a low-friction down
 - faq
 - template-kit
 - use-cases
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+96
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-07-14
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

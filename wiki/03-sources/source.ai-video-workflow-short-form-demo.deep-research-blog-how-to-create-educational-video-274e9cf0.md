@@ -8,27 +8,30 @@ raw_source_id: "deep-research-blog-how-to-create-educational-video-274e9cf0"
 title: "How to Create Educational Videos Using AI: Beginner's Guide"
 url: "https://longstories.ai/blog/how-to-create-educational-videos-using-ai-beginners-guide"
 domain: "longstories.ai"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 70
 status: "active"
-captured_at: "2026-05-11T06:14:40.097Z"
-last_verified: "2026-05-11"
 ---
 ## Source summary
 
-Platforms like Synthesia and Pictory offer plans starting at $19/month, making them a great option for beginners. While AI handles much of the heavy lifting, adding tailored examples or industry-specific details can mak...
+Platforms like Synthesia and Pictory offer plans starting at $19/month, making them a great option for beginners
 
 ## Key facts extracted
 
 - How to Create Educational Videos Using AI: Beginner's Guide
-- Platforms like Synthesia and Pictory offer plans starting at $19/month, making them a great option for beginners. While AI handles much of the heavy lifting, adding tailored examples or industry-specific details can mak...
+- Intent: ai video workflow
+- Category: deep-research
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

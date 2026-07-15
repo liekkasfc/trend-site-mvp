@@ -12,7 +12,7 @@ freshness: "manual"
 reuse_priority: ""
 refresh_priority: ""
 lifecycle_decision: ""
-source_ids: ["competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3"]
+source_ids: ["source.ai-video-workflow-short-form-demo.competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","source.ai-video-workflow-short-form-demo.competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3"]
 status: "accepted"
 last_verified: "2026-05-11"
 staleness_days: 14
@@ -42,3 +42,34 @@ A use case page gets weak when multiple jobs collapse into the same generic reco
 - workflow
 - use-cases
 - case-study
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+100
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-05-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

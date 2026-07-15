@@ -6,9 +6,9 @@ target_type: "cluster"
 signal_source: "optimization"
 finding: "Rewrite titles, descriptions, and click-driving visuals"
 decision: "test"
-action: "The latest wiki review backlog still carries an audit warning, so expansion should pause until the warning is resolved or explicitly deferred."
+action: "CTR is 0%, so the page is being seen but not chosen often enough."
 owner: "pipeline"
-created_at: "2026-07-11T14:10:32.162Z"
+created_at: "2026-07-14T09:11:40.376Z"
 ---
 ## What happened
 
@@ -16,7 +16,7 @@ Rewrite titles, descriptions, and click-driving visuals
 
 ## Signal observed
 
-The latest wiki review backlog still carries an audit warning, so expansion should pause until the warning is resolved or explicitly deferred.
+CTR is 0%, so the page is being seen but not chosen often enough.
 
 ## Why it matters
 
@@ -29,4 +29,4 @@ Run this as the next optimization experiment.
 ## Next run change
 
 - Apply to pages: index, alternatives, workflow
-- Primary claim anchor: The right next step is to grab prompt pack before opening more tabs.
+- Primary claim anchor: Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.

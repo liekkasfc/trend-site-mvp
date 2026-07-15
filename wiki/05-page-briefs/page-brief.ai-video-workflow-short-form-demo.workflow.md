@@ -7,8 +7,8 @@ page_type: "workflow"
 target_intent: "implementation"
 target_asset: "AI Video Workflow comparison worksheet"
 status: "active"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a"]
-secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.caveat.a9652179"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a"]
+secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.use-case.6739219d"]
 required_sections: ["Step cards","Prompt examples","Failure points","Reusable asset CTA"]
 cta_strategy: "implementation_asset"
 review_priority: "high"
@@ -32,9 +32,9 @@ Run one production-shaped test and avoid the first avoidable mistake.
 ## Required claims
 
 - Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
+- Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.
+- Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.
 - Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
-- short-form product demo videos is a concrete entry point for ai video workflow.
-- launch and product update videos is a concrete entry point for ai video workflow.
 
 ## Required examples
 
@@ -79,6 +79,6 @@ implementation_asset -> AI Video Workflow comparison worksheet
 - Make the first measurable pilot easier to run and harder to misunderstand.
 - page_brief:page-brief.ai-video-workflow-short-form-demo.workflow
 - conversion_asset:comparison-worksheet
-- claim:claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e
-- claim:claim.ai-video-workflow-short-form-demo.workflow.cab12a2d
-- claim:claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c
+- claim:claim.ai-video-workflow-short-form-demo.workflow.0084dbce
+- claim:claim.ai-video-workflow-short-form-demo.workflow.12dac942
+- claim:claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c

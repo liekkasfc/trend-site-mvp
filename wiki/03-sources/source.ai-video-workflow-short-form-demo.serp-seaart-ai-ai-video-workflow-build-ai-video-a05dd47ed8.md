@@ -9,7 +9,7 @@ title: "AI Video Workflow - Build AI Videos with Nodes and Agents"
 url: "https://www.seaart.ai/ai-video/ai-workflow-nodes"
 domain: "seaart.ai"
 published_at: null
-captured_at: "2026-07-11T14:10:32.162Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 70
 status: "active"

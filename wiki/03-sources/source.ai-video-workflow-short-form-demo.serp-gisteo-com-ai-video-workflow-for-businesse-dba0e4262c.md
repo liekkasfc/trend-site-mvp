@@ -9,7 +9,7 @@ title: "AI Video Workflow for Businesses: From Idea to Finished Video"
 url: "https://gisteo.com/blogs/ai-videos/ai-video-workflow-for-businesses/"
 domain: "gisteo.com"
 published_at: null
-captured_at: "2026-07-11T14:10:32.162Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 70
 status: "active"

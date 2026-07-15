@@ -12,7 +12,7 @@ freshness: "manual"
 reuse_priority: ""
 refresh_priority: ""
 lifecycle_decision: ""
-source_ids: ["competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d"]
+source_ids: ["source.ai-video-workflow-short-form-demo.competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","source.ai-video-workflow-short-form-demo.competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d"]
 status: "accepted"
 last_verified: "2026-07-11"
 staleness_days: 14
@@ -41,3 +41,34 @@ If pricing becomes explicit later, the page should switch from caveat-heavy to b
 - alternatives
 - pricing
 - free-vs-paid
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+94
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-07-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

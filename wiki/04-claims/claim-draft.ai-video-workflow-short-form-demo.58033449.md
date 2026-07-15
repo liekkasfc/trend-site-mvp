@@ -10,7 +10,7 @@ decision_stage: "discover"
 confidence: 0.82
 source_ids: ["source.ai-video-workflow-short-form-demo.official-runwayml-com-runway-pricing-2d8653383f","source.ai-video-workflow-short-form-demo.official-pika-art-pika-pricing-4d74a5c6ee"]
 status: "draft"
-last_verified: "2026-07-11"
+last_verified: "2026-07-14"
 ---
 ## Claim
 
@@ -22,8 +22,8 @@ Visitors searching this topic usually need a path to choose and act, not another
 
 ## Evidence
 
-- 4 search results and 4 workflow examples informed this guide.
-- Popular reader needs: workflow, overview, comparison, pricing.
+- 4 search results and 2 workflow examples informed this guide.
+- Popular reader needs: workflow, comparison, pricing, prompt.
 
 ## Counterpoint / limitation
 

@@ -7,7 +7,7 @@ page_type: "faq"
 target_intent: "answer_to_next_step"
 target_asset: "AI Video Workflow prompt pack"
 status: "active"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.definition.6bfd358e","claim.ai-video-workflow-short-form-demo.conversion.6b545884","claim.ai-video-workflow-short-form-demo.definition.58033449"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.conversion.d39f9439","claim.ai-video-workflow-short-form-demo.conversion.3a209114","claim.ai-video-workflow-short-form-demo.conversion.66350350"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e"]
 required_sections: ["FAQ","One next step","Asset CTA"]
 cta_strategy: "low_friction_asset"
@@ -31,9 +31,9 @@ Get a quick answer without losing the next step.
 ## Required claims
 
 - AI Video Workflow prompt pack is the main conversion asset because it shortens the time from reading to the first test.
-- ai video workflow works best as a decision surface that combines tools, workflow guidance, and a reusable asset.
 - Prompt Pack is the main conversion asset because it shortens the time from reading to the first test.
-- ai video workflow works best as a practical guide that combines tool selection, workflow guidance, and a reusable asset.
+- Prompt Pack is the main conversion asset because it shortens the time from reading to the first test.
+- Prompt Pack is the main conversion asset because it shortens the time from reading to the first test.
 
 ## Required examples
 

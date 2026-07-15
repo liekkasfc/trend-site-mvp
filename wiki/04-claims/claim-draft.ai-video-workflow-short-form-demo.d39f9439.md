@@ -1,6 +1,6 @@
 ---
-id: "claim-draft.ai-video-workflow-short-form-demo.6b545884"
-canonical_id: "claim.ai-video-workflow-short-form-demo.conversion.6b545884"
+id: "claim-draft.ai-video-workflow-short-form-demo.d39f9439"
+canonical_id: "claim.ai-video-workflow-short-form-demo.conversion.d39f9439"
 type: "claim_draft"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
@@ -8,9 +8,9 @@ page_types: ["hub","faq","template-kit","use-cases"]
 claim_kind: "conversion"
 decision_stage: "buy"
 confidence: 0.7
-source_ids: ["source.ai-video-workflow-short-form-demo.video-deepai-org-deepai-b3b47fbf18"]
+source_ids: ["source.ai-video-workflow-short-form-demo.serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9"]
 status: "draft"
-last_verified: "2026-07-11"
+last_verified: "2026-07-14"
 ---
 ## Claim
 

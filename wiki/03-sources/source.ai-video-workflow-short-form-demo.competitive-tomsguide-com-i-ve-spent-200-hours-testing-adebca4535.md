@@ -8,9 +8,11 @@ raw_source_id: "competitive-tomsguide-com-i-ve-spent-200-hours-testing-adebca453
 title: "I've spent 200 hours testing the best AI video generators"
 url: "https://www.tomsguide.com/features/5-best-ai-video-generators-tested-and-compared"
 domain: "tomsguide.com"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 74
 status: "active"
-captured_at: "2026-07-11T08:03:41.027Z"
-last_verified: "2026-07-11"
 ---
 ## Source summary
 
@@ -19,16 +21,17 @@ What makes the best AI video generators? ; Luma Labs. limited. $9.99 ; Pika Labs
 ## Key facts extracted
 
 - I've spent 200 hours testing the best AI video generators
-- What makes the best AI video generators? ; Luma Labs. limited. $9.99 ; Pika Labs. 150/month. $10 ; Runway. 125 total. $15 ; Haiper. 10/day. $10.
+- Intent: ai video workflow
+- Category: competitive
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

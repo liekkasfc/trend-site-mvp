@@ -7,8 +7,8 @@ page_type: "diy-vs-hire"
 target_intent: "commercial_outsource_decision"
 target_asset: "Prompt Pack"
 status: "accepted"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.caveat.22d99525"]
-secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.conversion.6b545884","claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.failure-mode.9eb3ee95"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25"]
+secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f","claim.ai-video-workflow-short-form-demo.failure-mode.91504777"]
 required_sections: ["DIY cost and time","Hiring trigger","Decision table","Who should not outsource","Affiliate disclosure"]
 cta_strategy: "affiliate_decision_path"
 review_priority: "high"
@@ -33,8 +33,8 @@ Compare DIY effort, time cost, rework risk, consistency needs, and outsourcing f
 
 - Buyers should compare workflow cost and review overhead before they compare plan names.
 - Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
-- Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
-- Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.
+- Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.
+- Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.
 
 ## Required examples
 
@@ -70,6 +70,7 @@ affiliate_decision_path -> Prompt Pack
 
 - 8 low-evidence paragraph(s) should be replaced with stronger proof.
 - 1 generic paragraph(s) should be rewritten into more specific operator language.
+- Live leads are arriving for prompt-pack, but deeper action is still zero; strengthen qualification, consult bridge, and proof density on this page.
 - The site audit still has open issues, so this page should absorb the strongest supporting evidence next.
 
 ## Optimization writeback
@@ -78,5 +79,5 @@ affiliate_decision_path -> Prompt Pack
 - page_brief:page-brief.ai-video-workflow-short-form-demo.diy-vs-hire
 - conversion_asset:prompt-pack
 - claim:claim.ai-video-workflow-short-form-demo.pricing.9aa118ab
-- claim:claim.ai-video-workflow-short-form-demo.workflow.cab12a2d
-- claim:claim.ai-video-workflow-short-form-demo.conversion.6b545884
+- claim:claim.ai-video-workflow-short-form-demo.workflow.0084dbce
+- claim:claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c

@@ -9,14 +9,14 @@ title: "My AI-Assisted Workflow - Hacker News"
 url: "https://news.ycombinator.com/item?id=47775653"
 domain: "news.ycombinator.com"
 published_at: null
-captured_at: "2026-05-10T14:58:49.371Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 58
 status: "active"
 ---
 ## Source summary
 
-The Hacker News article discusses different AI-assisted workflow approaches, particularly focusing on how developers are integrating AI tools into their coding and project management processes. Users share insights on t...
+The Hacker News article discusses different AI-assisted workflow approaches, particularly focusing on how developers are integrating AI tools into their coding and project management processes
 
 ## Key facts extracted
 
@@ -26,7 +26,7 @@ The Hacker News article discusses different AI-assisted workflow approaches, par
 
 ## Buyer pain signals
 
-- The Hacker News article discusses different AI-assisted workflow approaches, particularly focusing on how developers are integrating AI tools into their coding and project management processes. Users share insights on t...
+- The Hacker News article discusses different AI-assisted workflow approaches, particularly focusing on how developers are integrating AI tools into their coding and project management processes
 
 ## Caveats
 

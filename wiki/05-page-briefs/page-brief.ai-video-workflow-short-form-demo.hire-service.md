@@ -7,8 +7,8 @@ page_type: "hire-service"
 target_intent: "transactional_hiring_checklist"
 target_asset: "Prompt Pack"
 status: "accepted"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.a9652179"]
-secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.failure-mode.9eb3ee95","claim.ai-video-workflow-short-form-demo.pricing.4a485d25"]
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a"]
+secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f"]
 required_sections: ["Materials to prepare","Scope checklist","Rights and delivery format","Revision plan","Red flags","Affiliate disclosure"]
 cta_strategy: "affiliate_hire_path"
 review_priority: "high"
@@ -32,9 +32,9 @@ Prepare scope, source materials, rights, formats, revisions, and red-flag questi
 ## Required claims
 
 - Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
+- Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.
+- Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.
 - Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.
-- Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.
-- Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.
 
 ## Required examples
 
@@ -69,6 +69,7 @@ affiliate_hire_path -> Prompt Pack
 ## Refresh triggers
 
 - 9 low-evidence paragraph(s) should be replaced with stronger proof.
+- Live leads are arriving for prompt-pack, but deeper action is still zero; strengthen qualification, consult bridge, and proof density on this page.
 - The site audit still has open issues, so this page should absorb the strongest supporting evidence next.
 
 ## Optimization writeback
@@ -76,6 +77,6 @@ affiliate_hire_path -> Prompt Pack
 - Help the buyer prepare a cleaner brief before clicking through to a marketplace.
 - page_brief:page-brief.ai-video-workflow-short-form-demo.hire-service
 - conversion_asset:prompt-pack
-- claim:claim.ai-video-workflow-short-form-demo.workflow.cab12a2d
-- claim:claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e
+- claim:claim.ai-video-workflow-short-form-demo.workflow.0084dbce
+- claim:claim.ai-video-workflow-short-form-demo.workflow.12dac942
 - claim:claim.ai-video-workflow-short-form-demo.pricing.9aa118ab

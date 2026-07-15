@@ -8,9 +8,11 @@ raw_source_id: "community-reddit-com-andrew-ng-building-faster-with--ae3571962b"
 title: "Andrew Ng: Building Faster with AI [video] : r/hackernews - Reddit"
 url: "https://www.reddit.com/r/hackernews/comments/1lxj2c5/andrew_ng_building_faster_with_ai_video/"
 domain: "reddit.com"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 58
 status: "active"
-captured_at: "2026-07-11T08:03:41.027Z"
-last_verified: "2026-07-11"
 ---
 ## Source summary
 
@@ -19,7 +21,8 @@ Discussion on HN: https://news.ycombinator.com/item?id=44521225.
 ## Key facts extracted
 
 - Andrew Ng: Building Faster with AI [video] : r/hackernews - Reddit
-- Discussion on HN: https://news.ycombinator.com/item?id=44521225.
+- Intent: ai video workflow
+- Category: community
 
 ## Buyer pain signals
 
@@ -27,8 +30,8 @@ Discussion on HN: https://news.ycombinator.com/item?id=44521225.
 
 ## Caveats
 
-- Community evidence is directional and should stay attached to explicit claim caveats.
+- Community sources are directional; verify operational claims before publishing them as facts.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

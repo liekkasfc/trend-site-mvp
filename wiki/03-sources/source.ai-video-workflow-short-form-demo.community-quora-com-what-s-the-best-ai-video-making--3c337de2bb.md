@@ -9,14 +9,14 @@ title: "What's the best AI video making platform that can make a consistent ..."
 url: "https://www.quora.com/Whats-the-best-AI-video-making-platform-that-can-make-a-consistent-story-video-like-a-mini-movie-I-did-some-Silent-Hill-fan-movie-with-Grok-but-its-hard-to-keep-it-consistent"
 domain: "quora.com"
 published_at: null
-captured_at: "2026-05-10T14:58:49.371Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 58
 status: "active"
 ---
 ## Source summary
 
-The page discusses the challenges of creating consistent story videos using AI platforms, particularly in the context of fan movies like those based on Silent Hill. Users are seeking recommendations for AI video-making....
+The page discusses the challenges of creating consistent story videos using AI platforms, particularly in the context of fan movies like those based on Silent Hill
 
 ## Key facts extracted
 
@@ -26,7 +26,7 @@ The page discusses the challenges of creating consistent story videos using AI p
 
 ## Buyer pain signals
 
-- The page discusses the challenges of creating consistent story videos using AI platforms, particularly in the context of fan movies like those based on Silent Hill. Users are seeking recommendations for AI video-making....
+- The page discusses the challenges of creating consistent story videos using AI platforms, particularly in the context of fan movies like those based on Silent Hill
 
 ## Caveats
 

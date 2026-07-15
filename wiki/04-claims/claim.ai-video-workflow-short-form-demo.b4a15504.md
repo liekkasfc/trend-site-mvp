@@ -12,7 +12,7 @@ freshness: "manual"
 reuse_priority: ""
 refresh_priority: ""
 lifecycle_decision: ""
-source_ids: ["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"]
+source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"]
 status: "accepted"
 last_verified: "2026-05-11"
 staleness_days: 14
@@ -40,3 +40,34 @@ If the asset does not help the first pilot happen faster, it is not strong enoug
 - alternatives
 - best-tools
 - template-kit
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+85
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-05-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

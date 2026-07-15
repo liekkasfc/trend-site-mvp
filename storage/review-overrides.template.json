@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-11T14:10:32.162Z",
+  "generatedAt": "2026-07-14T09:11:40.376Z",
   "instructions": [
     "Copy this file to storage/review-overrides.json and edit only the fields you want to override.",
     "Supported fields per page: intro, ctaCopy, verdicts, keyFacts, sectionParagraphs, reviewer, reviewedAt, notes."
@@ -12,7 +12,7 @@
       "reviewer": "",
       "reviewedAt": "",
       "notes": "",
-      "intro": "Runway is the fastest place to start if you need one short publishable test this week. The first run usually fails on consistency or pacing, so this page shows the fallback tool, the failure pattern to expect, and the prompt asset that gets you moving in minutes instead of another day of tabs.",
+      "intro": "This hub is the short conversion path for SaaS founders, indie hackers, and product marketers who already have product assets and need one usable 15-60 second demo video.",
       "ctaCopy": "A first-run prompt pack for turning one source asset into a short-form demo with a usable brief, sequence, CTA, and handoff note.",
       "verdicts": [
         {
@@ -20,66 +20,75 @@
           "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
+          ]
+        },
+        {
+          "title": "Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.",
+          "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
+          "sourceIds": [
+            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e",
+            "serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35"
+          ]
+        },
+        {
+          "title": "Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.",
+          "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
+          "sourceIds": [
+            "serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9",
+            "video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b"
           ]
         },
         {
           "title": "Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.",
           "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
           "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
-          ]
-        },
-        {
-          "title": "Runway is the recommended first shortlist review because it fits the highest-intent visitor best.",
-          "detail": "Comparison pages convert better when they collapse the field to one primary option and one fallback.",
-          "sourceIds": [
-            "official-runwayml-com-runway-pricing-2d8653383f",
-            "official-learn-runwayml-com-runway-docs-83afeee7c9",
-            "official-runwayml-com-runway-official-changelog-169f3a9512"
-          ]
-        },
-        {
-          "title": "Prompt Pack is the main downloadable template because it shortens the time from reading to the first test.",
-          "detail": "The page should sell the next useful action, not just publish more opinionated prose.",
-          "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c",
+            "workflow-ability-ai-ai-video-production-workflow-th-4713b9139b"
           ]
         }
       ],
       "keyFacts": [
         {
           "label": "Audience",
-          "value": "indie hackers, product marketers, and content operators shipping short-form product/demo videos",
+          "value": "SaaS founders, indie hackers, and product marketers with existing product assets.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
           ]
         },
         {
-          "label": "Monetization path",
-          "value": "affiliate, template-sale, lead-gen",
+          "label": "Inputs",
+          "value": "Product screenshots, screen recordings, feature updates, and release notes.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
           ]
         },
         {
-          "label": "Search landscape",
-          "value": "8 visible search results and 0 buyer-focused pages informed this guide.",
+          "label": "Output",
+          "value": "One 15-60 second SaaS product demo video.",
           "sourceIds": [
-            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c",
-            "official-ariaflow-ai-ariaflow-ai-create-viral-facel-6c4ae0bac8"
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
           ]
         }
       ],
       "sectionParagraphs": [
         [
-          "indie hackers, product marketers, and content operators shipping short-form product/demo videos usually land here because they need a shortlist built from 4 visible options, a 5-step rollout path, and one next asset they can act on without another research loop.",
-          "The strongest hub makes fit, skip conditions, and the first test obvious before the visitor leaves the hero for the alternatives, workflow, or pricing page."
+          "Turn existing product assets into a short demo video without asking the homepage to be a giant AI video category hub."
         ],
         [
-          "Current search coverage still leaves these gaps across 0 workflow examples and 3 community signals: high: Check robots, sitemap, and indexable pages; high: Rewrite titles, descriptions, and click-driving visuals; medium: Clear audit warnings before scaling; high: Pause expansion and review whether to retire the workflow path; Apply to pages: index, alternatives, workflow; Primary claim anchor: The right next step is to grab prompt pack before opening more tabs.; If the asset does not help the first pilot happen faster, it is not strong enough yet.; If pricing becomes explicit later, the page should switch from caveat-heavy to benchmark-heavy.; A use case page gets weak when multiple jobs collapse into the same generic recommendation.; If exact public pricing is missing, the page should say so and focus on upgrade triggers instead.; If visitors want hands-on help, a consult CTA can outperform a low-friction download.; If the visitor only wants a basic glossary answer, a full decision page can feel too heavy.; Failure modes shift by audience and use case, so they should be refreshed as new complaints appear.; Teams still run into review loops, prompt drift, and inconsistent output quality on the first pass.; Broad pilots make it harder to isolate which step actually caused failure or rework.; Do not start here if the team only needs a quick one-model experiment and does not need editing or review workflow yet..",
-          "3 use cases like short-form product demo videos, launch and product update videos, screenshot-to-video launch clips should map to distinct decision paths and then route into the prompt pack, workflow checklist, or comparison worksheet."
+          "The visitor should recognize screenshots, recordings, and feature notes as enough material to begin."
+        ],
+        [
+          "The root page keeps the process to prepare assets, generate short shots, and review or assemble the demo."
+        ],
+        [
+          "Runway is positioned as the first controlled test, with Pika as the fallback when the same motion failure repeats."
+        ],
+        [
+          "The proof point is labelled as an internal worked example so visitors do not mistake it for an external customer case study."
+        ],
+        [
+          "The final conversion path is the workflow pack, with deeper compare, pricing, template, and case-study pages left as child links."
         ]
       ]
     },
@@ -217,41 +226,41 @@
           "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
+          ]
+        },
+        {
+          "title": "Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.",
+          "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
+          "sourceIds": [
+            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e",
+            "serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35"
+          ]
+        },
+        {
+          "title": "Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.",
+          "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
+          "sourceIds": [
+            "serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9",
+            "video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b"
           ]
         },
         {
           "title": "Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.",
           "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
           "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
-          ]
-        },
-        {
-          "title": "short-form product demo videos is a concrete entry point for AI video workflow.",
-          "detail": "Specific use cases reduce generic category copy and make the first workflow test easier to define.",
-          "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
-          ]
-        },
-        {
-          "title": "launch and product update videos is a concrete entry point for AI video workflow.",
-          "detail": "Specific use cases reduce generic category copy and make the first workflow test easier to define.",
-          "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c",
+            "workflow-ability-ai-ai-video-production-workflow-th-4713b9139b"
           ]
         }
       ],
       "keyFacts": [
         {
           "label": "workflow examples",
-          "value": "0 workflow references and 2 prompt examples back this page.",
+          "value": "2 workflow references and 2 prompt examples back this page.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         },
         {
@@ -259,15 +268,15 @@
           "value": "Start with short-form product demo videos before expanding the surface area.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         },
         {
           "label": "Primary risk",
-          "value": "video must be longer than 10 seconds, no loops only 1 video submission per day your video must fit types of ai video content, otherwise is considered 'test footage' and removed title of post should include a name for",
+          "value": "The biggest issue I found with AI video is it generates visually fine clips but they don't actually match what's being said. Curious if you.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         },
         {
@@ -275,8 +284,8 @@
           "value": "5 steps now name the owner, success bar, and first failure checkpoint.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196",
-            "video-deepai-org-deepai-b3b47fbf18"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c",
+            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
           ]
         },
         {
@@ -284,8 +293,8 @@
           "value": "Step 1 owner: The operator or marketer responsible for the first live test.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196",
-            "video-deepai-org-deepai-b3b47fbf18"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c",
+            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
           ]
         },
         {
@@ -293,8 +302,8 @@
           "value": "Trying to solve the entire category in one pass.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196",
-            "video-deepai-org-deepai-b3b47fbf18"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c",
+            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
           ]
         }
       ],
@@ -319,22 +328,6 @@
           "title": "Buyers should compare workflow cost and review overhead before they compare plan names.",
           "detail": "Visible pricing hides the operational cost of setup drag, rework, and unclear output quality.",
           "sourceIds": [
-            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
-            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
-          ]
-        },
-        {
-          "title": "Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.",
-          "detail": "This keeps the content honest when the evidence is incomplete.",
-          "sourceIds": [
-            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "community-reddit-com-which-ai-video-generation-workf-ded74c1191"
-          ]
-        },
-        {
-          "title": "Buyers should compare workflow cost and review overhead before they compare plan names.",
-          "detail": "Visible pricing hides the operational cost of setup drag, rework, and unclear output quality.",
-          "sourceIds": [
             "official-runwayml-com-runway-pricing-2d8653383f",
             "official-pika-art-pika-pricing-4d74a5c6ee"
           ]
@@ -345,6 +338,22 @@
           "sourceIds": [
             "competitive-deepai-org-deepai-b3b47fbf18",
             "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
+          ]
+        },
+        {
+          "title": "Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.",
+          "detail": "This keeps the content honest when the evidence is incomplete.",
+          "sourceIds": [
+            "competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da",
+            "competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22"
+          ]
+        },
+        {
+          "title": "Public pricing clarity is still uneven, so strong pages should explain tradeoffs before asking for the click.",
+          "detail": "This keeps the content honest when the evidence is incomplete.",
+          "sourceIds": [
+            "competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601",
+            "competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d"
           ]
         }
       ],
@@ -360,7 +369,7 @@
           "label": "Upgrade trigger",
           "value": "The switch to paid usually happens when approvals, review latency, and weekly reuse cost more than another generation pass.",
           "sourceIds": [
-            "community-reddit-com-which-ai-video-workflow-is-givi-198606fb3d"
+            "community-reddit-com-show-ih-i-hated-the-fragmented--a567e68c28"
           ]
         },
         {
@@ -388,7 +397,7 @@
           "label": "Hidden workflow cost",
           "value": "Low sticker price, but review, rework, and handoff overhead compound fast",
           "sourceIds": [
-            "community-reddit-com-which-ai-video-workflow-is-givi-198606fb3d"
+            "community-reddit-com-show-ih-i-hated-the-fragmented--a567e68c28"
           ]
         }
       ],
@@ -417,31 +426,32 @@
           "title": "Buyers should compare workflow cost and review overhead before they compare plan names.",
           "detail": "Visible pricing hides the operational cost of setup drag, rework, and unclear output quality.",
           "sourceIds": [
-            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5",
-            "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
-          ]
-        },
-        {
-          "title": "Teams still run into review loops, prompt drift, and inconsistent output quality on the first pass.",
-          "detail": "Naming the first likely failure mode is what makes the page useful once visitors try the workflow for real.",
-          "sourceIds": [
-            "community-reddit-com-which-ai-video-generation-workf-ded74c1191",
-            "community-reddit-com-which-video-editing-ai-tool-is-c953fa0136"
-          ]
-        },
-        {
-          "title": "Buyers should compare workflow cost and review overhead before they compare plan names.",
-          "detail": "Visible pricing hides the operational cost of setup drag, rework, and unclear output quality.",
-          "sourceIds": [
             "official-runwayml-com-runway-pricing-2d8653383f",
             "official-pika-art-pika-pricing-4d74a5c6ee"
           ]
         },
         {
-          "title": "video must be longer than 10 seconds, no loops only 1 video submission per day your video must fit types of ai video content, otherwise is considered 'test footage' and removed title of post should include a name for your video; otherwise it cannot be found by the sub search box self promotion and links only allowed in the comments of your own.",
+          "title": "Honestly just curious what everyone is actually doing with these tools lately. Are you guys actually making money with this?",
           "detail": "Naming the first likely failure mode is what makes the page useful once visitors try the workflow for real.",
           "sourceIds": [
-            "community-reddit-com-which-ai-video-workflow-is-givi-198606fb3d"
+            "community-reddit-com-what-does-your-ai-video-workflo-d7f53ec617",
+            "serp-reddit-com-my-complete-ai-video-workflow-t-04c326932c"
+          ]
+        },
+        {
+          "title": "The weekly workflow structure: · Monday: Analysis & Planning (2 hours) · Tuesday-Wednesday: Batch Generation (6 hours total) · Thursday:.",
+          "detail": "Naming the first likely failure mode is what makes the page useful once visitors try the workflow for real.",
+          "sourceIds": [
+            "community-reddit-com-andrew-ng-building-faster-with-ae3571962b",
+            "community-news-ycombinator-com-since-subreddits-rela-801e908404"
+          ]
+        },
+        {
+          "title": "The weekly workflow structure: · Monday: Analysis & Planning (2 hours) · Tuesday-Wednesday: Batch Generation (6 hours total) · Thursday:.",
+          "detail": "Naming the first likely failure mode is what makes the page useful once visitors try the workflow for real.",
+          "sourceIds": [
+            "community-news-ycombinator-com-my-ai-assisted-workfl-a925fdd020",
+            "community-news-ycombinator-com-my-workflow-is-70-ai-5a53d435a7"
           ]
         }
       ],
@@ -450,21 +460,21 @@
           "label": "Free path",
           "value": "Best for one user, one launch clip, and rough validation before the workflow earns a second run.",
           "sourceIds": [
-            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+            "official-runwayml-com-runway-pricing-2d8653383f"
           ]
         },
         {
           "label": "Paid path",
           "value": "Best when the workflow is recurring, shared, and judged by review speed, approvals, and reuse rather than by credits alone.",
           "sourceIds": [
-            "official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5"
+            "official-runwayml-com-runway-pricing-2d8653383f"
           ]
         },
         {
           "label": "Decision trigger",
           "value": "Upgrade when consistency, handoff speed, and weekly reuse become harder than generation itself.",
           "sourceIds": [
-            "community-reddit-com-which-ai-video-workflow-is-givi-198606fb3d"
+            "community-reddit-com-show-ih-i-hated-the-fragmented--a567e68c28"
           ]
         },
         {
@@ -504,33 +514,35 @@
       "ctaCopy": "A first-run prompt pack for turning one source asset into a short-form demo with a usable brief, sequence, CTA, and handoff note.",
       "verdicts": [
         {
-          "title": "AI Video Workflow prompt pack is the main downloadable template because it shortens the time from reading to the first test.",
-          "detail": "The page should sell the next useful action, not just publish more opinionated prose.",
-          "sourceIds": [
-            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"
-          ]
-        },
-        {
           "title": "Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.",
           "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
+          ]
+        },
+        {
+          "title": "Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.",
+          "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
+          "sourceIds": [
+            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e",
+            "serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35"
+          ]
+        },
+        {
+          "title": "Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.",
+          "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
+          "sourceIds": [
+            "serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9",
+            "video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b"
           ]
         },
         {
           "title": "Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.",
           "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
           "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
-          ]
-        },
-        {
-          "title": "Prompt Pack is the main downloadable template because it shortens the time from reading to the first test.",
-          "detail": "The page should sell the next useful action, not just publish more opinionated prose.",
-          "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c",
+            "workflow-ability-ai-ai-video-production-workflow-th-4713b9139b"
           ]
         }
       ],
@@ -575,8 +587,8 @@
           "value": "3 kit components are already packaged for first-run and repeat-run reuse.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196",
-            "video-deepai-org-deepai-b3b47fbf18"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c",
+            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
           ]
         }
       ],
@@ -606,30 +618,31 @@
           "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         },
         {
-          "title": "Teams still run into review loops, prompt drift, and inconsistent output quality on the first pass.",
-          "detail": "Naming the first likely failure mode is what makes the page useful once visitors try the workflow for real.",
+          "title": "Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.",
+          "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
           "sourceIds": [
-            "community-reddit-com-which-ai-video-generation-workf-ded74c1191",
-            "community-reddit-com-which-video-editing-ai-tool-is-c953fa0136"
+            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e",
+            "serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35"
+          ]
+        },
+        {
+          "title": "Start with one narrow pilot around image-to-video clips, then package the winning path into a reusable asset.",
+          "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
+          "sourceIds": [
+            "serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9",
+            "video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b"
           ]
         },
         {
           "title": "Start with one narrow pilot around short-form product demo videos, then package the winning path into a reusable asset.",
           "detail": "The first production-shaped test reveals where the real review loop and workflow friction live.",
           "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
-          ]
-        },
-        {
-          "title": "video must be longer than 10 seconds, no loops only 1 video submission per day your video must fit types of ai video content, otherwise is considered 'test footage' and removed title of post should include a name for your video; otherwise it cannot be found by the sub search box self promotion and links only allowed in the comments of your own.",
-          "detail": "Naming the first likely failure mode is what makes the page useful once visitors try the workflow for real.",
-          "sourceIds": [
-            "community-reddit-com-which-ai-video-workflow-is-givi-198606fb3d"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c",
+            "workflow-ability-ai-ai-video-production-workflow-th-4713b9139b"
           ]
         }
       ],
@@ -639,7 +652,7 @@
           "value": "No shortlist, no workflow, and no reusable asset for the next launch.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         },
         {
@@ -647,7 +660,7 @@
           "value": "Reduce the path to one shortlist, one workflow, and one asset.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         },
         {
@@ -655,7 +668,7 @@
           "value": "The next cycle gets faster because the team reuses the winning path instead of starting from search again.",
           "sourceIds": [
             "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
-            "serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196"
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         }
       ],
@@ -794,7 +807,7 @@
         },
         {
           "label": "Updated",
-          "value": "Price source note updated 2026-07-11. Verify official tool pages and provider quotes before purchase.",
+          "value": "Price source note updated 2026-07-14. Verify official tool pages and provider quotes before purchase.",
           "sourceIds": [
             "official-runwayml-com-runway-pricing-2d8653383f",
             "official-pika-art-pika-pricing-4d74a5c6ee"
@@ -811,7 +824,7 @@
           "Short social clips usually have fewer moving parts than product demos because product demos need clearer sequence, brand accuracy, and stakeholder review."
         ],
         [
-          "This page was generated with source checks dated 2026-07-11. Recheck official tool pages and provider quotes before treating any number as current.",
+          "This page was generated with source checks dated 2026-07-14. Recheck official tool pages and provider quotes before treating any number as current.",
           "Do not use this guide to claim a universal AI video production average. The right number depends on scope, assets, rights, revision count, and delivery format."
         ]
       ]
@@ -830,24 +843,24 @@
           "title": "A hireable project has a source package, not just an idea",
           "detail": "Prepare the script, product screenshots, brand references, target aspect ratio, desired length, commercial use needs, and examples before asking for a quote.",
           "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         },
         {
           "title": "Start with a trial order when the provider is new",
           "detail": "A small scoped edit exposes communication speed, revision quality, and format fit before the team commits a larger launch package.",
           "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         },
         {
           "title": "Red flags should stop the order before payment",
           "detail": "Avoid providers who cannot explain revision limits, commercial usage rights, delivery format, source-file policy, timeline, or what happens when AI output breaks.",
           "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         }
       ],
@@ -856,24 +869,24 @@
           "label": "Materials to prepare",
           "value": "Script, source assets, brand rules, examples, target length, aspect ratio, usage rights, and delivery deadline.",
           "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         },
         {
           "label": "Scope fields",
           "value": "Final length, format, subtitles, voice-over, number of revisions, source-file delivery, and commercial use rights.",
           "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         },
         {
           "label": "Trial order",
           "value": "Use a small first order when the project is high-risk or the provider has not yet handled your source material.",
           "sourceIds": [
-            "video-deepai-org-deepai-b3b47fbf18",
-            "serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e"
+            "serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92",
+            "workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c"
           ]
         }
       ],

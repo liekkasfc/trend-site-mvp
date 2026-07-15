@@ -9,7 +9,7 @@ title: "AI Video Generation Workflows | VidWorkflow"
 url: "https://vidworkflow.com/"
 domain: "vidworkflow.com"
 published_at: null
-captured_at: "2026-07-11T14:10:32.162Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 92
 status: "active"

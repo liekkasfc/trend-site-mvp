@@ -9,14 +9,14 @@ title: "The Best AI Video Workflow Guide & Tool Stack (2026)"
 url: "https://ltx.io/blog/ai-video-workflow"
 domain: "ltx.io"
 published_at: null
-captured_at: "2026-07-11T14:10:32.162Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 70
 status: "active"
 ---
 ## Source summary
 
-An AI video workflow replaces the linear brief-to-publish pipeline with iterative loops — letting teams generate, evaluate, and refine simultaneously rather than waiting on each production stage
+The page discusses an AI video workflow guide and tool stack for 2026, including open foundation models for video, audio, and simulation
 
 ## Key facts extracted
 

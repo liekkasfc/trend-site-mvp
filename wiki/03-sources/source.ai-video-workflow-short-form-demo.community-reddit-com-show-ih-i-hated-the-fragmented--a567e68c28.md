@@ -8,9 +8,11 @@ raw_source_id: "community-reddit-com-show-ih-i-hated-the-fragmented--a567e68c28"
 title: "[SHOW IH] I hated the fragmented AI video workflow, so I built a ..."
 url: "https://www.reddit.com/r/indiehackers/comments/1qos7yj/show_ih_i_hated_the_fragmented_ai_video_workflow/"
 domain: "reddit.com"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 58
 status: "active"
-captured_at: "2026-05-11T06:14:40.097Z"
-last_verified: "2026-05-11"
 ---
 ## Source summary
 
@@ -19,7 +21,8 @@ The biggest issue I found with AI video is it generates visually fine clips but 
 ## Key facts extracted
 
 - [SHOW IH] I hated the fragmented AI video workflow, so I built a ...
-- The biggest issue I found with AI video is it generates visually fine clips but they don't actually match what's being said. Curious if you ...
+- Intent: ai video workflow
+- Category: community
 
 ## Buyer pain signals
 
@@ -27,8 +30,8 @@ The biggest issue I found with AI video is it generates visually fine clips but 
 
 ## Caveats
 
-- Community evidence is directional and should stay attached to explicit claim caveats.
+- Community sources are directional; verify operational claims before publishing them as facts.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

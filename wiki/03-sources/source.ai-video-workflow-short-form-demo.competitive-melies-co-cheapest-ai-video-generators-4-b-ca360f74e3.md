@@ -8,27 +8,30 @@ raw_source_id: "competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e
 title: "Cheapest AI Video Generators: 4 Best Budget Models (2026) | Melies"
 url: "https://melies.co/compare/cheap-ai-video-generators"
 domain: "melies.co"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 74
 status: "active"
-captured_at: "2026-05-11T06:14:40.097Z"
-last_verified: "2026-05-11"
 ---
 ## Source summary
 
-This article compares four budget-friendly AI video generators available on Melies, focusing on their cost, quality, and features. The models are ranked based on cost per clip, quality, and duration, allowing users to g...
+This article compares four budget-friendly AI video generators available on Melies, focusing on their cost, quality, and features
 
 ## Key facts extracted
 
 - Cheapest AI Video Generators: 4 Best Budget Models (2026) | Melies
-- This article compares four budget-friendly AI video generators available on Melies, focusing on their cost, quality, and features. The models are ranked based on cost per clip, quality, and duration, allowing users to generate videos witho...
+- Intent: ai video workflow
+- Category: competitive
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

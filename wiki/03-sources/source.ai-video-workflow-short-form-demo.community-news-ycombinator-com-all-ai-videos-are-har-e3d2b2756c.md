@@ -8,27 +8,30 @@ raw_source_id: "community-news-ycombinator-com-all-ai-videos-are-har-e3d2b2756c"
 title: "All AI Videos Are Harmful (2025) - Hacker News"
 url: "https://news.ycombinator.com/item?id=46498651"
 domain: "news.ycombinator.com"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 58
 status: "active"
-captured_at: "2026-05-11T06:14:40.097Z"
-last_verified: "2026-05-11"
 ---
 ## Source summary
 
-The Hacker News discussion centers around the topic of AI-generated videos, particularly a post claiming that all such videos are harmful. The article outlines several key arguments against this statement, stating that...
+The Hacker News discussion centers around the topic of AI-generated videos, particularly a post claiming that all such videos are harmful
 
 ## Key facts extracted
 
 - All AI Videos Are Harmful (2025) - Hacker News
-- The Hacker News discussion centers around the topic of AI-generated videos, particularly a post claiming that all such videos are harmful. The article outlines several key arguments against this statement, stating that good AI content exis...
+- Intent: ai video workflow
+- Category: community
 
 ## Buyer pain signals
 
-- The Hacker News discussion centers around the topic of AI-generated videos, particularly a post claiming that all such videos are harmful. The article outlines several key arguments against this statement, stating that good AI content exis...
+- The Hacker News discussion centers around the topic of AI-generated videos, particularly a post claiming that all such videos are harmful
 
 ## Caveats
 
-- Community evidence is directional and should stay attached to explicit claim caveats.
+- Community sources are directional; verify operational claims before publishing them as facts.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

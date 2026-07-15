@@ -9,14 +9,14 @@ title: "What is the most efficient workflow for creating daily AI videos ..."
 url: "https://www.quora.com/What-is-the-most-efficient-workflow-for-creating-daily-AI-videos-without-wasting-time"
 domain: "quora.com"
 published_at: null
-captured_at: "2026-05-10T14:58:49.371Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 58
 status: "active"
 ---
 ## Source summary
 
-The content discusses the most efficient workflow for creating daily AI videos, emphasizing the importance of shifting from daily video creation to a weekly assembly to avoid creative fatigue. It outlines a four-phase a...
+The content discusses the most efficient workflow for creating daily AI videos, emphasizing the importance of shifting from daily video creation to a weekly assembly to avoid creative fatigue
 
 ## Key facts extracted
 
@@ -26,7 +26,7 @@ The content discusses the most efficient workflow for creating daily AI videos, 
 
 ## Buyer pain signals
 
-- The content discusses the most efficient workflow for creating daily AI videos, emphasizing the importance of shifting from daily video creation to a weekly assembly to avoid creative fatigue. It outlines a four-phase a...
+- The content discusses the most efficient workflow for creating daily AI videos, emphasizing the importance of shifting from daily video creation to a weekly assembly to avoid creative fatigue
 
 ## Caveats
 

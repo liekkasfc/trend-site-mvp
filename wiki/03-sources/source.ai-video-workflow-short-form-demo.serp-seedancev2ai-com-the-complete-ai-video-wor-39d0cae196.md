@@ -9,7 +9,7 @@ title: "The Complete AI Video Workflow for Content Creators in 2026"
 url: "https://www.seedancev2ai.com/en/blog/complete-ai-video-workflow-content-creators-2026"
 domain: "seedancev2ai.com"
 published_at: null
-captured_at: "2026-07-11T14:10:32.162Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 70
 status: "active"

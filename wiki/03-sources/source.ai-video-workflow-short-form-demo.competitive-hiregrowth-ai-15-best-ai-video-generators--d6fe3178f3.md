@@ -8,27 +8,30 @@ raw_source_id: "competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f
 title: "15 Best AI Video Generators Compared: Features, Pricing, and ..."
 url: "https://hiregrowth.ai/blogs-hiregrowth.ai/15-best-ai-video-generators-compared-features-pricing-and-capabilities"
 domain: "hiregrowth.ai"
+published_at: null
+captured_at: "2026-07-14T09:11:40.376Z"
+freshness_score: 72
+credibility_score: 74
 status: "active"
-captured_at: "2026-05-11T06:14:40.097Z"
-last_verified: "2026-05-11"
 ---
 ## Source summary
 
-The article details the top 15 AI video generators of 2025, comparing their features, pricing, and capabilities. AI video generators have evolved to produce high-quality videos from text and images, benefiting businesse...
+The article details the top 15 AI video generators of 2025, comparing their features, pricing, and capabilities
 
 ## Key facts extracted
 
 - 15 Best AI Video Generators Compared: Features, Pricing, and ...
-- The article details the top 15 AI video generators of 2025, comparing their features, pricing, and capabilities. AI video generators have evolved to produce high-quality videos from text and images, benefiting businesses, educators, and co...
+- Intent: ai video workflow
+- Category: competitive
 
 ## Buyer pain signals
 
-- Use this source summary only through linked claim evidence.
+- Use this source to sharpen the evaluation or implementation angle.
 
 ## Caveats
 
-- Vendor and editorial claims should only reach public copy through canonical claims or ranking cards.
+- Do not lift raw vendor claims into copy without comparison or caveat framing.
 
 ## Refresh trigger
 
-- Refresh when the upstream source summary, pricing line, or operating caveat changes materially.
+- Refresh when the detected year changes, pricing copy changes, or a fresher source outranks this result.

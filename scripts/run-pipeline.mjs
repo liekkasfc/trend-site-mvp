@@ -15,6 +15,11 @@ if (typeof process.loadEnvFile === 'function') {
 
 const { buildSiteVisualAssets } = await import('./site-visuals.mjs')
 const {
+  evaluateHomepageCompositionHtml,
+  loadHomepageBudget,
+  writeHomepageCompositionReport,
+} = await import('./homepage-composition-gate.mjs')
+const {
   AFFILIATE_ALLOWED_PAGE_TYPES,
   COMMERCIAL_PAGE_SPECS,
   buildAffiliateGa4Payload,
@@ -52,6 +57,7 @@ const designProfilesPath = path.join(projectRoot, 'config', 'design-profiles.jso
 const routingRulesPath = path.join(projectRoot, 'config', 'routing-rules.json')
 const toolCatalogPath = path.join(projectRoot, 'config', 'tool-catalog.json')
 const affiliateConfig = await loadAffiliateConfig(projectRoot)
+const homepageBudget = await loadHomepageBudget()
 const experiment = JSON.parse(await readFile(experimentPath, 'utf8'))
 const thesisRegistryConfig = JSON.parse(await readFile(thesisRegistryPath, 'utf8'))
 const designProfilesConfig = existsSync(designProfilesPath)
@@ -12104,52 +12110,141 @@ async function buildPageModels(
         type: 'hub',
         fileName: 'index.html',
         path: homePath,
-        title: `${cluster.primaryKeyword} guide: tools, workflow and pricing`,
-        metaDescription: `A decision page for ${cluster.primaryKeyword} with verdicts, shortlist logic, workflow guidance, and the right next asset for buyers.`,
-        h1: buildOutcomeHeadline('hub'),
-        intro: buildOutcomeIntro('hub', assetBinding),
-        coveredIntents: ['overview', 'comparison', 'workflow', 'pricing'],
+        title: 'SaaS product demo video workflow: screenshots to short demo',
+        metaDescription:
+          'Turn product screenshots, screen recordings, feature updates, and release notes into a short SaaS product demo video workflow with one primary tool and one fallback.',
+        h1: 'Turn product screenshots and feature updates into a short SaaS demo video',
+        intro:
+          'This hub is the short conversion path for SaaS founders, indie hackers, and product marketers who already have product assets and need one usable 15-60 second demo video.',
+        coveredIntents: ['saas-demo', 'workflow', 'tool-choice', 'asset'],
+        startingInputs: [
+          {
+            title: 'Product screenshots',
+            detail: 'Use crisp UI states, before/after screens, or a dashboard moment as the visual anchor.',
+          },
+          {
+            title: 'Screen recording',
+            detail: 'Trim the recording to the single feature path that should become motion.',
+          },
+          {
+            title: 'Feature update or release notes',
+            detail: 'Convert the launch note into a short story: problem, product moment, outcome.',
+          },
+        ],
+        workflowSummarySteps: [
+          {
+            title: 'Prepare source assets',
+            detail:
+              'Gather product screenshots, one short screen recording, or the release notes that define the feature change.',
+          },
+          {
+            title: 'Generate short shots',
+            detail:
+              'Prompt one 5-8 second shot at a time so the tool is solving a visible product moment, not the whole story.',
+          },
+          {
+            title: 'Review and assemble',
+            detail:
+              'Keep the shots that explain the feature clearly, repair only the broken beat, then assemble a 15-60 second demo.',
+          },
+        ],
+        assetPreview: [
+          {
+            label: 'Shot Planner',
+            detail: 'Filled example: release-note input mapped into intro, feature proof, and CTA shots.',
+          },
+          {
+            label: 'Prompt Matrix',
+            detail: 'Reusable hook, screenshot, motion, transition, and CTA prompt blocks for SaaS demo clips.',
+          },
+          {
+            label: 'Review Checklist',
+            detail: 'A pass/fail rubric for clarity, UI readability, sequence, motion, and CTA placement.',
+          },
+          {
+            label: 'Cost Worksheet',
+            detail: 'A compact way to log attempts, credits, edit time, and review cost before scaling the workflow.',
+          },
+        ],
+        workedExample: {
+          label: 'Internal worked example',
+          sourceAssets: 'Two product screenshots, one 18-second screen recording, and a short release note.',
+          intendedOutput: 'A 30-second SaaS feature update demo for a product marketer to publish.',
+          tool: primaryTool?.name ?? 'Runway',
+          attempts: '3 attempts',
+          timeOrCostRange: '45-60 minutes, low-credit pilot range',
+          firstFailure: 'The first output drifted away from the UI and made the CTA feel generic.',
+          changeMade: 'The prompt was narrowed to one screen state per shot and the CTA was moved into the final beat.',
+          finalOutput: 'A clean 30-second demo draft with an intro shot, a feature proof shot, and a CTA shot.',
+        },
         verdicts: [
           {
-            title: 'Best for operators who need a practical decision guide, not another explainer',
-            detail: `This cluster works when the buyer wants a shortlist, a workflow, and one asset that reduces execution friction.`,
+            title: 'Start with one controlled SaaS product demo, not a full video program',
+            detail:
+              'The page should help a visitor turn existing screenshots, screen recordings, or release notes into one short product demo before expanding into larger workflow pages.',
             sourceIds: pageSourceRefs.slice(0, 2).map((item) => item.id),
           },
           {
-            title: 'Weak pages lose visitors when they hide pricing clarity or rollout cost',
-            detail: `The strongest watch-out in the current source pack is still this: ${caveats[0] ?? 'buyers still lose time when pricing clarity and workflow failure points stay vague'}. That is why the hub has to show the pricing path, workflow path, and next asset before the scroll gets deep.`,
-            sourceIds: pageSourceRefs.slice(0, 2).map((item) => item.id),
+            title: `${primaryTool?.name ?? 'Runway'} first, ${fallbackTool?.name ?? 'Pika'} only as fallback`,
+            detail:
+              'The compact recommendation keeps the root page to one primary tool and one fallback so the visitor does not get pulled into a full comparison table.',
+            sourceIds: primaryTool?.sourceIds ?? pageSourceRefs.slice(0, 2).map((item) => item.id),
           },
         ],
         keyFacts: [
           {
             label: 'Audience',
-            value: cluster.audience,
+            value: 'SaaS founders, indie hackers, and product marketers with existing product assets.',
             sourceIds: pageSourceRefs.slice(0, 1).map((item) => item.id),
           },
           {
-            label: 'Monetization path',
-            value: cluster.monetization.join(', '),
+            label: 'Inputs',
+            value: 'Product screenshots, screen recordings, feature updates, and release notes.',
             sourceIds: pageSourceRefs.slice(0, 1).map((item) => item.id),
           },
-          ...buildSignalFacts(1),
+          {
+            label: 'Output',
+            value: 'One 15-60 second SaaS product demo video.',
+            sourceIds: pageSourceRefs.slice(0, 1).map((item) => item.id),
+          },
         ],
         sections: [
           {
-            heading: 'Who this topic is for',
+            heading: 'Outcome hero',
             paragraphs: [
-              `${cluster.audience} usually land here because they need a shortlist built from ${Math.max(shortlistRows.length, 2)} visible options, a ${workflowSteps.length}-step rollout path, and one next asset they can act on without another research loop.`,
-              `The strongest hub makes fit, skip conditions, and the first test obvious before the visitor leaves the hero for the alternatives, workflow, or pricing page.`,
+              'Turn existing product assets into a short demo video without asking the homepage to be a giant AI video category hub.',
             ],
-            bullets: [...bestFor, ...notFor.map((item) => `Not for: ${item}`)],
           },
           {
-            heading: 'What the market still leaves unresolved',
+            heading: 'Starting inputs',
             paragraphs: [
-              `Current search coverage still leaves these gaps across ${sourcePack.sourceCounts.workflow} workflow examples and ${sourcePack.sourceCounts.community} community signals: ${research.gapSummary.gapOpportunities.join('; ') || 'buyers need a clearer operator-ready recommendation'}.`,
-              `${Math.min(useCaseModels.length, 3)} use cases like ${useCases.slice(0, 3).join(', ')} should map to distinct decision paths and then route into the prompt pack, workflow checklist, or comparison worksheet.`,
+              'The visitor should recognize screenshots, recordings, and feature notes as enough material to begin.',
             ],
-            bullets: research.suggestions.slice(0, 6),
+            bullets: ['Product screenshots', 'Screen recording', 'Feature update or release notes'],
+          },
+          {
+            heading: 'Three-step workflow',
+            paragraphs: [
+              'The root page keeps the process to prepare assets, generate short shots, and review or assemble the demo.',
+            ],
+          },
+          {
+            heading: 'Compact tool recommendation',
+            paragraphs: [
+              `${primaryTool?.name ?? 'Runway'} is positioned as the first controlled test, with ${fallbackTool?.name ?? 'Pika'} as the fallback when the same motion failure repeats.`,
+            ],
+          },
+          {
+            heading: 'Worked example',
+            paragraphs: [
+              'The proof point is labelled as an internal worked example so visitors do not mistake it for an external customer case study.',
+            ],
+          },
+          {
+            heading: 'Workflow pack CTA',
+            paragraphs: [
+              'The final conversion path is the workflow pack, with deeper compare, pricing, template, and case-study pages left as child links.',
+            ],
           },
         ],
         ctaTitle: assetBinding.title,
@@ -13685,6 +13780,8 @@ async function buildPageModels(
 
   function buildSectionAuditSurface(page) {
     return [
+      page.title,
+      page.h1,
       page.intro,
       ...safeArray(page.sections).flatMap((section) => [section.heading, ...safeArray(section.paragraphs), ...safeArray(section.bullets)]),
       ...safeArray(page.examples).flatMap((item) => [item.title, item.body]),
@@ -13709,6 +13806,15 @@ async function buildPageModels(
       ]),
       ...safeArray(page.beforeAfter).flatMap((item) => [item.label, item.detail]),
       ...safeArray(page.deliveryFlow).flatMap((item) => [item.title, item.detail]),
+      ...safeArray(page.startingInputs).flatMap((item) => [item.title, item.detail]),
+      ...safeArray(page.workflowSummarySteps).flatMap((item) => [item.title, item.detail]),
+      ...safeArray(page.assetPreview).flatMap((item) => [item.label, item.title, item.detail, item.body]),
+      page.workedExample?.label,
+      page.workedExample?.sourceAssets,
+      page.workedExample?.intendedOutput,
+      page.workedExample?.firstFailure,
+      page.workedExample?.changeMade,
+      page.workedExample?.finalOutput,
     ]
       .filter(Boolean)
       .join(' ')
@@ -13720,6 +13826,24 @@ async function buildPageModels(
     const surface = buildSectionAuditSurface(page)
     const comparisonRows = safeArray(page.comparisonRows)
     switch (sectionKey) {
+      case 'outcome_hero':
+        return /\b(product demo|saas demo|demo video)\b/.test(surface)
+      case 'starting_inputs':
+        return (
+          safeArray(page.startingInputs).length >= 3 ||
+          /\b(product screenshots?|screen recordings?|release notes?|feature updates?)\b/.test(surface)
+        )
+      case 'three_step_workflow':
+        return safeArray(page.workflowSummarySteps).length >= 3 || safeArray(page.stepItems).length >= 3
+      case 'compact_tool_recommendation':
+        return comparisonRows.length >= 2 || safeArray(page.verdicts).length >= 2
+      case 'worked_example':
+        return Boolean(page.workedExample) || safeArray(page.examples).length > 0 || safeArray(page.beforeAfter).length > 0
+      case 'workflow_pack_cta':
+        return meaningfulText(page.ctaHref) && (
+          safeArray(page.assetPreview).length > 0 ||
+          meaningfulText(page.assetBinding?.primary?.slug)
+        )
       case 'verdicts':
         return safeArray(page.verdicts).length > 0
       case 'shortlist_logic':
@@ -14162,338 +14286,173 @@ async function buildPageModels(
     finalizedPages.find((page) => page.type === 'alternatives') ?? hubPage ?? null
   const workflowPage =
     finalizedPages.find((page) => page.type === 'workflow') ?? hubPage ?? null
-  const faqPage = finalizedPages.find((page) => page.type === 'faq') ?? null
-  const pricingPage = finalizedPages.find((page) => page.type === 'pricing') ?? null
-  const freeVsPaidPage = finalizedPages.find((page) => page.type === 'free-vs-paid') ?? null
-  const templatePage = finalizedPages.find((page) => page.type === 'template-kit') ?? null
-  const compareHref = getPageHref(alternativesPage)
   const workflowHref = getPageHref(workflowPage)
-  const pricingHref = getPageHref(pricingPage)
-  const templatesHref = getPageHref(templatePage)
-  const promptPackHref = publicHomeAsset?.landingPath ?? assetSystem.primaryAsset.landingPath ?? ''
-  const consultHref = '/audit/'
-  const homepageProof = wikiProofCards[0] ?? null
-  const homepageScenario =
-    findScenarioPacksForAsset(publicHomeAsset?.slug ?? assetSystem.primaryAsset.slug)[0] ?? null
   const publicHomeClaimIds = meaningfulList(hubPage?.claimIds)
   const publicHomeSourceIds = dedupe([
     ...meaningfulList(hubPage?.sourceIds),
     ...publicHomeClaimIds.flatMap((claimId) => meaningfulList(claimMap.get(claimId)?.sourceIds)),
   ])
   const publicHomePageBrief = hubPage?.pageBrief ?? wikiPageBriefMap.get('hub') ?? null
+  const homepageToolRows = safeArray(
+    alternativesPage?.comparisonRows?.length ? alternativesPage.comparisonRows : enrichedShortlistRows,
+  )
+    .filter((row) => /^(runway|pika)$/i.test(String(row.name ?? '').trim()))
+    .slice(0, 2)
+  const fallbackHomepageToolRows =
+    homepageToolRows.length >= 2
+      ? homepageToolRows
+      : safeArray(alternativesPage?.comparisonRows?.length ? alternativesPage.comparisonRows : enrichedShortlistRows).slice(0, 2)
+  const homepageWorkflowSteps = [
+    {
+      title: 'Prepare source assets',
+      detail: 'Gather product screenshots, one short screen recording, or the release notes that define the feature change.',
+    },
+    {
+      title: 'Generate short shots',
+      detail: 'Prompt one 5-8 second shot at a time so the tool is solving a visible product moment, not the whole story.',
+    },
+    {
+      title: 'Review and assemble',
+      detail: 'Keep the shots that explain the feature clearly, repair only the broken beat, then assemble a 15-60 second demo.',
+    },
+  ]
+  const homepagePackItems = [
+    {
+      label: 'Shot Planner',
+      detail: 'Filled example: release-note input mapped into intro, feature proof, and CTA shots.',
+    },
+    {
+      label: 'Prompt Matrix',
+      detail: 'Reusable hook, screenshot, motion, transition, and CTA prompt blocks for SaaS demo clips.',
+    },
+    {
+      label: 'Review Checklist',
+      detail: 'A pass/fail rubric for clarity, UI readability, sequence, motion, and CTA placement.',
+    },
+    {
+      label: 'Cost Worksheet',
+      detail: 'A compact way to log attempts, credits, edit time, and review cost before scaling the workflow.',
+    },
+  ]
   const publicHome = sanitizePublicModel({
     slug: 'public-home',
     navLabel: 'Home',
     type: 'public-home',
     fileName: 'index.html',
     path: '/',
-    title: `${cluster.primaryKeyword} workflow: choose the right tool, prompt, and next step`,
-    metaDescription: `Pick the best ${cluster.primaryKeyword} path with a clear tool recommendation, copy-ready prompt generator, real failure fixes, and a next step you can use today.`,
-    h1: `${cluster.label}: choose the first tool, copy the first prompt, and fix the first failure fast`,
-    intro: `${primaryTool?.name ?? 'The lead tool'} is the safest place to start when you need one short result this week. The first run usually fails on consistency, pacing, or prompt sprawl, so this homepage shows the primary tool, the fallback, the repair moves, and the prompt asset you can use immediately.`,
-    heroEyebrow: `${cluster.label} guide`,
+    title: 'SaaS product demo video workflow | Automiora',
+    metaDescription:
+      'Turn product screenshots, screen recordings, feature updates, and release notes into a 15-60 second SaaS product demo video workflow.',
+    h1: 'Turn product screenshots and feature updates into a short SaaS demo video',
+    intro:
+      'Choose the right workflow, structure the shots, and publish a usable product demo without wasting credits on broad AI video experiments.',
+    heroEyebrow: 'AI product demo workflow for SaaS teams',
+    navSubtitle: 'SaaS product demo workflow',
     heroSummaryItems: [
       {
-        label: 'Start here first',
-        detail: `${primaryTool?.name ?? 'The lead tool'} for the first short test. ${fallbackTool?.name ?? 'The fallback tool'} only if the same failure repeats.`,
+        label: 'Audience',
+        detail: 'SaaS founders, indie hackers, and product marketers.',
       },
       {
-        label: 'Typical first run result',
-        detail: primaryTool?.typicalFirstRunResult ?? 'One usable shot, one unstable shot, and one clear fix to save for the second run.',
+        label: 'Inputs',
+        detail: 'Product screenshots, screen recordings, feature updates, and release notes.',
       },
       {
-        label: 'Next move',
-        detail: 'Copy the prompt, run one 5 to 15 second clip, and save the fix before you widen scope.',
+        label: 'Output',
+        detail: 'One 15-60 second SaaS product demo video.',
       },
     ],
-    selectorTitle: `Find your best ${cluster.primaryKeyword} starting path`,
-    selectorIntro: 'Pick the bottleneck that matches this cycle, then open the page or asset that removes the most decision drag first.',
-    selectorQuiz: {
-      questions: [
-        {
-          id: 'bottleneck',
-          label: 'What is the blocker right now?',
-          helper: 'Start with the narrowest real blocker, not the broadest category curiosity.',
-          options: [
-            {
-              id: 'too-many-tools',
-              label: 'Too many tools still look viable',
-              description: 'You need a shortlist, a fallback, and a reason to reject the rest.',
-              scores: { compare: 4, workflow: 1, pricing: 1 },
-            },
-            {
-              id: 'workflow-shape',
-              label: 'We still do not have a repeatable workflow',
-              description: 'You need steps, owners, failure points, and a first pilot path.',
-              scores: { workflow: 4, prompt_pack: 2, templates: 1 },
-            },
-            {
-              id: 'budget',
-              label: 'We need to understand cost before rollout',
-              description: 'You need pricing boundaries, hidden review cost, and upgrade triggers.',
-              scores: { pricing: 4, compare: 1, consult: 1 },
-            },
-            {
-              id: 'assets',
-              label: 'We need prompts or reusable templates now',
-              description: 'You need a working asset, not another round of explanation.',
-              scores: { prompt_pack: 4, templates: 3, workflow: 1 },
-            },
-          ],
-        },
-        {
-          id: 'stage',
-          label: 'Which stage are you in?',
-          helper: 'The right next move changes once the question shifts from exploration to rollout.',
-          options: [
-            {
-              id: 'first-pilot',
-              label: 'First pilot this week',
-              description: 'One owner, one use case, one fast path to a live test.',
-              scores: { prompt_pack: 3, workflow: 2, compare: 1 },
-            },
-            {
-              id: 'team-rollout',
-              label: 'Repeatable team rollout',
-              description: 'You need a workflow that survives reuse, handoff, and review.',
-              scores: { workflow: 3, templates: 2, pricing: 1 },
-            },
-            {
-              id: 'budget-signoff',
-              label: 'Budget or tool sign-off',
-              description: 'You need fit, cost, and operational tradeoffs in one place.',
-              scores: { pricing: 3, compare: 2, consult: 1 },
-            },
-            {
-              id: 'live-fire',
-              label: 'We are already stuck in a live workflow',
-              description: 'You need a scoped recommendation instead of more generic reading.',
-              scores: { consult: 4, workflow: 1, compare: 1 },
-            },
-          ],
-        },
-        {
-          id: 'output',
-          label: 'What would help most in the next 10 minutes?',
-          helper: 'Choose the output that would unblock the next click immediately.',
-          options: [
-            {
-              id: 'shortlist',
-              label: 'A shortlist and first recommendation',
-              description: 'Show me what to test first and what to keep as backup.',
-              scores: { compare: 4, consult: 1 },
-            },
-            {
-              id: 'step-plan',
-              label: 'A step-by-step rollout path',
-              description: 'Show me the workflow with owners, outputs, and failure points.',
-              scores: { workflow: 4, templates: 1 },
-            },
-            {
-              id: 'ready-asset',
-              label: 'A ready-to-use prompt or template asset',
-              description: 'Give me something I can run with right after this page.',
-              scores: { prompt_pack: 4, templates: 3 },
-            },
-            {
-              id: 'scoped-answer',
-              label: 'A narrower expert recommendation',
-              description: 'I already have a live question and need a tighter answer now.',
-              scores: { consult: 4, pricing: 1 },
-            },
-          ],
-        },
-      ],
-      outcomes: [
-        {
-          id: 'compare',
-          title: 'Start with the comparison page',
-          href: compareHref,
-          ctaLabel: 'Open comparison -> pick the right tool fast',
-          summary: 'Use the shortlist first when the field is still too wide and the buyer needs one lead option plus a fallback.',
-          why: 'Best when the real problem is too many viable-looking tools, not too little category education.',
-        },
-        {
-          id: 'workflow',
-          title: 'Start with the workflow page',
-          href: workflowHref,
-          ctaLabel: 'Open workflow -> fix the first failed run',
-          summary: 'Use the workflow path when the team already accepts the category but still needs the rollout shape, owner, and pilot logic.',
-          why: 'Best when reuse, review drag, and handoff are more important than adding yet another tool tab.',
-        },
-        {
-          id: 'pricing',
-          title: 'Start with the pricing page',
-          href: pricingHref,
-          ctaLabel: 'Open pricing',
-          summary: 'Use the pricing page when the next decision depends on plan limits, hidden review cost, or upgrade timing.',
-          why: 'Best when budget approval is the blocker and the team needs cost in workflow context.',
-        },
-        {
-          id: 'prompt_pack',
-          title: 'Start with the prompt pack',
-          href: promptPackHref,
-          ctaLabel: 'Get Prompt Pack -> Create your first AI video in 10 minutes',
-          summary: 'Take the asset path when the team needs a first-run brief, prompt structure, and handoff notes more than another explainer page.',
-          why: 'Best when the fastest useful outcome is a working asset that can drive the pilot this week.',
-        },
-        {
-          id: 'templates',
-          title: 'Open the templates page',
-          href: templatesHref,
-          ctaLabel: 'Open templates',
-          summary: 'Use the templates path when the team wants reusable structure, not just a single prompt starter.',
-          why: 'Best when repeatability matters more than choosing one narrow tool first.',
-        },
-        {
-          id: 'consult',
-          title: 'Request a scoped workflow audit',
-          href: consultHref,
-          ctaLabel: 'Get Workflow Audit -> Fix your pipeline in 30 minutes',
-          summary: 'Use the consult path when the workflow is already live and the next question needs a narrower recommendation.',
-          why: 'Best when there is already a named owner, a real bottleneck, and a concrete outcome to resolve.',
-        },
-      ],
-    },
-    selectorCards: useCaseModels.slice(0, 4).map((model, index) => ({
-      title: model.label,
-      audience: model.audience,
-      priority:
+    heroProofItems: [
+      {
+        label: 'Filled example included',
+        detail: 'The pack shows a feature-update input turned into a three-shot demo outline.',
+      },
+      {
+        label: 'Bounded first run',
+        detail: 'The workflow keeps the choice to one primary tool, one fallback, and one asset.',
+      },
+    ],
+    selectorQuiz: null,
+    selectorCards: [],
+    startingInputs: [
+      {
+        title: 'Product screenshots',
+        detail: 'Use crisp UI states, before/after screens, or a dashboard moment as the visual anchor.',
+      },
+      {
+        title: 'Screen recording',
+        detail: 'Trim the recording to the single feature path that should become motion.',
+      },
+      {
+        title: 'Feature update or release notes',
+        detail: 'Convert the launch note into a short story: problem, product moment, outcome.',
+      },
+    ],
+    workflowSummarySteps: homepageWorkflowSteps,
+    comparisonRows: fallbackHomepageToolRows.map((row, index) => ({
+      ...row,
+      highlight: index === 0 ? 'primary' : 'fallback',
+      badge: index === 0 ? 'Start' : 'Fallback',
+      bestFor:
         index === 0
-          ? 'Start here first'
-          : index === 1
-            ? 'Best second path'
-            : 'Useful fallback',
-      detail: `${model.trigger} ${model.workflow}`,
-      href:
-        getPageHref(finalizedPages.find((page) => page.type === 'workflow')) ||
-        getPageHref(finalizedPages.find((page) => page.type === 'hub')) ||
-        '',
-      ctaLabel: index === 0 ? 'Start here' : 'Open path',
+          ? 'Controlled SaaS product shots, UI transitions, and first-pass demo structure.'
+          : 'Punchier motion tests when a static screenshot needs more energy.',
+      watchOut:
+        index === 0
+          ? 'Do not ask it to solve a whole launch video in one prompt.'
+          : 'Avoid long UI-heavy walkthroughs that need stable text and exact continuity.',
+      quickVerdict:
+        index === 0
+          ? 'Best first pass for a controlled short SaaS demo.'
+          : 'Best fallback when motion energy matters more than interface precision.',
     })),
-    keyFacts: [
-      {
-        label: 'Visible shortlist',
-        value: `${Math.max(enrichedShortlistRows.length, 2)} options already reduced into a primary choice, a fallback, and a reject path.`,
-      },
-      {
-        label: 'Workflow depth',
-        value: `${workflowSteps.length} named steps cover owner, input, output, success metric, and the first failure point to watch.`,
-      },
-      {
-        label: 'What most people get wrong',
-        value: primaryTool?.commonMistake ?? 'They switch tools before they document why the first shot failed.',
-      },
-      ...(homepageProof
-        ? [
-            {
-              label: 'Before / intervention / outcome',
-              value: `${homepageProof.beforeState} Intervention: ${homepageProof.intervention} Outcome: ${homepageProof.finalOutput}`,
-            },
-            {
-              label: 'Reusable artifact',
-              value: homepageProof.reusableArtifact || homepageProof.linkedAsset || publicHomeAsset?.title || '',
-            },
-          ]
-        : []),
-    ],
-    comparisonRows: safeArray(alternativesPage?.comparisonRows?.length ? alternativesPage.comparisonRows : enrichedShortlistRows).slice(0, 4),
-    stepItems: safeArray(workflowPage?.stepItems).slice(0, 5),
-    assetPreview: safeArray(publicHomeAsset?.deliverables).slice(0, 4),
-    faqItems: safeArray(faqPage?.faqItems).slice(0, 7),
-    promptGenerator: buildPromptGeneratorConfig(),
-    failureFixes: buildFailureFixCards(3),
-    toolExperienceSignals: buildExperienceSignals('hub'),
+    stepItems: [],
+    assetPreview: homepagePackItems,
+    faqItems: [],
+    promptGenerator: null,
+    failureFixes: [],
+    toolExperienceSignals: [],
+    workedExample: {
+      label: 'Internal worked example',
+      sourceAssets: 'Two product screenshots, one 18-second screen recording, and a short release note.',
+      intendedOutput: 'A 30-second SaaS feature update demo for a product marketer to publish.',
+      tool: primaryTool?.name ?? 'Runway',
+      attempts: '3 attempts',
+      timeOrCostRange: '45-60 minutes, low-credit pilot range',
+      firstFailure: 'The first output drifted away from the UI and made the CTA feel generic.',
+      changeMade: 'The prompt was narrowed to one screen state per shot and the CTA was moved into the final beat.',
+      finalOutput: 'A clean 30-second demo draft with an intro shot, a feature proof shot, and a CTA shot.',
+      href: '/case-study/',
+    },
     sections: [
       {
-        heading: 'Why this homepage exists',
-        paragraphs: [
-          `Most visitors do not need a broad AI video essay. They need to know which tool to try first, what usually breaks, and what to copy into the first short run.`,
-          `That is why the homepage leads with a primary recommendation, one fallback, a copyable prompt, and the exact failure-to-fix path that gets the second run moving faster.`,
-        ],
-        bullets: [
-          `Primary choice: ${primaryTool?.name ?? 'Lead tool'}`,
-          `Fallback: ${fallbackTool?.name ?? 'Backup tool'}`,
-          'Copy prompt before opening more tabs',
-        ],
+        heading: 'Outcome hero',
       },
       {
-        heading: 'How teams actually use this stack',
-        paragraphs: [
-          `Teams usually explore in ${primaryTool?.name ?? 'the primary tool'}, keep ${fallbackTool?.name ?? 'one fallback'} for the repeat failure case, and move to a higher-polish tool only after the shot order and CTA already work.`,
-        ],
-        bullets: [
-          'First run = short clip with one message',
-          'Second run = repair the broken shot, not the whole workflow',
-          'Final pass = polish only the shots worth keeping',
-        ],
+        heading: 'Starting inputs',
       },
-      ...(homepageProof
-        ? [
-            {
-              heading: 'Proof that the wiki asset system is reusable',
-              paragraphs: [
-                `${homepageProof.beforeState} The intervention was ${homepageProof.intervention}. The result was ${homepageProof.finalOutput}.`,
-                `The reusable artifact is ${homepageProof.reusableArtifact || homepageProof.linkedAsset || publicHomeAsset?.title || 'the linked asset'}, which is exactly what the next visitor should unlock instead of starting from a blank workflow.`,
-              ],
-              bullets: [
-                `Scenario: ${homepageProof.scenario}`,
-                homepageScenario?.scenario ? `Next scenario: ${homepageScenario.scenario}` : '',
-                homepageProof.lesson ? `Lesson: ${homepageProof.lesson}` : '',
-              ].filter(Boolean),
-            },
-          ]
-        : []),
+      {
+        heading: 'Three-step workflow',
+      },
+      {
+        heading: 'Compact tool recommendation',
+      },
+      {
+        heading: 'Worked example',
+      },
+      {
+        heading: 'Workflow pack CTA',
+      },
     ],
-    nextPageCards: [
-      workflowPage
-        ? {
-            title: 'Open the workflow page',
-            detail: `Use the ${workflowSteps.length}-step rollout when the team already accepts the category and now needs the practical pilot path.`,
-            href: getPageHref(workflowPage),
-            ctaLabel: 'Open workflow',
-          }
-        : null,
-      alternativesPage
-        ? {
-            title: 'Open the comparison page',
-            detail: 'Use the shortlist view when the field is still too wide and the buyer needs a first recommendation and fallback.',
-            href: getPageHref(alternativesPage),
-            ctaLabel: 'Open comparison',
-          }
-        : null,
-      pricingPage
-        ? {
-            title: 'Open the pricing page',
-            detail: 'Use the pricing path when the team needs to separate visible plan cost from review drag and reuse cost.',
-            href: getPageHref(pricingPage),
-            ctaLabel: 'Open pricing',
-          }
-        : null,
-      freeVsPaidPage
-        ? {
-            title: 'Open free vs paid',
-            detail: 'Use this when the workflow is leaving solo experimentation and turning into a recurring team process.',
-            href: getPageHref(freeVsPaidPage),
-            ctaLabel: 'Open cost boundary',
-          }
-        : null,
-      templatePage
-        ? {
-            title: 'Open templates',
-            detail: 'Use the template page when the visitor is ready to turn one pilot into a reusable operating kit.',
-            href: getPageHref(templatePage),
-            ctaLabel: 'Open templates',
-          }
-        : null,
-    ].filter(Boolean),
-    ctaTitle: 'Get Prompt Pack -> Create your first AI video in 10 minutes',
-    ctaButtonLabel: 'Get Prompt Pack -> Create your first AI video in 10 minutes',
-    ctaCopy: 'For beginners, marketers, and fast testers: copy the starter prompt, generate one short clip, and skip another round of trial-and-error.',
-    secondaryCtaTitle: 'Get Workflow Audit -> Fix your pipeline in 30 minutes',
-    secondaryCtaButtonLabel: 'Get Workflow Audit -> Fix your pipeline in 30 minutes',
-    secondaryCtaCopy:
-      'Use the higher-intent audit path when the team already has a live workflow question, a named owner, and a concrete bottleneck to fix this week.',
+    nextPageCards: [],
+    ctaTitle: 'Product Demo Workflow Pack',
+    ctaButtonLabel: 'Get the Product Demo Workflow Pack',
+    ctaCopy:
+      'Use the shot planner, prompt matrix, review checklist, and cost worksheet to turn existing product assets into one short demo.',
+    secondaryCtaTitle: 'Five-step workflow',
+    secondaryCtaButtonLabel: 'See the 5-Step Workflow',
+    secondaryCtaHref: workflowHref,
+    secondaryCtaCopy: 'Open the full workflow when you need owners, review thresholds, and failure modes for a repeatable rollout.',
     ctaEvent: publicHomeAsset?.clickEvent ?? 'asset_cta_click',
     ctaHref: publicHomeAsset?.landingPath ?? '',
     pageBrief: publicHomePageBrief,
@@ -14509,7 +14468,8 @@ async function buildPageModels(
       },
     },
     schemaType: 'WebPage',
-    footerNote: `Automiora gives buyers and operators one public homepage that routes into comparison, workflow, pricing, and reusable templates without exposing internal research mechanics.`,
+    footerNote:
+      'Automiora helps SaaS teams turn existing product assets into short demo videos with a focused workflow and reusable assets.',
   })
   publicHome.sectionProvenance = buildPageSectionProvenance(publicHome)
 
@@ -14920,6 +14880,212 @@ function resolvePublicPagePath(page) {
 function getPageHref(page) {
   if (page?.slug === 'index' || page?.type === 'hub') return '/'
   return page?.publicPath || ''
+}
+
+function resolvePublicHomeMediaUrl(value) {
+  const rawValue = String(value ?? '').trim()
+  if (!rawValue) return ''
+
+  try {
+    const parsed = new URL(rawValue, `${config.baseUrl}/`)
+    const mediaMatch = parsed.pathname.match(/\/media\/([^/?#]+)$/)
+    if (mediaMatch) {
+      return new URL(`/media/${mediaMatch[1]}`, `${config.baseUrl}/`).toString()
+    }
+    return rawValue
+  } catch {
+    const mediaMatch = rawValue.match(/(?:^|\/)media\/([^/?#]+)$/)
+    if (mediaMatch) return new URL(`/media/${mediaMatch[1]}`, `${config.baseUrl}/`).toString()
+    return rawValue
+  }
+}
+
+function renderPublicHomeProofItems(page) {
+  const items = safeArray(page.heroProofItems).slice(0, 2)
+  if (!items.length) return ''
+
+  return `
+    <div class="homepage-proof-row">
+      ${items
+        .map(
+          (item) => `
+            <article>
+              <span class="meta-label">${escapeHtml(item.label)}</span>
+              <p>${escapeHtml(item.detail)}</p>
+            </article>
+          `,
+        )
+        .join('')}
+    </div>
+  `
+}
+
+function renderStartingInputsSection(page) {
+  const inputs = safeArray(page.startingInputs).slice(0, 3)
+  if (!inputs.length) return ''
+
+  return `
+    <section class="homepage-section homepage-section--inputs" data-home-section="starting-inputs">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Starting inputs</p>
+          <h2>Start with the product assets you already have</h2>
+        </div>
+        <p class="section-copy">The workflow begins from concrete SaaS product material, not from a broad prompt about a category.</p>
+      </div>
+      <div class="input-lane">
+        ${inputs
+          .map(
+            (item) => `
+              <article class="input-item">
+                <strong>${escapeHtml(item.title)}</strong>
+                <p>${escapeHtml(item.detail)}</p>
+              </article>
+            `,
+          )
+          .join('')}
+      </div>
+    </section>
+  `
+}
+
+function renderThreeStepWorkflowSection(page) {
+  const steps = safeArray(page.workflowSummarySteps).slice(0, 3)
+  if (!steps.length) return ''
+
+  return `
+    <section class="homepage-section homepage-section--workflow" data-home-section="workflow-summary">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Three-step workflow</p>
+          <h2>Turn source assets into short demo shots</h2>
+        </div>
+        <p class="section-copy">Keep the full owner/input/output workflow on the deeper page; this summary only shows the operating shape.</p>
+      </div>
+      <ol class="workflow-lane">
+        ${steps
+          .map(
+            (item, index) => `
+              <li>
+                <span>${index + 1}</span>
+                <div>
+                  <strong>${escapeHtml(item.title)}</strong>
+                  <p>${escapeHtml(item.detail)}</p>
+                </div>
+              </li>
+            `,
+          )
+          .join('')}
+      </ol>
+      <p class="section-link"><a class="text-link" href="/workflow/">See the full workflow</a></p>
+    </section>
+  `
+}
+
+function renderCompactToolRecommendationSection(page) {
+  const rows = safeArray(page.comparisonRows).slice(0, 2)
+  if (!rows.length) return ''
+
+  return `
+    <section class="homepage-section homepage-section--tools" data-home-section="tool-recommendation">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Compact tool recommendation</p>
+          <h2>Use one primary tool and one fallback</h2>
+        </div>
+        <p class="section-copy">Detailed model coverage belongs on the comparison page. This summary keeps the first decision tight.</p>
+      </div>
+      <div class="recommendation-strip">
+        ${rows
+          .map(
+            (row) => `
+              <article data-tool-detail-card>
+                <div class="recommendation-head">
+                  <strong>${escapeHtml(row.name)}</strong>
+                  <span class="comparison-badge comparison-badge--${escapeHtml(String(row.badge ?? 'pick').toLowerCase())}">${escapeHtml(row.badge ?? 'Pick')}</span>
+                </div>
+                <p><span class="meta-label">Best for</span> ${escapeHtml(row.bestFor ?? '')}</p>
+                <p><span class="meta-label">Watch-out</span> ${escapeHtml(row.watchOut ?? row.notFor ?? row.whenNotToUse ?? '')}</p>
+                <p data-tool-verdict><span class="meta-label">Verdict</span> ${escapeHtml(row.quickVerdict ?? row.recommendation ?? row.verdict ?? '')}</p>
+              </article>
+            `,
+          )
+          .join('')}
+      </div>
+      <p class="section-link"><a class="text-link" href="/compare/">Compare Runway, Pika, and deeper alternatives</a></p>
+    </section>
+  `
+}
+
+function renderWorkedExampleSection(page) {
+  const example = page.workedExample
+  if (!example) return ''
+
+  return `
+    <section class="homepage-section homepage-section--example" data-home-section="worked-example">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">${escapeHtml(example.label ?? 'Internal worked example')}</p>
+          <h2>A product update turned into a demo draft</h2>
+        </div>
+        <p class="section-copy">This is labelled as an internal worked example, not a customer proof claim.</p>
+      </div>
+      <div class="example-flow">
+        <article>
+          <span class="meta-label">Source assets</span>
+          <p>${escapeHtml(example.sourceAssets)}</p>
+        </article>
+        <article>
+          <span class="meta-label">Process</span>
+          <p>${escapeHtml(`Tool: ${example.tool}. ${example.attempts}. ${example.timeOrCostRange}. First failure: ${example.firstFailure}`)}</p>
+          <p>${escapeHtml(`Change made: ${example.changeMade}`)}</p>
+        </article>
+        <article>
+          <span class="meta-label">Final output</span>
+          <p>${escapeHtml(example.intendedOutput)}</p>
+          <p>${escapeHtml(example.finalOutput)}</p>
+        </article>
+      </div>
+      <p class="section-link"><a class="text-link" href="${escapeHtml(example.href ?? '/case-study/')}">Open the full example</a></p>
+    </section>
+  `
+}
+
+function renderWorkflowPackCtaSection(page, primaryHref, primaryLabel) {
+  const items = safeArray(page.assetPreview).slice(0, 4)
+  if (!items.length) return ''
+
+  return `
+    <section class="homepage-section homepage-section--pack" data-home-section="workflow-pack">
+      <div class="pack-layout">
+        <div>
+          <p class="section-kicker">Workflow pack</p>
+          <h2>${escapeHtml(page.ctaTitle ?? 'Product Demo Workflow Pack')}</h2>
+          <p>${escapeHtml(page.ctaCopy ?? '')}</p>
+          ${primaryHref ? `<a class="cta-button" href="${escapeHtml(primaryHref)}" data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}" data-ga4-label="${escapeHtml(primaryLabel)}">${escapeHtml(primaryLabel)}</a>` : ''}
+        </div>
+        <div class="pack-list">
+          ${items
+            .map(
+              (item) => `
+                <article>
+                  <strong>${escapeHtml(item.label ?? item.title)}</strong>
+                  <p>${escapeHtml(item.detail ?? item.body ?? '')}</p>
+                </article>
+              `,
+            )
+            .join('')}
+        </div>
+      </div>
+      <div class="deep-link-row" aria-label="Related deep-dive pages">
+        <a href="/templates/">Templates</a>
+        <a href="/pricing/">Pricing boundary</a>
+        <a href="/free-vs-paid/">Free vs paid</a>
+        <a href="/hire/ai-video-editor/">Hire support</a>
+        <a href="/cost/ai-video-production-cost/">Cost guide</a>
+      </div>
+    </section>
+  `
 }
 
 function renderPublicHomeSelector(page) {
@@ -17639,24 +17805,29 @@ ${renderThemeCss(designProfile)}
 function renderPublicHomeHtml(site, page) {
   const designProfile = getSiteDesignProfile(site)
   const canonicalUrl = new URL('/', `${config.baseUrl}/`).toString()
-  const socialImage =
+  const socialImage = resolvePublicHomeMediaUrl(
     page.visualAsset?.canonicalUrl ??
-    page.visualAsset?.url ??
-    site.pages.find((item) => item.slug === 'index')?.visualAsset?.canonicalUrl ??
-    ''
+      page.visualAsset?.url ??
+      site.pages.find((item) => item.slug === 'index')?.visualAsset?.canonicalUrl ??
+      '',
+  )
   const schema = JSON.stringify(renderSchema(site, { ...page, schemaType: 'WebPage' }, canonicalUrl))
   const ga4Snippet = renderGa4Snippet({
     title: page.title,
     path: '/',
     ctaTitle: page.ctaTitle,
   })
-  const heroProofStrip = renderHeroProofStrip(page, designProfile)
+  const heroProofStrip = renderPublicHomeProofItems(page)
+  const heroVisualAsset = page.visualAsset
+    ? {
+        ...page.visualAsset,
+        alt: 'SaaS product demo workflow preview with filled planner, prompt matrix, review checklist, and cost worksheet.',
+      }
+    : null
   const heroVisual = renderVisualFigure(
-    page.visualAsset,
-    `${site.cluster.label} homepage preview`,
-    page.assetBinding?.primary?.title
-      ? `Primary asset: ${page.assetBinding.primary.title}`
-      : site.cluster.primaryKeyword,
+    heroVisualAsset,
+    'SaaS product demo workflow preview',
+    'Filled shot planner, prompt matrix, review checklist, and cost worksheet.',
   )
   const navItems = [
     { label: 'Workflow', page: site.pages.find((item) => item.type === 'workflow') },
@@ -17667,7 +17838,7 @@ function renderPublicHomeHtml(site, page) {
     { label: 'FAQ', page: site.pages.find((item) => item.type === 'faq') },
   ].filter((item) => meaningfulText(getPageHref(item.page)))
   const primaryHref = page.ctaHref || page.assetBinding?.primary?.landingPath || ''
-  const secondaryHref = site.commercialOffer?.landingPath ?? ''
+  const secondaryHref = page.secondaryCtaHref || site.commercialOffer?.landingPath || ''
   const primaryLabel = page.ctaButtonLabel ?? page.ctaTitle ?? site.cluster.ctaLabel
   const secondaryLabel =
     page.secondaryCtaButtonLabel ??
@@ -17700,10 +17871,7 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        background:
-          radial-gradient(circle at top left, var(--accent-soft), transparent 36%),
-          linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
-          var(--page-bg);
+        background: var(--page-bg);
         color: var(--text-strong);
       }
       header, main, footer {
@@ -18370,13 +18538,10 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
         --hero-shadow: 0 24px 60px rgba(34, 43, 74, 0.12);
       }
       body {
-        background:
-          radial-gradient(circle at top left, rgba(109, 77, 255, 0.1), transparent 30%),
-          radial-gradient(circle at top right, rgba(95, 111, 255, 0.08), transparent 28%),
-          linear-gradient(180deg, #f9fbff 0%, #f4f7fc 32%, #eff3fb 100%);
+        background: linear-gradient(180deg, #f9fbff 0%, #f4f7fc 46%, #eff3fb 100%);
       }
       header, main, footer {
-        width: min(1160px, calc(100% - 32px));
+        width: min(1080px, calc(100% - 32px));
       }
       header {
         padding: 20px 0 14px;
@@ -18665,14 +18830,204 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
           grid-template-columns: 1fr;
         }
       }
+      body {
+        background: linear-gradient(180deg, #fbfcff 0%, #f5f7fb 52%, #eef2f7 100%);
+      }
+      header, main, footer {
+        width: min(1080px, calc(100% - 32px));
+      }
+      main {
+        gap: 0;
+      }
+      section {
+        padding: 44px 0;
+        border: 0;
+        border-top: 1px solid rgba(17, 24, 39, 0.1);
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+      .hero-layout {
+        align-items: center;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.78fr);
+      }
+      .hero-summary {
+        grid-template-columns: 1fr;
+        max-width: 620px;
+      }
+      .hero-summary-item,
+      .homepage-proof-row article,
+      .input-item,
+      .recommendation-strip article,
+      .example-flow article,
+      .pack-list article {
+        border-radius: 8px;
+        box-shadow: none;
+      }
+      .hero-summary-item {
+        padding: 0 0 0 14px;
+        border: 0;
+        border-left: 3px solid rgba(95, 111, 255, 0.26);
+        background: transparent;
+      }
+      .homepage-proof-row {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 18px;
+      }
+      .homepage-proof-row article,
+      .input-item,
+      .recommendation-strip article,
+      .example-flow article,
+      .pack-list article {
+        padding: 16px;
+        border: 1px solid rgba(17, 24, 39, 0.1);
+        background: rgba(255, 255, 255, 0.76);
+      }
+      .hero-visual-card {
+        margin-top: 0;
+        border-radius: 8px;
+        border: 1px solid rgba(17, 24, 39, 0.1);
+        background: #ffffff;
+        box-shadow: 0 18px 46px rgba(34, 43, 74, 0.12);
+      }
+      .hero-visual {
+        border: 0;
+        border-radius: 8px;
+      }
+      .hero-visual img {
+        aspect-ratio: 4 / 3;
+      }
+      .section-heading {
+        grid-template-columns: minmax(0, 0.82fr) minmax(260px, 0.7fr);
+      }
+      .input-lane {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .workflow-lane {
+        display: grid;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .workflow-lane li {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 40px minmax(0, 1fr);
+        padding: 18px 0;
+        border-top: 1px solid rgba(17, 24, 39, 0.08);
+      }
+      .workflow-lane li:first-child {
+        border-top: 0;
+      }
+      .workflow-lane li > span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: #111827;
+        color: #ffffff;
+        font-weight: 700;
+      }
+      .recommendation-strip {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .recommendation-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .example-flow {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: 0.8fr 1.2fr 1fr;
+      }
+      .pack-layout {
+        display: grid;
+        gap: 24px;
+        grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
+        align-items: start;
+        padding: 28px;
+        border-radius: 8px;
+        background: #111827;
+        color: #ffffff;
+      }
+      .pack-layout h2,
+      .pack-layout strong,
+      .pack-layout .section-kicker {
+        color: #ffffff;
+      }
+      .pack-layout p {
+        color: rgba(255, 255, 255, 0.78);
+      }
+      .pack-layout .cta-button {
+        margin-top: 18px;
+        background: #ffffff;
+        color: #111827;
+        box-shadow: none;
+      }
+      .pack-list {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .pack-list article {
+        border-color: rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .deep-link-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .deep-link-row a,
+      .section-link a {
+        color: #5841e1;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .section-link {
+        margin-top: 14px;
+      }
+      footer {
+        padding-top: 18px;
+        border-top: 1px solid rgba(17, 24, 39, 0.1);
+      }
+      @media (max-width: 860px) {
+        .hero-layout,
+        .homepage-proof-row,
+        .input-lane,
+        .recommendation-strip,
+        .example-flow,
+        .pack-layout,
+        .pack-list,
+        .section-heading {
+          grid-template-columns: 1fr;
+        }
+        section {
+          padding: 34px 0;
+        }
+      }
     </style>
   </head>
   <body data-design-profile="${escapeHtml(designProfile.key ?? site.designProfileKey ?? 'default')}">
-    <header>
+    <header data-home-section="hero">
       <div class="topbar">
         <div class="brand-mark">
           <strong>AUTOMIORA</strong>
-          <span>${escapeHtml(site.cluster.label)}</span>
+          <span>${escapeHtml(page.navSubtitle ?? site.cluster.label)}</span>
         </div>
         <nav>
           ${navItems
@@ -18727,175 +19082,20 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
                 : ''
             }
           </div>
-          ${
-            heroVisual
-              ? `<div class="hero-visual-card">${heroVisual}</div>`
-              : ''
-          }
         </div>
-        ${renderPublicHomeSelector(page)}
+        ${
+          heroVisual
+            ? `<div class="hero-visual-card">${heroVisual}</div>`
+            : renderPublicHomeSelector(page)
+        }
       </div>
     </header>
     <main>
-      ${renderComparisonTable(page.comparisonRows)}
-      ${renderPromptGenerator(page)}
-      ${renderToolExperienceCards(page)}
-      <div class="home-main-grid">
-        <div class="home-primary">
-          ${renderWorkflowSteps(page)}
-          ${renderFailureFixCards(page)}
-          ${renderExperienceSignals(page)}
-          ${renderAssetPreview(page)}
-          <section>
-            <div class="section-heading">
-              <div>
-                <p class="section-kicker">Public routes</p>
-                <h2>What to open next</h2>
-              </div>
-              <p class="section-copy">Open the narrower page once you know whether the next question is comparison, workflow shape, pricing boundary, or reusable templates.</p>
-            </div>
-            <div class="card-grid">
-              ${safeArray(page.nextPageCards)
-                .map(
-                  (item) => `
-                    <article class="mini-card">
-                      <strong>${escapeHtml(item.title)}</strong>
-                      <p>${escapeHtml(item.detail)}</p>
-                      ${
-                        meaningfulText(item.href)
-                          ? `<p><a class="text-link" href="${escapeHtml(item.href)}">${escapeHtml(item.ctaLabel ?? 'Open page')}</a></p>`
-                          : ''
-                      }
-                    </article>
-                  `,
-                )
-                .join('')}
-            </div>
-          </section>
-          <section>
-            <div class="section-heading">
-              <div>
-                <p class="section-kicker">Why this works</p>
-                <h2>Why this homepage exists</h2>
-              </div>
-            </div>
-            <div class="surface-grid">
-              ${safeArray(page.sections)
-                .map(
-                  (section) => `
-                    <article class="mini-card">
-                      <strong>${escapeHtml(section.heading)}</strong>
-                      ${safeArray(section.paragraphs)
-                        .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
-                        .join('')}
-                      ${
-                        safeArray(section.bullets).length > 0
-                          ? `<ul>${safeArray(section.bullets)
-                              .map((item) => `<li>${escapeHtml(item)}</li>`)
-                              .join('')}</ul>`
-                          : ''
-                      }
-                    </article>
-                  `,
-                )
-                .join('')}
-            </div>
-          </section>
-          <section>
-            <div class="section-heading">
-              <div>
-                <p class="section-kicker">FAQ</p>
-                <h2>Frequently asked questions</h2>
-              </div>
-            </div>
-            <div class="faq-stack">
-              ${safeArray(page.faqItems)
-                .map(
-                  (item) => `
-                    <details>
-                      <summary>${escapeHtml(item.question)}</summary>
-                      <p>${escapeHtml(item.answer)}</p>
-                    </details>
-                  `,
-                )
-                .join('')}
-            </div>
-          </section>
-        </div>
-        <aside class="home-sidebar">
-          <div class="sidebar-stack">
-            <div class="sidebar-card">
-              <p class="offer-eyebrow">Start here</p>
-              <strong>${escapeHtml(page.ctaTitle)}</strong>
-              <p>${escapeHtml(page.ctaCopy)}</p>
-              ${
-                primaryHref
-                  ? `<p><a
-                      class="cta-button"
-                      href="${escapeHtml(primaryHref)}"
-                      data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}"
-                      data-ga4-label="${escapeHtml(primaryLabel)}"
-                    >${escapeHtml(primaryLabel)}</a></p>`
-                  : ''
-              }
-            </div>
-            <div class="sidebar-card">
-              <p class="offer-eyebrow">What you get</p>
-              <strong>Make the next move obvious</strong>
-              <ul class="sidebar-list">
-                ${safeArray(page.keyFacts)
-                  .map((item) => `<li>${escapeHtml(item.value)}</li>`)
-                  .join('')}
-              </ul>
-            </div>
-            <div class="sidebar-card">
-              <p class="offer-eyebrow">Need a narrower answer?</p>
-              <strong>${escapeHtml(page.secondaryCtaTitle ?? secondaryLabel)}</strong>
-              <p>${escapeHtml(page.secondaryCtaCopy ?? 'Use the consult path when the workflow is already live and the team needs a narrower implementation recommendation.')}</p>
-              ${
-                secondaryHref
-                  ? `<p><a
-                      class="secondary-cta"
-                      href="${escapeHtml(secondaryHref)}"
-                      data-ga4-event="consult_click"
-                      data-ga4-label="${escapeHtml(secondaryLabel)}"
-                    >${escapeHtml(secondaryLabel)}</a></p>`
-                  : ''
-              }
-            </div>
-          </div>
-        </aside>
-      </div>
-      <section class="cta-band">
-        <div class="cta-panel">
-          <strong>${escapeHtml(page.ctaTitle)}</strong>
-          <p>${escapeHtml(page.ctaCopy)}</p>
-          ${
-            primaryHref
-              ? `<p><a
-                  class="cta-button"
-                  href="${escapeHtml(primaryHref)}"
-                  data-ga4-event="${escapeHtml(page.ctaEvent ?? 'asset_cta_click')}"
-                  data-ga4-label="${escapeHtml(primaryLabel)}"
-                >${escapeHtml(primaryLabel)}</a></p>`
-              : ''
-          }
-        </div>
-        <div class="cta-panel">
-          <strong>${escapeHtml(page.secondaryCtaTitle ?? secondaryLabel)}</strong>
-          <p>${escapeHtml(page.secondaryCtaCopy ?? 'Use the consult path when the workflow is already live and the team needs a narrower implementation recommendation.')}</p>
-          ${
-            secondaryHref
-              ? `<p><a
-                  class="secondary-cta"
-                  href="${escapeHtml(secondaryHref)}"
-                  data-ga4-event="consult_click"
-                  data-ga4-label="${escapeHtml(secondaryLabel)}"
-                >${escapeHtml(secondaryLabel)}</a></p>`
-              : ''
-          }
-        </div>
-      </section>
+      ${renderStartingInputsSection(page)}
+      ${renderThreeStepWorkflowSection(page)}
+      ${renderCompactToolRecommendationSection(page)}
+      ${renderWorkedExampleSection(page)}
+      ${renderWorkflowPackCtaSection(page, primaryHref, primaryLabel)}
     </main>
     <footer>
       <p>${escapeHtml(page.footerNote ?? `Automiora helps teams compare ${site.cluster.primaryKeyword} options, workflow choices, and reusable execution assets without reopening research every cycle.`)}</p>
@@ -21346,6 +21546,41 @@ function evaluatePublishGate(site) {
       auditStatus: site.audit?.status ?? 'not_run',
       gapOpportunities: site.research.gapSummary.gapOpportunities,
       topIntents: site.research.topIntents,
+    },
+  }
+}
+
+function summarizeHomepageCompositionReport(report) {
+  return {
+    status: report?.status ?? 'not_run',
+    majorSectionCount: report?.majorSectionCount ?? 0,
+    h2Count: report?.h2Count ?? 0,
+    visibleWordCount: report?.visibleWordCount ?? 0,
+    primaryCtaOccurrences: report?.primaryCtaOccurrences ?? 0,
+    secondaryCtaOccurrences: report?.secondaryCtaOccurrences ?? 0,
+    toolDetailCount: report?.toolDetailCount ?? 0,
+    faqCount: report?.faqCount ?? 0,
+    duplicateParagraphRatio: report?.duplicateParagraphRatio ?? 0,
+    violations: safeArray(report?.violations).map((item) => ({
+      code: item.code,
+      message: item.message,
+    })),
+  }
+}
+
+function applyHomepageCompositionPublishGate(publishGate, report) {
+  const homepageCompositionPass = report?.status === 'pass'
+  return {
+    ...publishGate,
+    status: homepageCompositionPass ? publishGate.status : 'fail',
+    homepageCompositionPass,
+    homepageComposition: summarizeHomepageCompositionReport(report),
+    evidence: {
+      ...publishGate.evidence,
+      homepageCompositionStatus: report?.status ?? 'not_run',
+      homepageCompositionViolations: safeArray(report?.violations).map((item) => item.code),
+      homepageMajorSectionCount: report?.majorSectionCount ?? 0,
+      homepageVisibleWordCount: report?.visibleWordCount ?? 0,
     },
   }
 }
@@ -26884,9 +27119,22 @@ async function runPipeline() {
 
     if (siteRecord.publicHome) {
       const renderedPublicHome = renderPublicHomeHtml(siteRecord, siteRecord.publicHome)
+      const homepageCompositionReport = evaluateHomepageCompositionHtml(renderedPublicHome.html, {
+        budget: homepageBudget,
+        path: '/',
+      })
+      siteRecord.homepageCompositionReport = homepageCompositionReport
       siteRecord.publicHomeCanonicalUrl = renderedPublicHome.canonicalUrl
-      siteRecord.publicHomeRendered = renderedPublicHome
-      siteRecord.publicHomeIndexingDirective = resolveIndexingDirective(siteRecord.publicHome, publishGate, {
+      siteRecord.publicHomeRendered = {
+        ...renderedPublicHome,
+        homepageComposition: summarizeHomepageCompositionReport(homepageCompositionReport),
+      }
+      const gatedPublishGate = applyHomepageCompositionPublishGate(
+        publishGateBySiteSlug.get(siteRecord.siteSlug) ?? publishGate,
+        homepageCompositionReport,
+      )
+      publishGateBySiteSlug.set(siteRecord.siteSlug, gatedPublishGate)
+      siteRecord.publicHomeIndexingDirective = resolveIndexingDirective(siteRecord.publicHome, gatedPublishGate, {
         publicPath: '/',
       })
     }
@@ -26990,6 +27238,34 @@ async function runPipeline() {
     )
     rootHtml = applyRobotsDirective(renderedPublicHome.html, publicHomeIndexingDirective)
   }
+  const rootHomepageCompositionReport = primaryReleaseSite?.publicHome
+    ? evaluateHomepageCompositionHtml(rootHtml, {
+        budget: homepageBudget,
+        path: '/',
+      })
+    : {
+        path: '/',
+        status: 'fail',
+        majorSectionCount: 0,
+        h2Count: 0,
+        visibleWordCount: 0,
+        primaryCtaOccurrences: 0,
+        secondaryCtaOccurrences: 0,
+        toolDetailCount: 0,
+        faqCount: 0,
+        duplicateParagraphRatio: 0,
+        repeatedVerdicts: [],
+        removedModules: [],
+        movedToChildPages: [],
+        violations: [
+          {
+            code: 'homepage_not_rendered',
+            message: 'No public homepage was rendered for the primary release site.',
+          },
+        ],
+        warnings: [],
+      }
+  await writeHomepageCompositionReport(rootHomepageCompositionReport, path.join(generatedDir, 'homepage-composition-report.json'))
   await writeFile(path.join(publicDir, 'index.html'), rootHtml)
   await writeFile(path.join(publicDir, 'sitemap.xml'), sitemapXml)
   await writeFile(path.join(publicDir, 'robots.txt'), robotsTxt)

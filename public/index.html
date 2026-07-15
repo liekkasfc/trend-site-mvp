@@ -3,238 +3,78 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI video workflow: choose the right tool, prompt, and next step</title>
-    <meta name="description" content="Pick the best AI video workflow path with a clear tool recommendation, copy-ready prompt generator, real failure fixes, and a next step you can use today." />
+    <title>SaaS product demo video workflow | Automiora</title>
+    <meta name="description" content="Turn product screenshots, screen recordings, feature updates, and release notes into a 15-60 second SaaS product demo video workflow." />
     <link rel="canonical" href="https://automiora.com/" />
-    <meta property="og:title" content="AI video workflow: choose the right tool, prompt, and next step" />
-    <meta property="og:description" content="Pick the best AI video workflow path with a clear tool recommendation, copy-ready prompt generator, real failure fixes, and a next step you can use today." />
+    <meta property="og:title" content="SaaS product demo video workflow | Automiora" />
+    <meta property="og:description" content="Turn product screenshots, screen recordings, feature updates, and release notes into a 15-60 second SaaS product demo video workflow." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://automiora.com/" />
-    <meta property="og:image" content="https://automiora.com/generated-sites/ai-video-workflow-short-form-demo/media/index-hero.svg" />
+    <meta property="og:image" content="https://automiora.com/media/index-hero.svg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="AI video workflow: choose the right tool, prompt, and next step" />
-    <meta name="twitter:description" content="Pick the best AI video workflow path with a clear tool recommendation, copy-ready prompt generator, real failure fixes, and a next step you can use today." />
-    <meta name="twitter:image" content="https://automiora.com/generated-sites/ai-video-workflow-short-form-demo/media/index-hero.svg" />
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"AI video workflow: choose the right tool, prompt, and next step","url":"https://automiora.com/","about":"ai video workflow"}</script>
+    <meta name="twitter:title" content="SaaS product demo video workflow | Automiora" />
+    <meta name="twitter:description" content="Turn product screenshots, screen recordings, feature updates, and release notes into a 15-60 second SaaS product demo video workflow." />
+    <meta name="twitter:image" content="https://automiora.com/media/index-hero.svg" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"SaaS product demo video workflow | Automiora","url":"https://automiora.com/","about":"ai video workflow"}</script>
 
-
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-0YDYHQCDQC"></script>
     <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      window.gtag = window.gtag || gtag;
+      gtag('js', new Date());
+      gtag('config', "G-0YDYHQCDQC", {
+        page_title: "SaaS product demo video workflow | Automiora",
+        page_path: "/",
+        send_page_view: true
+      });
+
       window.addEventListener('DOMContentLoaded', function () {
-        function esc(value) {
-          return String(value || '')
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;')
-            .replaceAll("'", '&#39;');
-        }
+        
 
-        if (true) {
-          var root = document.querySelector('[data-selector-quiz]');
-          if (root) {
-            var rawConfig = root.getAttribute('data-selector-config') || '';
-            var config = null;
-            try {
-              config = JSON.parse(rawConfig);
-            } catch (error) {
-              config = null;
+        var affiliateClickSent = typeof WeakSet === 'function' ? new WeakSet() : null;
+        document.querySelectorAll('[data-ga4-event]').forEach(function (element) {
+          element.addEventListener('click', function () {
+            if (typeof window.gtag !== 'function') return;
+            if (element.dataset.ga4Event === 'affiliate_click' && affiliateClickSent) {
+              if (affiliateClickSent.has(element)) return;
+              affiliateClickSent.add(element);
             }
-
-            if (config) {
-              var answers = {};
-              var resultShell = root.querySelector('[data-selector-result]');
-              var resultTitle = root.querySelector('[data-selector-result-title]');
-              var resultSummary = root.querySelector('[data-selector-result-summary]');
-              var resultWhy = root.querySelector('[data-selector-result-why]');
-              var resultLink = root.querySelector('[data-selector-result-link]');
-              var resultSecondary = root.querySelector('[data-selector-result-secondary]');
-              var resetButton = root.querySelector('[data-selector-reset]');
-
-              function activeAnswersCount() {
-                return Object.keys(answers).filter(function (key) { return answers[key]; }).length;
-              }
-
-              function renderResult() {
-                if (!Array.isArray(config.questions) || !Array.isArray(config.outcomes)) return;
-                if (activeAnswersCount() < config.questions.length) {
-                  if (resultShell) resultShell.hidden = true;
-                  return;
-                }
-
-                var scored = config.outcomes.map(function (outcome) {
-                  var score = 0;
-                  config.questions.forEach(function (question) {
-                    var answerId = answers[question.id];
-                    var option = (question.options || []).find(function (item) { return item.id === answerId; });
-                    var optionScores = option && option.scores ? option.scores : {};
-                    score += Number(optionScores[outcome.id] || 0);
-                  });
-                  return {
-                    id: outcome.id,
-                    title: outcome.title,
-                    href: outcome.href,
-                    ctaLabel: outcome.ctaLabel,
-                    summary: outcome.summary,
-                    why: outcome.why,
-                    score: score
-                  };
-                }).sort(function (left, right) { return right.score - left.score; });
-
-                var primary = scored[0];
-                var secondary = scored.slice(1, 3);
-                if (!primary || !resultShell) return;
-
-                resultShell.hidden = false;
-                if (resultTitle) resultTitle.textContent = primary.title || 'Recommended next move';
-                if (resultSummary) resultSummary.textContent = primary.summary || '';
-                if (resultWhy) resultWhy.textContent = primary.why || '';
-                if (resultLink) {
-                  resultLink.href = primary.href || '/';
-                  resultLink.textContent = primary.ctaLabel || 'Open recommendation';
-                  resultLink.setAttribute('data-ga4-event', 'selector_recommendation_click');
-                  resultLink.setAttribute('data-ga4-label', primary.title || primary.id || 'selector_result');
-                }
-                if (resultSecondary) {
-                  resultSecondary.innerHTML = secondary.map(function (item, index) {
-                    return '<article class="selector-secondary-card">' +
-                      '<span class="selector-step">Backup ' + (index + 1) + '</span>' +
-                      '<strong>' + esc(item.title) + '</strong>' +
-                      '<p>' + esc(item.summary || '') + '</p>' +
-                      (item.href ? '<p><a class="selector-link" href="' + esc(item.href) + '">' + esc(item.ctaLabel || 'Open path') + '</a></p>' : '') +
-                    '</article>';
-                  }).join('');
-                }
-
-                if (typeof window.gtag === 'function') {
-                  window.gtag('event', 'selector_result_ready', {
-                    page_path: '/',
-                    page_title: document.title,
-                    event_label: primary.title || primary.id || 'selector_result'
-                  });
-                }
-              }
-
-              root.querySelectorAll('[data-selector-option]').forEach(function (button) {
-                button.addEventListener('click', function () {
-                  var questionId = button.getAttribute('data-question-id');
-                  var optionId = button.getAttribute('data-option-id');
-                  if (!questionId || !optionId) return;
-                  answers[questionId] = optionId;
-
-                  root.querySelectorAll('[data-question-id="' + questionId + '"]').forEach(function (item) {
-                    item.classList.remove('is-selected');
-                    item.setAttribute('aria-pressed', 'false');
-                  });
-                  button.classList.add('is-selected');
-                  button.setAttribute('aria-pressed', 'true');
-
-                  renderResult();
-                });
-              });
-
-              if (resetButton) {
-                resetButton.addEventListener('click', function () {
-                  answers = {};
-                  root.querySelectorAll('[data-selector-option]').forEach(function (button) {
-                    button.classList.remove('is-selected');
-                    button.setAttribute('aria-pressed', 'false');
-                  });
-                  if (resultShell) resultShell.hidden = true;
-                });
-              }
+            var eventParams = {
+              page_path: "/",
+              page_title: "SaaS product demo video workflow | Automiora",
+              event_label: element.dataset.ga4Label || '',
+              cta_title: "Product Demo Workflow Pack"
+            };
+            if (element.dataset.ga4Event === 'affiliate_click') {
+              eventParams.affiliate_program = element.dataset.affiliateProgram || '';
+              eventParams.offer_id = element.dataset.offerId || '';
+              eventParams.tracking_code = element.dataset.trackingCode || '';
+              eventParams.page_slug = element.dataset.pageSlug || '';
+              eventParams.page_type = element.dataset.pageType || '';
+              eventParams.cta_position = element.dataset.ctaPosition || '';
+              eventParams.cta_variant = element.dataset.ctaVariant || '';
+              eventParams.destination_category = element.dataset.destinationCategory || '';
             }
-          }
-        }
+            window.gtag('event', element.dataset.ga4Event, eventParams);
+          });
+        });
 
-        if (true) {
-          document.querySelectorAll('[data-prompt-generator]').forEach(function (root) {
-            var typeField = root.querySelector('[data-prompt-type]');
-            var styleField = root.querySelector('[data-prompt-style]');
-            var durationField = root.querySelector('[data-prompt-duration]');
-            var output = root.querySelector('[data-prompt-output]');
-            var promptNode = root.querySelector('[data-prompt-text]');
-            var hookNode = root.querySelector('[data-prompt-hook]');
-            var shotsNode = root.querySelector('[data-prompt-shots]');
-            var ctaNode = root.querySelector('[data-prompt-cta]');
-            var copyButton = root.querySelector('[data-prompt-copy]');
-            var generateButton = root.querySelector('[data-prompt-generate]');
-            if (!typeField || !styleField || !durationField || !output || !promptNode || !hookNode || !shotsNode || !ctaNode || !copyButton || !generateButton) return;
-
-            function buildPrompt(type, style, duration) {
-              var map = {
-                "product-demo": {
-                  subject: "a feature launch demo",
-                  angle: "show the frustrating manual task first, then show the product removing it",
-                  shots: "Shot 1: pain or manual problem. Shot 2: product doing the work. Shot 3: payoff and CTA.",
-                  cta: "End with: Try the workflow and ship your first AI video this week."
-                },
-                "ad": {
-                  subject: "a direct-response ad",
-                  angle: "hit the pain immediately and move fast",
-                  shots: "Shot 1: hard hook. Shot 2: visual proof. Shot 3: benefit stack. Shot 4: CTA.",
-                  cta: "End with: Start now before the next test cycle."
-                },
-                "tutorial": {
-                  subject: "a short product tutorial",
-                  angle: "teach one task only and avoid extra features",
-                  shots: "Shot 1: what the viewer will learn. Shot 2: core action. Shot 3: result and CTA.",
-                  cta: "End with: Copy this setup and run your own version now."
-                }
-              };
-              var styles = {
-                cinematic: "cinematic lighting, premium pacing, controlled camera motion",
-                fast: "fast cuts, energetic motion, direct text hierarchy",
-                minimal: "simple composition, clean framing, restrained motion"
-              };
-              var durationRule = {
-                "5s": "Keep it to 2 shots max.",
-                "15s": "Keep it to 3 or 4 shots max.",
-                "30s": "Use a simple sequence and avoid stacking multiple ideas in the same shot."
-              };
-              var item = map[type] || map["product-demo"];
-              return {
-                prompt:
-                  "Create a " + duration + " " + style + " AI video for " + item.subject + ". " +
-                  "Angle: " + item.angle + ". " +
-                  "Visual direction: " + styles[style] + ". " +
-                  durationRule[duration] + " " +
-                  "If the output becomes unstable, split the scene into separate short shots and regenerate only the broken part.",
-                hook:
-                  type === "ad"
-                    ? "Hook: make the pain obvious in the first second."
-                    : type === "tutorial"
-                      ? "Hook: show the end result before the explanation."
-                      : "Hook: open on the problem screen before the product fix.",
-                shots: "Shots: " + item.shots,
-                cta: item.cta
-              };
-            }
-
-            generateButton.addEventListener('click', function () {
-              var result = buildPrompt(typeField.value, styleField.value, durationField.value);
-              promptNode.textContent = result.prompt;
-              hookNode.textContent = result.hook;
-              shotsNode.textContent = result.shots;
-              ctaNode.textContent = result.cta;
-              output.hidden = false;
-            });
-
-            copyButton.addEventListener('click', function () {
-              var text = promptNode.textContent;
-              if (!text) return;
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(function () {
-                  copyButton.textContent = 'Copied prompt';
-                });
-                return;
-              }
-              window.prompt('Copy this prompt', text);
+        document.querySelectorAll('form[data-ga4-submit-event]').forEach(function (form) {
+          form.addEventListener('submit', function () {
+            if (typeof window.gtag !== 'function') return;
+            window.gtag('event', form.dataset.ga4SubmitEvent, {
+              page_path: "/",
+              page_title: "SaaS product demo video workflow | Automiora",
+              event_label: form.dataset.ga4Label || '',
+              cta_title: "Product Demo Workflow Pack"
             });
           });
-        }
+        });
       });
     </script>
   
+
     <style>
 
       :root {
@@ -259,10 +99,7 @@
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        background:
-          radial-gradient(circle at top left, var(--accent-soft), transparent 36%),
-          linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
-          var(--page-bg);
+        background: var(--page-bg);
         color: var(--text-strong);
       }
       header, main, footer {
@@ -929,13 +766,10 @@
         --hero-shadow: 0 24px 60px rgba(34, 43, 74, 0.12);
       }
       body {
-        background:
-          radial-gradient(circle at top left, rgba(109, 77, 255, 0.1), transparent 30%),
-          radial-gradient(circle at top right, rgba(95, 111, 255, 0.08), transparent 28%),
-          linear-gradient(180deg, #f9fbff 0%, #f4f7fc 32%, #eff3fb 100%);
+        background: linear-gradient(180deg, #f9fbff 0%, #f4f7fc 46%, #eff3fb 100%);
       }
       header, main, footer {
-        width: min(1160px, calc(100% - 32px));
+        width: min(1080px, calc(100% - 32px));
       }
       header {
         padding: 20px 0 14px;
@@ -1224,14 +1058,204 @@
           grid-template-columns: 1fr;
         }
       }
+      body {
+        background: linear-gradient(180deg, #fbfcff 0%, #f5f7fb 52%, #eef2f7 100%);
+      }
+      header, main, footer {
+        width: min(1080px, calc(100% - 32px));
+      }
+      main {
+        gap: 0;
+      }
+      section {
+        padding: 44px 0;
+        border: 0;
+        border-top: 1px solid rgba(17, 24, 39, 0.1);
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+      .hero-layout {
+        align-items: center;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.78fr);
+      }
+      .hero-summary {
+        grid-template-columns: 1fr;
+        max-width: 620px;
+      }
+      .hero-summary-item,
+      .homepage-proof-row article,
+      .input-item,
+      .recommendation-strip article,
+      .example-flow article,
+      .pack-list article {
+        border-radius: 8px;
+        box-shadow: none;
+      }
+      .hero-summary-item {
+        padding: 0 0 0 14px;
+        border: 0;
+        border-left: 3px solid rgba(95, 111, 255, 0.26);
+        background: transparent;
+      }
+      .homepage-proof-row {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 18px;
+      }
+      .homepage-proof-row article,
+      .input-item,
+      .recommendation-strip article,
+      .example-flow article,
+      .pack-list article {
+        padding: 16px;
+        border: 1px solid rgba(17, 24, 39, 0.1);
+        background: rgba(255, 255, 255, 0.76);
+      }
+      .hero-visual-card {
+        margin-top: 0;
+        border-radius: 8px;
+        border: 1px solid rgba(17, 24, 39, 0.1);
+        background: #ffffff;
+        box-shadow: 0 18px 46px rgba(34, 43, 74, 0.12);
+      }
+      .hero-visual {
+        border: 0;
+        border-radius: 8px;
+      }
+      .hero-visual img {
+        aspect-ratio: 4 / 3;
+      }
+      .section-heading {
+        grid-template-columns: minmax(0, 0.82fr) minmax(260px, 0.7fr);
+      }
+      .input-lane {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .workflow-lane {
+        display: grid;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .workflow-lane li {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 40px minmax(0, 1fr);
+        padding: 18px 0;
+        border-top: 1px solid rgba(17, 24, 39, 0.08);
+      }
+      .workflow-lane li:first-child {
+        border-top: 0;
+      }
+      .workflow-lane li > span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: #111827;
+        color: #ffffff;
+        font-weight: 700;
+      }
+      .recommendation-strip {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .recommendation-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .example-flow {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: 0.8fr 1.2fr 1fr;
+      }
+      .pack-layout {
+        display: grid;
+        gap: 24px;
+        grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
+        align-items: start;
+        padding: 28px;
+        border-radius: 8px;
+        background: #111827;
+        color: #ffffff;
+      }
+      .pack-layout h2,
+      .pack-layout strong,
+      .pack-layout .section-kicker {
+        color: #ffffff;
+      }
+      .pack-layout p {
+        color: rgba(255, 255, 255, 0.78);
+      }
+      .pack-layout .cta-button {
+        margin-top: 18px;
+        background: #ffffff;
+        color: #111827;
+        box-shadow: none;
+      }
+      .pack-list {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .pack-list article {
+        border-color: rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .deep-link-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .deep-link-row a,
+      .section-link a {
+        color: #5841e1;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .section-link {
+        margin-top: 14px;
+      }
+      footer {
+        padding-top: 18px;
+        border-top: 1px solid rgba(17, 24, 39, 0.1);
+      }
+      @media (max-width: 860px) {
+        .hero-layout,
+        .homepage-proof-row,
+        .input-lane,
+        .recommendation-strip,
+        .example-flow,
+        .pack-layout,
+        .pack-list,
+        .section-heading {
+          grid-template-columns: 1fr;
+        }
+        section {
+          padding: 34px 0;
+        }
+      }
     </style>
   </head>
   <body data-design-profile="video-creation">
-    <header>
+    <header data-home-section="hero">
       <div class="topbar">
         <div class="brand-mark">
           <strong>AUTOMIORA</strong>
-          <span>AI Video Workflow</span>
+          <span>SaaS product demo workflow</span>
         </div>
         <nav>
           <a href="/workflow/">Workflow</a><a href="/compare/">Compare</a><a href="/pricing/">Pricing</a><a href="/free-vs-paid/">Free vs Paid</a><a href="/templates/">Templates</a><a href="/faq/">FAQ</a>
@@ -1239,43 +1263,38 @@
       </div>
       <div class="hero-layout">
         <div class="hero-copy">
-          <p class="eyebrow">AI video workflow guide</p>
-          <h1>AI video workflow: choose the first tool, copy the first prompt, and fix the first failure fast</h1>
-          <p class="lede">Runway is the safest place to start when you need one short result this week. The first run usually fails on consistency, pacing, or prompt sprawl, so this homepage shows the primary tool, the fallback, the repair moves, and the prompt asset you can use immediately.</p>
+          <p class="eyebrow">AI product demo workflow for SaaS teams</p>
+          <h1>Turn product screenshots and feature updates into a short SaaS demo video</h1>
+          <p class="lede">Choose the right workflow, structure the shots, and publish a usable product demo without wasting credits on broad AI video experiments.</p>
           <div class="hero-summary">
             
                   <article class="hero-summary-item">
-                    <span class="meta-label">Start here first</span>
-                    <p>Runway for the first short test. Pika only if the same failure repeats.</p>
+                    <span class="meta-label">Audience</span>
+                    <p>SaaS founders, indie hackers, and product marketers.</p>
                   </article>
                 
                   <article class="hero-summary-item">
-                    <span class="meta-label">Typical first run result</span>
-                    <p>You usually get one usable short clip fast, then spend the second pass fixing timing or consistency.</p>
+                    <span class="meta-label">Inputs</span>
+                    <p>Product screenshots, screen recordings, feature updates, and release notes.</p>
                   </article>
                 
                   <article class="hero-summary-item">
-                    <span class="meta-label">Next move</span>
-                    <p>Copy the prompt, run one 5 to 15 second clip, and save the fix before you widen scope.</p>
+                    <span class="meta-label">Output</span>
+                    <p>One 15-60 second SaaS product demo video.</p>
                   </article>
                 
           </div>
           
-    <div class="hero-proof-strip">
+    <div class="homepage-proof-row">
       
-            <article class="hero-proof-item">
-              <span class="meta-label">Visible shortlist</span>
-              <p>4 options already reduced into a primary choice, a fallback, and a reject path.</p>
+            <article>
+              <span class="meta-label">Filled example included</span>
+              <p>The pack shows a feature-update input turned into a three-shot demo outline.</p>
             </article>
           
-            <article class="hero-proof-item">
-              <span class="meta-label">Workflow depth</span>
-              <p>5 named steps cover owner, input, output, success metric, and the first failure point to watch.</p>
-            </article>
-          
-            <article class="hero-proof-item">
-              <span class="meta-label">What most people get wrong</span>
-              <p>People cram hook, demo, and CTA into one prompt, then blame the tool when the output turns mushy.</p>
+            <article>
+              <span class="meta-label">Bounded first run</span>
+              <p>The workflow keeps the choice to one primary tool, one fallback, and one asset.</p>
             </article>
           
     </div>
@@ -1285,913 +1304,209 @@
                     class="cta-button"
                     href="/prompt-pack/"
                     data-ga4-event="asset_cta_click"
-                    data-ga4-label="Get Prompt Pack -&gt; Create your first AI video in 10 minutes"
+                    data-ga4-label="Get the Product Demo Workflow Pack"
                   >
-                    Get Prompt Pack -&gt; Create your first AI video in 10 minutes
+                    Get the Product Demo Workflow Pack
                   </a>
             <a
                     class="secondary-cta"
-                    href="/audit/"
+                    href="/workflow/"
                     data-ga4-event="consult_click"
-                    data-ga4-label="Get Workflow Audit -&gt; Fix your workflow in 30 minutes"
+                    data-ga4-label="See the 5-Step Workflow"
                   >
-                    Get Workflow Audit -&gt; Fix your workflow in 30 minutes
+                    See the 5-Step Workflow
                   </a>
           </div>
-          <div class="hero-visual-card">
+        </div>
+        <div class="hero-visual-card">
     <figure class="hero-visual" data-visual-mode="fallback">
-      <img src="/media/index-hero.svg" alt="AI Video Workflow hero visual showing an ai video workflow workflow for short-form product demo videos." loading="eager" decoding="async" />
+      <img src="/media/index-hero.svg" alt="SaaS product demo workflow preview with filled planner, prompt matrix, review checklist, and cost worksheet." loading="eager" decoding="async" />
       <figcaption>
-        <strong>AI Video Workflow homepage preview</strong>
-        <span>Primary asset: Prompt Pack</span>
+        <strong>SaaS product demo workflow preview</strong>
+        <span>Filled shot planner, prompt matrix, review checklist, and cost worksheet.</span>
       </figcaption>
     </figure>
   </div>
-        </div>
-        
-    <aside class="selector-panel">
-      <div class="selector-shell">
-        <p class="selector-eyebrow">Decision helper</p>
-        <h2>Find your best AI video workflow starting path</h2>
-        <p class="selector-copy">Pick the bottleneck that matches this cycle, then open the page or asset that removes the most decision drag first.</p>
-        
-              <div
-                class="selector-quiz"
-                data-selector-quiz
-                data-selector-config="{&quot;questions&quot;:[{&quot;id&quot;:&quot;bottleneck&quot;,&quot;label&quot;:&quot;What is the blocker right now?&quot;,&quot;helper&quot;:&quot;Start with the narrowest real blocker, not the broadest category curiosity.&quot;,&quot;options&quot;:[{&quot;id&quot;:&quot;too-many-tools&quot;,&quot;label&quot;:&quot;Too many tools still look viable&quot;,&quot;description&quot;:&quot;You need a shortlist, a fallback, and a reason to reject the rest.&quot;,&quot;scores&quot;:{&quot;compare&quot;:4,&quot;workflow&quot;:1,&quot;pricing&quot;:1}},{&quot;id&quot;:&quot;workflow-shape&quot;,&quot;label&quot;:&quot;We still do not have a repeatable workflow&quot;,&quot;description&quot;:&quot;You need steps, owners, failure points, and a first pilot path.&quot;,&quot;scores&quot;:{&quot;workflow&quot;:4,&quot;prompt_pack&quot;:2,&quot;templates&quot;:1}},{&quot;id&quot;:&quot;budget&quot;,&quot;label&quot;:&quot;We need to understand cost before rollout&quot;,&quot;description&quot;:&quot;You need pricing boundaries, hidden review cost, and upgrade triggers.&quot;,&quot;scores&quot;:{&quot;pricing&quot;:4,&quot;compare&quot;:1,&quot;consult&quot;:1}},{&quot;id&quot;:&quot;assets&quot;,&quot;label&quot;:&quot;We need prompts or reusable templates now&quot;,&quot;description&quot;:&quot;You need a working asset, not another round of explanation.&quot;,&quot;scores&quot;:{&quot;prompt_pack&quot;:4,&quot;templates&quot;:3,&quot;workflow&quot;:1}}]},{&quot;id&quot;:&quot;stage&quot;,&quot;label&quot;:&quot;Which stage are you in?&quot;,&quot;helper&quot;:&quot;The right next move changes once the question shifts from exploration to rollout.&quot;,&quot;options&quot;:[{&quot;id&quot;:&quot;first-pilot&quot;,&quot;label&quot;:&quot;First pilot this week&quot;,&quot;description&quot;:&quot;One owner, one use case, one fast path to a live test.&quot;,&quot;scores&quot;:{&quot;prompt_pack&quot;:3,&quot;workflow&quot;:2,&quot;compare&quot;:1}},{&quot;id&quot;:&quot;team-rollout&quot;,&quot;label&quot;:&quot;Repeatable team rollout&quot;,&quot;description&quot;:&quot;You need a workflow that survives reuse, handoff, and review.&quot;,&quot;scores&quot;:{&quot;workflow&quot;:3,&quot;templates&quot;:2,&quot;pricing&quot;:1}},{&quot;id&quot;:&quot;budget-signoff&quot;,&quot;label&quot;:&quot;Budget or tool sign-off&quot;,&quot;description&quot;:&quot;You need fit, cost, and operational tradeoffs in one place.&quot;,&quot;scores&quot;:{&quot;pricing&quot;:3,&quot;compare&quot;:2,&quot;consult&quot;:1}},{&quot;id&quot;:&quot;live-fire&quot;,&quot;label&quot;:&quot;We are already stuck in a live workflow&quot;,&quot;description&quot;:&quot;You need a scoped recommendation instead of more generic reading.&quot;,&quot;scores&quot;:{&quot;consult&quot;:4,&quot;workflow&quot;:1,&quot;compare&quot;:1}}]},{&quot;id&quot;:&quot;output&quot;,&quot;label&quot;:&quot;What would help most in the next 10 minutes?&quot;,&quot;helper&quot;:&quot;Choose the output that would unblock the next click immediately.&quot;,&quot;options&quot;:[{&quot;id&quot;:&quot;shortlist&quot;,&quot;label&quot;:&quot;A shortlist and first recommendation&quot;,&quot;description&quot;:&quot;Show me what to test first and what to keep as backup.&quot;,&quot;scores&quot;:{&quot;compare&quot;:4,&quot;consult&quot;:1}},{&quot;id&quot;:&quot;step-plan&quot;,&quot;label&quot;:&quot;A step-by-step rollout path&quot;,&quot;description&quot;:&quot;Show me the workflow with owners, outputs, and failure points.&quot;,&quot;scores&quot;:{&quot;workflow&quot;:4,&quot;templates&quot;:1}},{&quot;id&quot;:&quot;ready-asset&quot;,&quot;label&quot;:&quot;A ready-to-use prompt or template asset&quot;,&quot;description&quot;:&quot;Give me something I can run with right after this page.&quot;,&quot;scores&quot;:{&quot;prompt_pack&quot;:4,&quot;templates&quot;:3}},{&quot;id&quot;:&quot;scoped-answer&quot;,&quot;label&quot;:&quot;A narrower expert recommendation&quot;,&quot;description&quot;:&quot;I already have a live question and need a tighter answer now.&quot;,&quot;scores&quot;:{&quot;consult&quot;:4,&quot;pricing&quot;:1}}]}],&quot;outcomes&quot;:[{&quot;id&quot;:&quot;compare&quot;,&quot;title&quot;:&quot;Start with the comparison page&quot;,&quot;href&quot;:&quot;/compare/&quot;,&quot;ctaLabel&quot;:&quot;Open comparison -&gt; pick the right tool fast&quot;,&quot;summary&quot;:&quot;Use the shortlist first when the field is still too wide and the buyer needs one lead option plus a fallback.&quot;,&quot;why&quot;:&quot;Best when the real problem is too many viable-looking tools, not too little category education.&quot;},{&quot;id&quot;:&quot;workflow&quot;,&quot;title&quot;:&quot;Start with the workflow page&quot;,&quot;href&quot;:&quot;/workflow/&quot;,&quot;ctaLabel&quot;:&quot;Open workflow -&gt; fix the first failed run&quot;,&quot;summary&quot;:&quot;Use the workflow path when the team already accepts the category but still needs the rollout shape, owner, and pilot logic.&quot;,&quot;why&quot;:&quot;Best when reuse, review drag, and handoff are more important than adding yet another tool tab.&quot;},{&quot;id&quot;:&quot;pricing&quot;,&quot;title&quot;:&quot;Start with the pricing page&quot;,&quot;href&quot;:&quot;/pricing/&quot;,&quot;ctaLabel&quot;:&quot;Open pricing&quot;,&quot;summary&quot;:&quot;Use the pricing page when the next decision depends on plan limits, hidden review cost, or upgrade timing.&quot;,&quot;why&quot;:&quot;Best when budget approval is the blocker and the team needs cost in workflow context.&quot;},{&quot;id&quot;:&quot;prompt_pack&quot;,&quot;title&quot;:&quot;Start with the prompt pack&quot;,&quot;href&quot;:&quot;/prompt-pack/&quot;,&quot;ctaLabel&quot;:&quot;Get Prompt Pack -&gt; Create your first AI video in 10 minutes&quot;,&quot;summary&quot;:&quot;Take the asset path when the team needs a first-run brief, prompt structure, and handoff notes more than another explainer page.&quot;,&quot;why&quot;:&quot;Best when the fastest useful outcome is a working asset that can drive the pilot this week.&quot;},{&quot;id&quot;:&quot;templates&quot;,&quot;title&quot;:&quot;Open the templates page&quot;,&quot;href&quot;:&quot;/templates/&quot;,&quot;ctaLabel&quot;:&quot;Open templates&quot;,&quot;summary&quot;:&quot;Use the templates path when the team wants reusable structure, not just a single prompt starter.&quot;,&quot;why&quot;:&quot;Best when repeatability matters more than choosing one narrow tool first.&quot;},{&quot;id&quot;:&quot;consult&quot;,&quot;title&quot;:&quot;Request a scoped workflow audit&quot;,&quot;href&quot;:&quot;/audit/&quot;,&quot;ctaLabel&quot;:&quot;Get Workflow Audit -&gt; Fix your workflow in 30 minutes&quot;,&quot;summary&quot;:&quot;Use the consult path when the workflow is already live and the next question needs a narrower recommendation.&quot;,&quot;why&quot;:&quot;Best when there is already a named owner, a real bottleneck, and a concrete outcome to resolve.&quot;}]}"
-              >
-                <div class="selector-quiz-grid">
-                  
-                        <section class="selector-question" data-selector-question="bottleneck">
-                          <div class="selector-question-head">
-                            <span class="selector-step">Question 1</span>
-                            <strong>What is the blocker right now?</strong>
-                          </div>
-                          <p class="selector-question-copy">Start with the narrowest real blocker, not the broadest category curiosity.</p>
-                          <div class="selector-option-grid">
-                            
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="bottleneck"
-                                    data-option-id="too-many-tools"
-                                  >
-                                    <span class="selector-option-label">Too many tools still look viable</span>
-                                    <span class="selector-option-copy">You need a shortlist, a fallback, and a reason to reject the rest.</span>
-                                  </button>
-                                
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="bottleneck"
-                                    data-option-id="workflow-shape"
-                                  >
-                                    <span class="selector-option-label">We still do not have a repeatable workflow</span>
-                                    <span class="selector-option-copy">You need steps, owners, failure points, and a first pilot path.</span>
-                                  </button>
-                                
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="bottleneck"
-                                    data-option-id="budget"
-                                  >
-                                    <span class="selector-option-label">We need to understand cost before rollout</span>
-                                    <span class="selector-option-copy">You need pricing boundaries, hidden review cost, and upgrade triggers.</span>
-                                  </button>
-                                
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="bottleneck"
-                                    data-option-id="assets"
-                                  >
-                                    <span class="selector-option-label">We need prompts or reusable templates now</span>
-                                    <span class="selector-option-copy">You need a working asset, not another round of explanation.</span>
-                                  </button>
-                                
-                          </div>
-                        </section>
-                      
-                        <section class="selector-question" data-selector-question="stage">
-                          <div class="selector-question-head">
-                            <span class="selector-step">Question 2</span>
-                            <strong>Which stage are you in?</strong>
-                          </div>
-                          <p class="selector-question-copy">The right next move changes once the question shifts from exploration to rollout.</p>
-                          <div class="selector-option-grid">
-                            
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="stage"
-                                    data-option-id="first-pilot"
-                                  >
-                                    <span class="selector-option-label">First pilot this week</span>
-                                    <span class="selector-option-copy">One owner, one use case, one fast path to a live test.</span>
-                                  </button>
-                                
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="stage"
-                                    data-option-id="team-rollout"
-                                  >
-                                    <span class="selector-option-label">Repeatable team rollout</span>
-                                    <span class="selector-option-copy">You need a workflow that survives reuse, handoff, and review.</span>
-                                  </button>
-                                
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="stage"
-                                    data-option-id="budget-signoff"
-                                  >
-                                    <span class="selector-option-label">Budget or tool sign-off</span>
-                                    <span class="selector-option-copy">You need fit, cost, and operational tradeoffs in one place.</span>
-                                  </button>
-                                
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="stage"
-                                    data-option-id="live-fire"
-                                  >
-                                    <span class="selector-option-label">We are already stuck in a live workflow</span>
-                                    <span class="selector-option-copy">You need a scoped recommendation instead of more generic reading.</span>
-                                  </button>
-                                
-                          </div>
-                        </section>
-                      
-                        <section class="selector-question" data-selector-question="output">
-                          <div class="selector-question-head">
-                            <span class="selector-step">Question 3</span>
-                            <strong>What would help most in the next 10 minutes?</strong>
-                          </div>
-                          <p class="selector-question-copy">Choose the output that would unblock the next click immediately.</p>
-                          <div class="selector-option-grid">
-                            
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="output"
-                                    data-option-id="shortlist"
-                                  >
-                                    <span class="selector-option-label">A shortlist and first recommendation</span>
-                                    <span class="selector-option-copy">Show me what to test first and what to keep as backup.</span>
-                                  </button>
-                                
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="output"
-                                    data-option-id="step-plan"
-                                  >
-                                    <span class="selector-option-label">A step-by-step rollout path</span>
-                                    <span class="selector-option-copy">Show me the workflow with owners, outputs, and failure points.</span>
-                                  </button>
-                                
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="output"
-                                    data-option-id="ready-asset"
-                                  >
-                                    <span class="selector-option-label">A ready-to-use prompt or template asset</span>
-                                    <span class="selector-option-copy">Give me something I can run with right after this page.</span>
-                                  </button>
-                                
-                                  <button
-                                    class="selector-option"
-                                    type="button"
-                                    data-selector-option
-                                    data-question-id="output"
-                                    data-option-id="scoped-answer"
-                                  >
-                                    <span class="selector-option-label">A narrower expert recommendation</span>
-                                    <span class="selector-option-copy">I already have a live question and need a tighter answer now.</span>
-                                  </button>
-                                
-                          </div>
-                        </section>
-                      
-                </div>
-                <div class="selector-result" data-selector-result hidden>
-                  <p class="selector-result-eyebrow">Recommended next move</p>
-                  <strong data-selector-result-title></strong>
-                  <p class="selector-result-copy" data-selector-result-summary></p>
-                  <p class="selector-result-note" data-selector-result-why></p>
-                  <div class="selector-result-actions">
-                    <a class="cta-button" data-selector-result-link href="/">Open recommendation</a>
-                    <button class="secondary-cta selector-reset" type="button" data-selector-reset>Reset answers</button>
-                  </div>
-                  <div class="selector-result-secondary" data-selector-result-secondary></div>
-                </div>
-              </div>
-            
-        <div class="selector-grid selector-grid--secondary">
-          
-                <article class="selector-card selector-card--featured">
-                  <div class="selector-card-head">
-                    <span class="selector-step">Path 1</span>
-                    <span class="selector-priority">Start here first</span>
-                  </div>
-                  <strong>short-form product demo videos</strong>
-                  <p><span class="meta-label">Best for</span> product marketers and indie hackers shipping feature launches, homepage refreshes, or short SaaS walkthroughs</p>
-                  <p>A release, feature walkthrough, or landing page update needs a concrete demo clip without rebuilding the process from scratch. Collect the product states, define the single angle to show, generate one short pass, and save the winning prompt plus review notes for the next launch.</p>
-                  <p><a class="selector-link" href="/workflow/">Start here</a></p>
-                </article>
-              
-                <article class="selector-card">
-                  <div class="selector-card-head">
-                    <span class="selector-step">Path 2</span>
-                    <span class="selector-priority">Best second path</span>
-                  </div>
-                  <strong>launch and product update videos</strong>
-                  <p><span class="meta-label">Best for</span> operators turning changelogs, launch notes, and feature drops into repeatable announcement assets</p>
-                  <p>The team has a new release to announce and wants a faster path from product update to publish-ready clip. Turn the release note into a one-angle brief, pick the launch frames, run a short pilot, then document the review loop for the next announcement.</p>
-                  <p><a class="selector-link" href="/workflow/">Open path</a></p>
-                </article>
-              
-                <article class="selector-card">
-                  <div class="selector-card-head">
-                    <span class="selector-step">Path 3</span>
-                    <span class="selector-priority">Useful fallback</span>
-                  </div>
-                  <strong>screenshot-to-video launch clips</strong>
-                  <p><span class="meta-label">Best for</span> product teams converting UI screenshots, changelog visuals, and before-after states into launch content</p>
-                  <p>The product already has screenshots, but the team needs a clean way to turn them into motion assets for launch or sales follow-up. Pick the screenshot sequence, define the story arc, run one motion pass, and save the prompt structure that makes screenshots reusable in future launches.</p>
-                  <p><a class="selector-link" href="/workflow/">Open path</a></p>
-                </article>
-              
-                <article class="selector-card">
-                  <div class="selector-card-head">
-                    <span class="selector-step">Path 4</span>
-                    <span class="selector-priority">Useful fallback</span>
-                  </div>
-                  <strong>image-to-video clips</strong>
-                  <p><span class="meta-label">Best for</span> creators and operators who start from screenshots, still frames, artwork, or product images instead of filmed footage</p>
-                  <p>A still image or screenshot set needs motion treatment, but the team does not yet know which workflow creates the cleanest first pass. Choose the source image set, define the motion goal, compare one primary tool plus one fallback, then capture the settings that survive review.</p>
-                  <p><a class="selector-link" href="/workflow/">Open path</a></p>
-                </article>
-              
-        </div>
-      </div>
-    </aside>
-  
       </div>
     </header>
     <main>
       
-    <section class="comparison-module">
+    <section class="homepage-section homepage-section--inputs" data-home-section="starting-inputs">
       <div class="section-heading">
         <div>
-          <p class="section-kicker">Shortlist</p>
-          <h2>Compare the tools that actually deserve a live test</h2>
+          <p class="section-kicker">Starting inputs</p>
+          <h2>Start with the product assets you already have</h2>
         </div>
-        <p class="section-copy">Use this table to rule out the wrong tool shape before you spend another round on prompts, pricing tabs, or sample renders.</p>
+        <p class="section-copy">The workflow begins from concrete SaaS product material, not from a broad prompt about a category.</p>
       </div>
-      <div class="comparison-table-shell">
-      <table>
-        <thead>
-          <tr><th>Tool</th><th>Best for</th><th>NOT FOR</th><th>Hidden cost</th><th>When to switch</th><th>Quick verdict</th></tr>
-        </thead>
-        <tbody><tr class="comparison-row comparison-row--primary"><td><div class="comparison-tool-cell"><strong>Runway</strong><span class="comparison-badge comparison-badge--best">Best</span></div></td><td>Fast short demos, product clips, and first-week testing.</td><td>Long scenes, continuity-heavy edits, or one giant prompt that tries to cover the whole story.</td><td>Credits disappear quickly once you regenerate long shots and cleanup passes.</td><td>Switch to Pika when you need punchier motion, or move to Veo once the concept is proven and polish matters more than speed.</td><td>Best first tool when you need a usable result fast, not perfect continuity.</td></tr><tr class="comparison-row comparison-row--fallback"><td><div class="comparison-tool-cell"><strong>Pika</strong><span class="comparison-badge comparison-badge--fast">Fast</span></div></td><td>Punchy short ads, energetic motion tests, and quick concept variations.</td><td>Long tutorials, UI-heavy demos, or multi-shot sequences that must stay visually stable.</td><td>You spend time re-running the same shot until the motion feels clean enough to keep.</td><td>Go back to Runway for more control and editing, or move to Veo when the final output needs higher-end polish.</td><td>Best fallback when you need motion energy fast, not full-scene reliability.</td></tr><tr class="comparison-row"><td><div class="comparison-tool-cell"><strong>Seedance</strong><span class="comparison-badge comparison-badge--fallback">Fallback</span></div></td><td>Benchmarking another model after you already know the main failure pattern.</td><td>The first tool you hand to a beginner, or the default choice for the main workflow.</td><td>Every extra benchmark tool adds another prompt rewrite and another review standard.</td><td>Only bring it in after Runway or Pika already failed and you need a benchmark result, not a fresh tool rabbit hole.</td><td>Useful niche backup, not the first recommendation.</td></tr><tr class="comparison-row"><td><div class="comparison-tool-cell"><strong>Kling</strong><span class="comparison-badge comparison-badge--backup">Backup</span></div></td><td>native audio-video outputs</td><td>Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</td><td>Check current plan limits and credits on the official site before rollout.</td><td>Switch back to the primary tool if Kling adds more comparison work than clarity.</td><td>Use as a benchmark or niche fit</td></tr></tbody>
-      </table>
-      </div>
-    </section>
-  
-      
-    <section class="prompt-generator" data-prompt-generator>
-      <div class="section-heading">
-        <div>
-          <p class="section-kicker">Instant tool</p>
-          <h2>Quick Prompt Generator</h2>
-        </div>
-        <p class="section-copy">Choose the video type, style, and duration. The output stays local, is copyable, and is structured to avoid the usual first-run failure of cramming too much into one shot.</p>
-      </div>
-      <div class="prompt-shell">
-        <div class="prompt-form-grid">
-          <label class="prompt-field">
-            <span class="meta-label">Video type</span>
-            <select data-prompt-type>
-              <option value="product-demo">Product demo</option><option value="ad">Ad</option><option value="tutorial">Tutorial</option>
-            </select>
-          </label>
-          <label class="prompt-field">
-            <span class="meta-label">Style</span>
-            <select data-prompt-style>
-              <option value="cinematic">Cinematic</option><option value="fast">Fast</option><option value="minimal">Minimal</option>
-            </select>
-          </label>
-          <label class="prompt-field">
-            <span class="meta-label">Duration</span>
-            <select data-prompt-duration>
-              <option value="5s">5s</option><option value="15s">15s</option><option value="30s">30s</option>
-            </select>
-          </label>
-        </div>
-        <div class="prompt-actions">
-          <button class="cta-button" type="button" data-prompt-generate>Generate prompt</button>
-          <button
-            class="secondary-cta"
-            type="button"
-            data-prompt-copy
-            data-ga4-event="prompt_copy"
-            data-ga4-label="Copy prompt"
-          >Copy prompt</button>
-          <a class="cta-button" href="/prompt-pack/" data-ga4-event="asset_cta_click" data-ga4-label="Get Prompt Pack -&gt; Create your first AI video in 10 minutes">Get Prompt Pack -&gt; Create your first AI video in 10 minutes</a>
-        </div>
-        <div class="prompt-output" data-prompt-output hidden>
-          <article class="mini-card">
-            <span class="meta-label">Prompt</span>
-            <p data-prompt-text></p>
-          </article>
-          <div class="tool-signal-grid">
-            <article class="mini-card">
-              <span class="meta-label">Hook</span>
-              <p data-prompt-hook></p>
-            </article>
-            <article class="mini-card">
-              <span class="meta-label">Shots</span>
-              <p data-prompt-shots></p>
-            </article>
-            <article class="mini-card">
-              <span class="meta-label">CTA</span>
-              <p data-prompt-cta></p>
-            </article>
-          </div>
-        </div>
-      </div>
-    </section>
-  
-      
-    <section class="tool-experience-section">
-      <div class="section-heading">
-        <div>
-          <p class="section-kicker">Real use notes</p>
-          <h2>What these tools feel like on a real first run</h2>
-        </div>
-        <p class="section-copy">These notes are here to help the visitor decide fast: where each tool works, where it fails, and when to stop forcing the wrong fit.</p>
-      </div>
-      <div class="card-grid">
+      <div class="input-lane">
         
-              <article class="tool-card tool-card--primary">
-                <div class="comparison-tool-cell">
+              <article class="input-item">
+                <strong>Product screenshots</strong>
+                <p>Use crisp UI states, before/after screens, or a dashboard moment as the visual anchor.</p>
+              </article>
+            
+              <article class="input-item">
+                <strong>Screen recording</strong>
+                <p>Trim the recording to the single feature path that should become motion.</p>
+              </article>
+            
+              <article class="input-item">
+                <strong>Feature update or release notes</strong>
+                <p>Convert the launch note into a short story: problem, product moment, outcome.</p>
+              </article>
+            
+      </div>
+    </section>
+  
+      
+    <section class="homepage-section homepage-section--workflow" data-home-section="workflow-summary">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Three-step workflow</p>
+          <h2>Turn source assets into short demo shots</h2>
+        </div>
+        <p class="section-copy">Keep the full owner/input/output workflow on the deeper page; this summary only shows the operating shape.</p>
+      </div>
+      <ol class="workflow-lane">
+        
+              <li>
+                <span>1</span>
+                <div>
+                  <strong>Prepare source assets</strong>
+                  <p>Gather product screenshots, one short screen recording, or the release notes that define the feature change.</p>
+                </div>
+              </li>
+            
+              <li>
+                <span>2</span>
+                <div>
+                  <strong>Generate short shots</strong>
+                  <p>Prompt one 5-8 second shot at a time so the tool is solving a visible product moment, not the whole story.</p>
+                </div>
+              </li>
+            
+              <li>
+                <span>3</span>
+                <div>
+                  <strong>Review and assemble</strong>
+                  <p>Keep the shots that explain the feature clearly, repair only the broken beat, then assemble a 15-60 second demo.</p>
+                </div>
+              </li>
+            
+      </ol>
+      <p class="section-link"><a class="text-link" href="/workflow/">See the full workflow</a></p>
+    </section>
+  
+      
+    <section class="homepage-section homepage-section--tools" data-home-section="tool-recommendation">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Compact tool recommendation</p>
+          <h2>Use one primary tool and one fallback</h2>
+        </div>
+        <p class="section-copy">Detailed model coverage belongs on the comparison page. This summary keeps the first decision tight.</p>
+      </div>
+      <div class="recommendation-strip">
+        
+              <article data-tool-detail-card>
+                <div class="recommendation-head">
                   <strong>Runway</strong>
-                  <span class="comparison-badge comparison-badge--best">Best</span>
+                  <span class="comparison-badge comparison-badge--start">Start</span>
                 </div>
-                <p><span class="meta-label">Best for</span> Fast short demos, product clips, and first-week testing.</p>
-                <p><span class="meta-label">NOT FOR</span> Long scenes, continuity-heavy edits, or one giant prompt that tries to cover the whole story.</p>
-                <p><span class="meta-label">When to switch</span> Switch to Pika when you need punchier motion, or move to Veo once the concept is proven and polish matters more than speed.</p>
-                <p><span class="meta-label">Verdict</span> Best first tool when you need a usable result fast, not perfect continuity.</p>
-                <div class="tool-signal-grid">
-                  <article class="mini-card">
-                    <span class="meta-label">Typical first run result</span>
-                    <p>You usually get one usable short clip fast, then spend the second pass fixing timing or consistency.</p>
-                  </article>
-                  <article class="mini-card">
-                    <span class="meta-label">What most people get wrong</span>
-                    <p>People cram hook, demo, and CTA into one prompt, then blame the tool when the output turns mushy.</p>
-                  </article>
-                  <article class="mini-card">
-                    <span class="meta-label">How teams actually use this</span>
-                    <p>Teams use Runway for fast exploration, then keep only the best 5 to 8 second shots.</p>
-                  </article>
-                </div>
-                <div class="failure-stack">
-                  
-                        <article class="failure-card">
-                          <strong>Long clips lose consistency after the first few seconds.</strong>
-                          <p><span class="meta-label">Why it happens</span> Too many actions, camera moves, or scene changes are packed into one generation.</p>
-                          <p><span class="meta-label">Fix</span> Break the idea into shorter 5 to 8 second shots and lock one action per prompt.</p>
-                        </article>
-                      
-                        <article class="failure-card">
-                          <strong>Credits burn fast on re-runs.</strong>
-                          <p><span class="meta-label">Why it happens</span> The first pass often looks close enough to tempt multiple cleanup generations.</p>
-                          <p><span class="meta-label">Fix</span> Write the shot list first, then regenerate only the broken shot instead of the whole clip.</p>
-                        </article>
-                      
-                        <article class="failure-card">
-                          <strong>Motion can feel flat on ad-style clips.</strong>
-                          <p><span class="meta-label">Why it happens</span> The prompt is descriptive but not specific about pace or camera energy.</p>
-                          <p><span class="meta-label">Fix</span> Ask for one clear motion beat and fewer visual ideas per shot.</p>
-                        </article>
-                      
-                </div>
+                <p><span class="meta-label">Best for</span> Controlled SaaS product shots, UI transitions, and first-pass demo structure.</p>
+                <p><span class="meta-label">Watch-out</span> Do not ask it to solve a whole launch video in one prompt.</p>
+                <p data-tool-verdict><span class="meta-label">Verdict</span> Best first pass for a controlled short SaaS demo.</p>
               </article>
             
-              <article class="tool-card tool-card--fallback">
-                <div class="comparison-tool-cell">
+              <article data-tool-detail-card>
+                <div class="recommendation-head">
                   <strong>Pika</strong>
-                  <span class="comparison-badge comparison-badge--fast">Fast</span>
-                </div>
-                <p><span class="meta-label">Best for</span> Punchy short ads, energetic motion tests, and quick concept variations.</p>
-                <p><span class="meta-label">NOT FOR</span> Long tutorials, UI-heavy demos, or multi-shot sequences that must stay visually stable.</p>
-                <p><span class="meta-label">When to switch</span> Go back to Runway for more control and editing, or move to Veo when the final output needs higher-end polish.</p>
-                <p><span class="meta-label">Verdict</span> Best fallback when you need motion energy fast, not full-scene reliability.</p>
-                <div class="tool-signal-grid">
-                  <article class="mini-card">
-                    <span class="meta-label">Typical first run result</span>
-                    <p>The first clip usually looks exciting, but one or two moments wobble when you watch it twice.</p>
-                  </article>
-                  <article class="mini-card">
-                    <span class="meta-label">What most people get wrong</span>
-                    <p>People accept fast output without checking frame-to-frame stability or text legibility.</p>
-                  </article>
-                  <article class="mini-card">
-                    <span class="meta-label">How teams actually use this</span>
-                    <p>Teams use Pika for fast concept motion and keep the prompt narrow to one visual beat.</p>
-                  </article>
-                </div>
-                <div class="failure-stack">
-                  
-                        <article class="failure-card">
-                          <strong>Consecutive shots drift in style or subject stability.</strong>
-                          <p><span class="meta-label">Why it happens</span> The model prioritizes motion punch over strong long-scene memory.</p>
-                          <p><span class="meta-label">Fix</span> Generate each shot separately and keep visual direction simpler.</p>
-                        </article>
-                      
-                        <article class="failure-card">
-                          <strong>Text or interface details wobble in demos.</strong>
-                          <p><span class="meta-label">Why it happens</span> Fine-detail control is weaker when the shot includes too many moving parts.</p>
-                          <p><span class="meta-label">Fix</span> Use cleaner compositions and add precise UI overlays in editing instead of in generation.</p>
-                        </article>
-                      
-                        <article class="failure-card">
-                          <strong>Fast outputs hide broken motion.</strong>
-                          <p><span class="meta-label">Why it happens</span> Speed makes it easy to review only the first impression instead of the full clip.</p>
-                          <p><span class="meta-label">Fix</span> Pause on the weak second, note the failure, and rerun only that beat.</p>
-                        </article>
-                      
-                </div>
-              </article>
-            
-              <article class="tool-card tool-card--backup">
-                <div class="comparison-tool-cell">
-                  <strong>Seedance</strong>
                   <span class="comparison-badge comparison-badge--fallback">Fallback</span>
                 </div>
-                <p><span class="meta-label">Best for</span> Benchmarking another model after you already know the main failure pattern.</p>
-                <p><span class="meta-label">NOT FOR</span> The first tool you hand to a beginner, or the default choice for the main workflow.</p>
-                <p><span class="meta-label">When to switch</span> Only bring it in after Runway or Pika already failed and you need a benchmark result, not a fresh tool rabbit hole.</p>
-                <p><span class="meta-label">Verdict</span> Useful niche backup, not the first recommendation.</p>
-                <div class="tool-signal-grid">
-                  <article class="mini-card">
-                    <span class="meta-label">Typical first run result</span>
-                    <p>The output may show a useful contrast, but it usually adds decision work instead of removing it.</p>
-                  </article>
-                  <article class="mini-card">
-                    <span class="meta-label">What most people get wrong</span>
-                    <p>People compare too many tools before they even know why the first run failed.</p>
-                  </article>
-                  <article class="mini-card">
-                    <span class="meta-label">How teams actually use this</span>
-                    <p>Teams keep Seedance as a benchmark lane, not the main production lane.</p>
-                  </article>
-                </div>
-                <div class="failure-stack">
-                  
-                        <article class="failure-card">
-                          <strong>Benchmarking slows the decision instead of clarifying it.</strong>
-                          <p><span class="meta-label">Why it happens</span> Each new tool changes prompt behavior and review criteria.</p>
-                          <p><span class="meta-label">Fix</span> Score it against an existing Runway or Pika output instead of starting from scratch.</p>
-                        </article>
-                      
-                        <article class="failure-card">
-                          <strong>Beginners treat it like a primary choice.</strong>
-                          <p><span class="meta-label">Why it happens</span> More options feel safer when the failure mode is still unclear.</p>
-                          <p><span class="meta-label">Fix</span> Use it only after the main pair already showed the exact limitation.</p>
-                        </article>
-                      
-                        <article class="failure-card">
-                          <strong>Public proof is thinner than the core shortlist tools.</strong>
-                          <p><span class="meta-label">Why it happens</span> The operating knowledge is not as widely shared across teams.</p>
-                          <p><span class="meta-label">Fix</span> Keep it as a backup benchmark and document the reason before switching.</p>
-                        </article>
-                      
-                </div>
-              </article>
-            
-              <article class="tool-card tool-card--backup">
-                <div class="comparison-tool-cell">
-                  <strong>Kling</strong>
-                  <span class="comparison-badge comparison-badge--backup">Backup</span>
-                </div>
-                <p><span class="meta-label">Best for</span> native audio-video outputs</p>
-                <p><span class="meta-label">NOT FOR</span> Do not use this as the default pick if your team still needs clearer proof on fit, pricing, or review workflow.</p>
-                <p><span class="meta-label">When to switch</span> Switch back to the primary tool if Kling adds more comparison work than clarity.</p>
-                <p><span class="meta-label">Verdict</span> Use as a benchmark or niche fit</p>
-                <div class="tool-signal-grid">
-                  <article class="mini-card">
-                    <span class="meta-label">Typical first run result</span>
-                    <p>The first run usually shows one promising shot and one obvious failure to repair.</p>
-                  </article>
-                  <article class="mini-card">
-                    <span class="meta-label">What most people get wrong</span>
-                    <p>People change tools before they write down what actually failed in the first run.</p>
-                  </article>
-                  <article class="mini-card">
-                    <span class="meta-label">How teams actually use this</span>
-                    <p>Teams use this as one lane inside a workflow, not as the answer to every shot.</p>
-                  </article>
-                </div>
-                <div class="failure-stack">
-                  
-                        <article class="failure-card">
-                          <strong>The first prompt tries to do too much in one pass.</strong>
-                          <p><span class="meta-label">Why it happens</span> Scope is still broad and success criteria are not locked.</p>
-                          <p><span class="meta-label">Fix</span> Reduce it to one shot, one action, and one CTA.</p>
-                        </article>
-                      
-                        <article class="failure-card">
-                          <strong>The team compares tools before documenting the failure.</strong>
-                          <p><span class="meta-label">Why it happens</span> It feels faster to switch tools than to diagnose the shot.</p>
-                          <p><span class="meta-label">Fix</span> Log the broken frame, why it failed, and what changed in the next run.</p>
-                        </article>
-                      
-                </div>
+                <p><span class="meta-label">Best for</span> Punchier motion tests when a static screenshot needs more energy.</p>
+                <p><span class="meta-label">Watch-out</span> Avoid long UI-heavy walkthroughs that need stable text and exact continuity.</p>
+                <p data-tool-verdict><span class="meta-label">Verdict</span> Best fallback when motion energy matters more than interface precision.</p>
               </article>
             
       </div>
+      <p class="section-link"><a class="text-link" href="/compare/">Compare Runway, Pika, and deeper alternatives</a></p>
     </section>
   
-      <div class="home-main-grid">
-        <div class="home-primary">
-          
-      <section class="workflow-module">
-        <div class="section-heading">
-          <div>
-            <p class="section-kicker">30-minute pilot</p>
-            <h2>The workflow you can actually run this week</h2>
-          </div>
-          <p class="section-copy">Each step names the input, owner, output, and failure point so the first pilot does not collapse into unowned experimentation.</p>
-        </div>
-        <div class="step-grid">
-          
-                <article class="step-item">
-                  <span class="step-badge">1</span>
-                  <strong>Choose the first production-shaped use case</strong>
-                  <p>Start with one narrow use case tied to short-form product demo videos, not the whole category at once.</p>
-                  <dl class="step-meta">
-                    <div><dt>Input</dt><dd>One concrete job like short-form product demo videos</dd></div>
-                    <div><dt>Output</dt><dd>A narrow pilot brief with one owner, one channel, and one success metric.</dd></div>
-                    <div><dt>Owner</dt><dd>The operator or marketer responsible for the first live test</dd></div>
-                    <div><dt>Failure point</dt><dd>Trying to solve the entire category in one pass.</dd></div>
-                  </dl>
-                </article>
-              
-                <article class="step-item">
-                  <span class="step-badge">2</span>
-                  <strong>Collect the source asset and operating constraints</strong>
-                  <p>Define the input, output, owner, and quality bar before comparing tools or templates.</p>
-                  <dl class="step-meta">
-                    <div><dt>Input</dt><dd>Source screenshots, stills, launch notes, or the seed prompt plus output constraints.</dd></div>
-                    <div><dt>Output</dt><dd>A short operating brief covering format, reviewer, deadline, and quality threshold.</dd></div>
-                    <div><dt>Owner</dt><dd>The teammate who owns source material and final approval</dd></div>
-                    <div><dt>Failure point</dt><dd>Comparing tools before the team agrees on what “good” looks like.</dd></div>
-                  </dl>
-                </article>
-              
-                <article class="step-item">
-                  <span class="step-badge">3</span>
-                  <strong>Shortlist the obvious options</strong>
-                  <p>Use Runway, Pika, Seedance, Kling as a starting field, then cut the list by buyer fit.</p>
-                  <dl class="step-meta">
-                    <div><dt>Input</dt><dd>One shortlist field plus the highest-risk comparison criteria</dd></div>
-                    <div><dt>Output</dt><dd>A primary option, a fallback option, and one reason each survived the cut.</dd></div>
-                    <div><dt>Owner</dt><dd>The buyer, operator, or builder making the implementation decision</dd></div>
-                    <div><dt>Failure point</dt><dd>Keeping every visible option in play because the page never makes a recommendation.</dd></div>
-                  </dl>
-                </article>
-              
-                <article class="step-item">
-                  <span class="step-badge">4</span>
-                  <strong>Run one measurable pilot</strong>
-                  <p>Document baseline effort, first-pass quality, and the exact failure mode you hit in the pilot.</p>
-                  <dl class="step-meta">
-                    <div><dt>Input</dt><dd>One use case, one shortlist choice, and one defined output format</dd></div>
-                    <div><dt>Output</dt><dd>A reviewed pilot with baseline effort, quality notes, and the first failure mode recorded.</dd></div>
-                    <div><dt>Owner</dt><dd>The person executing and reviewing the first production-shaped test</dd></div>
-                    <div><dt>Failure point</dt><dd>Calling the pilot a success without naming what had to be fixed by hand.</dd></div>
-                  </dl>
-                </article>
-              
-                <article class="step-item">
-                  <span class="step-badge">5</span>
-                  <strong>Turn the pilot into a reusable asset</strong>
-                  <p>Package the learnings into Prompt Pack so the next visitor or teammate can start faster.</p>
-                  <dl class="step-meta">
-                    <div><dt>Input</dt><dd>The winning prompt flow, checklist notes, or comparison criteria from the pilot</dd></div>
-                    <div><dt>Output</dt><dd>Prompt Pack plus one repeat-run checklist or worksheet</dd></div>
-                    <div><dt>Owner</dt><dd>The teammate who will hand this process to the next operator</dd></div>
-                    <div><dt>Failure point</dt><dd>Leaving the learning inside a single person’s head instead of packaging it.</dd></div>
-                  </dl>
-                </article>
-              
-        </div>
-      </section>
-    
-          
-    <section class="failure-fix-section">
+      
+    <section class="homepage-section homepage-section--example" data-home-section="worked-example">
       <div class="section-heading">
         <div>
-          <p class="section-kicker">Repair guide</p>
-          <h2>What usually goes wrong</h2>
+          <p class="section-kicker">Internal worked example</p>
+          <h2>A product update turned into a demo draft</h2>
         </div>
-        <p class="section-copy">These are the failures that show up before teams think they need a different model. Most of the time the fix is smaller than that.</p>
+        <p class="section-copy">This is labelled as an internal worked example, not a customer proof claim.</p>
       </div>
-      <div class="card-grid">
-        
-              <article class="failure-card">
-                <strong>The output looks unstable or generic.</strong>
-                <p><span class="meta-label">Why it happens</span> The prompt is trying to cover hook, product action, and CTA in the same generation.</p>
-                <p><span class="meta-label">Fix</span> Split the scene into short shots and give each prompt one job only.</p>
-                <p><span class="meta-label">Prompt</span> Rewrite this as three separate 5-second shots with one action and one camera move per shot.</p>
-              </article>
-            
-              <article class="failure-card">
-                <strong>The product or subject changes between shots.</strong>
-                <p><span class="meta-label">Why it happens</span> The clip is too long and the visual anchors are weak.</p>
-                <p><span class="meta-label">Fix</span> Reuse the same subject wording, shorten the sequence, and regenerate only the broken shot.</p>
-                <p><span class="meta-label">Prompt</span> Keep the same product, same angle, and same background. Regenerate only the second shot with one camera move.</p>
-              </article>
-            
-              <article class="failure-card">
-                <strong>Motion feels flat even when the clip is technically correct.</strong>
-                <p><span class="meta-label">Why it happens</span> The prompt describes visuals but not pacing.</p>
-                <p><span class="meta-label">Fix</span> Ask for one explicit movement beat and reduce extra adjectives.</p>
-                <p><span class="meta-label">Prompt</span> Add one clear motion beat: fast push-in on the problem, then quick reveal of the solution.</p>
-              </article>
-            
+      <div class="example-flow">
+        <article>
+          <span class="meta-label">Source assets</span>
+          <p>Two product screenshots, one 18-second screen recording, and a short release note.</p>
+        </article>
+        <article>
+          <span class="meta-label">Process</span>
+          <p>Tool: Runway. 3 attempts. 45-60 minutes, low-credit pilot range. First failure: The first output drifted away from the UI and made the CTA feel generic.</p>
+          <p>Change made: The prompt was narrowed to one screen state per shot and the CTA was moved into the final beat.</p>
+        </article>
+        <article>
+          <span class="meta-label">Final output</span>
+          <p>A 30-second SaaS feature update demo for a product marketer to publish.</p>
+          <p>A clean 30-second demo draft with an intro shot, a feature proof shot, and a CTA shot.</p>
+        </article>
       </div>
+      <p class="section-link"><a class="text-link" href="/case-study/">Open the full example</a></p>
     </section>
   
-          
-    <section class="experience-signal-section">
-      <div class="section-heading">
+      
+    <section class="homepage-section homepage-section--pack" data-home-section="workflow-pack">
+      <div class="pack-layout">
         <div>
-          <p class="section-kicker">Trust signals</p>
-          <h2>How teams actually use this</h2>
+          <p class="section-kicker">Workflow pack</p>
+          <h2>Product Demo Workflow Pack</h2>
+          <p>Use the shot planner, prompt matrix, review checklist, and cost worksheet to turn existing product assets into one short demo.</p>
+          <a class="cta-button" href="/prompt-pack/" data-ga4-event="asset_cta_click" data-ga4-label="Get the Product Demo Workflow Pack">Get the Product Demo Workflow Pack</a>
         </div>
-      </div>
-      <div class="tool-signal-grid">
-        
-              <article class="mini-card">
-                <strong>Typical first run result</strong>
-                <p>You usually get one usable short clip fast, then spend the second pass fixing timing or consistency.</p>
-              </article>
-            
-              <article class="mini-card">
-                <strong>What most people get wrong</strong>
-                <p>People cram hook, demo, and CTA into one prompt, then blame the tool when the output turns mushy.</p>
-              </article>
-            
-              <article class="mini-card">
-                <strong>How teams actually use this</strong>
-                <p>Teams use Runway for fast exploration, then keep only the best 5 to 8 second shots.</p>
-              </article>
-            
-      </div>
-    </section>
-  
+        <div class="pack-list">
           
-    <section class="asset-preview-section">
-      <div class="section-heading">
-        <div>
-          <p class="section-kicker">Asset preview</p>
-          <h2>What you get instead of another vague download</h2>
+                <article>
+                  <strong>Shot Planner</strong>
+                  <p>Filled example: release-note input mapped into intro, feature proof, and CTA shots.</p>
+                </article>
+              
+                <article>
+                  <strong>Prompt Matrix</strong>
+                  <p>Reusable hook, screenshot, motion, transition, and CTA prompt blocks for SaaS demo clips.</p>
+                </article>
+              
+                <article>
+                  <strong>Review Checklist</strong>
+                  <p>A pass/fail rubric for clarity, UI readability, sequence, motion, and CTA placement.</p>
+                </article>
+              
+                <article>
+                  <strong>Cost Worksheet</strong>
+                  <p>A compact way to log attempts, credits, edit time, and review cost before scaling the workflow.</p>
+                </article>
+              
         </div>
       </div>
-      <div class="asset-preview-layout">
-        <div class="card-grid">
-        
-              <article class="mini-card">
-                <strong>Brief intake block</strong>
-                <p>A one-screen intake for source asset, target channel, conversion goal, reviewer, and publish-ready definition before prompting begins.</p>
-                
-              </article>
-            
-              <article class="mini-card">
-                <strong>Variable prompt matrix</strong>
-                <p>Prompt blocks for hooks, screenshot sequence, transitions, CTA framing, and variable placeholders that map directly to the first publish-ready short-form demo pass.</p>
-                
-              </article>
-            
-              <article class="mini-card">
-                <strong>Repair prompts</strong>
-                <p>Fallback prompts for generic output, weak motion, unclear CTA framing, or sequence drift after the first pass.</p>
-                
-              </article>
-            
-              <article class="mini-card">
-                <strong>Review rubric</strong>
-                <p>A compact QA rubric for clarity, motion quality, sequencing, and CTA placement before the clip leaves review.</p>
-                
-              </article>
-            
-        </div>
-        <aside class="offer-sidebar">
-          <div class="offer-card offer-card--primary">
-            <p class="offer-eyebrow">Primary asset</p>
-            <strong>Get Prompt Pack -&gt; Create your first AI video in 10 minutes</strong>
-            <p>For beginners, marketers, and fast testers: copy the starter prompt, generate one short clip, and skip another round of trial-and-error.</p>
-            <p><a class="cta-button" href="/prompt-pack/" data-ga4-event="asset_cta_click" data-ga4-label="Get Prompt Pack -&gt; Create your first AI video in 10 minutes">Get Prompt Pack -&gt; Create your first AI video in 10 minutes</a></p>
-          </div>
-          <div class="offer-card">
-                  <p class="offer-eyebrow">Need a narrower answer?</p>
-                  <strong>Get Workflow Audit -&gt; Fix your workflow in 30 minutes</strong>
-                  <p>Use the higher-intent audit path when the team already has a live workflow question, a named owner, and a concrete bottleneck to fix this week.</p>
-                </div>
-        </aside>
+      <div class="deep-link-row" aria-label="Related deep-dive pages">
+        <a href="/templates/">Templates</a>
+        <a href="/pricing/">Pricing boundary</a>
+        <a href="/free-vs-paid/">Free vs paid</a>
+        <a href="/hire/ai-video-editor/">Hire support</a>
+        <a href="/cost/ai-video-production-cost/">Cost guide</a>
       </div>
     </section>
   
-          <section>
-            <div class="section-heading">
-              <div>
-                <p class="section-kicker">Public routes</p>
-                <h2>What to open next</h2>
-              </div>
-              <p class="section-copy">Open the narrower page once you know whether the next question is comparison, workflow shape, pricing boundary, or reusable templates.</p>
-            </div>
-            <div class="card-grid">
-              
-                    <article class="mini-card">
-                      <strong>Open the workflow page</strong>
-                      <p>Use the 5-step rollout when the team already accepts the category and now needs the practical pilot path.</p>
-                      <p><a class="text-link" href="/workflow/">Open workflow</a></p>
-                    </article>
-                  
-                    <article class="mini-card">
-                      <strong>Open the comparison page</strong>
-                      <p>Use the shortlist view when the field is still too wide and the buyer needs a first recommendation and fallback.</p>
-                      <p><a class="text-link" href="/compare/">Open comparison</a></p>
-                    </article>
-                  
-                    <article class="mini-card">
-                      <strong>Open the pricing page</strong>
-                      <p>Use the pricing path when the team needs to separate visible plan cost from review drag and reuse cost.</p>
-                      <p><a class="text-link" href="/pricing/">Open pricing</a></p>
-                    </article>
-                  
-                    <article class="mini-card">
-                      <strong>Open free vs paid</strong>
-                      <p>Use this when the workflow is leaving solo experimentation and turning into a recurring team process.</p>
-                      <p><a class="text-link" href="/free-vs-paid/">Open cost boundary</a></p>
-                    </article>
-                  
-                    <article class="mini-card">
-                      <strong>Open templates</strong>
-                      <p>Use the template page when the visitor is ready to turn one pilot into a reusable operating kit.</p>
-                      <p><a class="text-link" href="/templates/">Open templates</a></p>
-                    </article>
-                  
-            </div>
-          </section>
-          <section>
-            <div class="section-heading">
-              <div>
-                <p class="section-kicker">Why this works</p>
-                <h2>Why this homepage exists</h2>
-              </div>
-            </div>
-            <div class="surface-grid">
-              
-                    <article class="mini-card">
-                      <strong>Why this homepage exists</strong>
-                      <p>Most visitors do not need a broad AI video essay. They need to know which tool to try first, what usually breaks, and what to copy into the first short run.</p><p>That is why the homepage leads with a primary recommendation, one fallback, a copyable prompt, and the exact failure-to-fix path that gets the second run moving faster.</p>
-                      <ul><li>Primary choice: Runway</li><li>Fallback: Pika</li><li>Copy prompt before opening more tabs</li></ul>
-                    </article>
-                  
-                    <article class="mini-card">
-                      <strong>How teams actually use this stack</strong>
-                      <p>Teams usually explore in Runway, keep Pika for the repeat failure case, and move to a higher-polish tool only after the shot order and CTA already work.</p>
-                      <ul><li>First run = short clip with one message</li><li>Second run = repair the broken shot, not the whole workflow</li><li>Final pass = polish only the shots worth keeping</li></ul>
-                    </article>
-                  
-            </div>
-          </section>
-          <section>
-            <div class="section-heading">
-              <div>
-                <p class="section-kicker">FAQ</p>
-                <h2>Frequently asked questions</h2>
-              </div>
-            </div>
-            <div class="faq-stack">
-              
-                    <details>
-                      <summary>How do you start an AI video workflow without wasting the first pilot?</summary>
-                      <p>Start with one narrow pilot: one use case, one owner, and one publish target. If the first run works, turn that path into a reusable workflow before you widen scope.</p>
-                    </details>
-                  
-                    <details>
-                      <summary>Which AI video tool should you test first for a short-form product demo?</summary>
-                      <p>Runway is the best first test when you want one usable pilot quickly. Keep Pika as the fallback instead of expanding the shortlist too early.</p>
-                    </details>
-                  
-                    <details>
-                      <summary>Which tool should I start with?</summary>
-                      <p>Runway is the right first click for most teams because it gets you to a usable short test faster than a broad comparison loop. Keep Pika as the fallback, not a parallel rabbit hole.</p>
-                    </details>
-                  
-                    <details>
-                      <summary>How much does AI video cost?</summary>
-                      <p>Runway can look cheap on the pricing page and still become expensive once failed generations, regenerations, and review time pile up. Budget for credits plus rework, not only the headline plan price.</p>
-                    </details>
-                  
-                    <details>
-                      <summary>Why does AI video output fail?</summary>
-                      <p>Most first runs fail because the prompt asks for too many shots, too much motion, or too much style direction at once. Shorten the clip, cut it into separate scenes, and regenerate only the broken part.</p>
-                    </details>
-                  
-                    <details>
-                      <summary>Do I need API access to start?</summary>
-                      <p>No. Start in the product UI, run one short clip, and save the working prompt first. Add API access only after the team has a repeatable workflow worth automating.</p>
-                    </details>
-                  
-                    <details>
-                      <summary>Can I use prompts directly?</summary>
-                      <p>Yes, but use them as starting structure instead of magic text. A prompt works fastest when you already know the video type, duration, and the one action you want in each shot.</p>
-                    </details>
-                  
-            </div>
-          </section>
-        </div>
-        <aside class="home-sidebar">
-          <div class="sidebar-stack">
-            <div class="sidebar-card">
-              <p class="offer-eyebrow">Start here</p>
-              <strong>Get Prompt Pack -&gt; Create your first AI video in 10 minutes</strong>
-              <p>For beginners, marketers, and fast testers: copy the starter prompt, generate one short clip, and skip another round of trial-and-error.</p>
-              <p><a
-                      class="cta-button"
-                      href="/prompt-pack/"
-                      data-ga4-event="asset_cta_click"
-                      data-ga4-label="Get Prompt Pack -&gt; Create your first AI video in 10 minutes"
-                    >Get Prompt Pack -&gt; Create your first AI video in 10 minutes</a></p>
-            </div>
-            <div class="sidebar-card">
-              <p class="offer-eyebrow">What you get</p>
-              <strong>Make the next move obvious</strong>
-              <ul class="sidebar-list">
-                <li>4 options already reduced into a primary choice, a fallback, and a reject path.</li><li>5 named steps cover owner, input, output, success metric, and the first failure point to watch.</li><li>People cram hook, demo, and CTA into one prompt, then blame the tool when the output turns mushy.</li>
-              </ul>
-            </div>
-            <div class="sidebar-card">
-              <p class="offer-eyebrow">Need a narrower answer?</p>
-              <strong>Get Workflow Audit -&gt; Fix your workflow in 30 minutes</strong>
-              <p>Use the higher-intent audit path when the team already has a live workflow question, a named owner, and a concrete bottleneck to fix this week.</p>
-              <p><a
-                      class="secondary-cta"
-                      href="/audit/"
-                      data-ga4-event="consult_click"
-                      data-ga4-label="Get Workflow Audit -&gt; Fix your workflow in 30 minutes"
-                    >Get Workflow Audit -&gt; Fix your workflow in 30 minutes</a></p>
-            </div>
-          </div>
-        </aside>
-      </div>
-      <section class="cta-band">
-        <div class="cta-panel">
-          <strong>Get Prompt Pack -&gt; Create your first AI video in 10 minutes</strong>
-          <p>For beginners, marketers, and fast testers: copy the starter prompt, generate one short clip, and skip another round of trial-and-error.</p>
-          <p><a
-                  class="cta-button"
-                  href="/prompt-pack/"
-                  data-ga4-event="asset_cta_click"
-                  data-ga4-label="Get Prompt Pack -&gt; Create your first AI video in 10 minutes"
-                >Get Prompt Pack -&gt; Create your first AI video in 10 minutes</a></p>
-        </div>
-        <div class="cta-panel">
-          <strong>Get Workflow Audit -&gt; Fix your workflow in 30 minutes</strong>
-          <p>Use the higher-intent audit path when the team already has a live workflow question, a named owner, and a concrete bottleneck to fix this week.</p>
-          <p><a
-                  class="secondary-cta"
-                  href="/audit/"
-                  data-ga4-event="consult_click"
-                  data-ga4-label="Get Workflow Audit -&gt; Fix your workflow in 30 minutes"
-                >Get Workflow Audit -&gt; Fix your workflow in 30 minutes</a></p>
-        </div>
-      </section>
     </main>
     <footer>
-      <p>Automiora gives buyers and operators one public homepage that routes into comparison, workflow, pricing, and reusable templates without exposing internal research mechanics.</p>
+      <p>Automiora helps SaaS teams turn existing product assets into short demo videos with a focused workflow and reusable assets.</p>
     </footer>
-    <script type="application/json" id="section-provenance">[{"section_id":"intro","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.conversion.6b545884","claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a","claim.ai-video-workflow-short-form-demo.use-case.75d8602f"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","video-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"why-this-homepage-exists","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.conversion.6b545884","claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a","claim.ai-video-workflow-short-form-demo.use-case.75d8602f"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","video-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"how-teams-actually-use-this-stack","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.conversion.6b545884","claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a","claim.ai-video-workflow-short-form-demo.use-case.75d8602f"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","video-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"facts","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.conversion.6b545884","claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a","claim.ai-video-workflow-short-form-demo.use-case.75d8602f"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","video-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"comparison","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.conversion.6b545884","claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a","claim.ai-video-workflow-short-form-demo.use-case.75d8602f"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","video-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"workflow_steps","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.conversion.6b545884","claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a","claim.ai-video-workflow-short-form-demo.use-case.75d8602f"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","video-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"cta","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.workflow.cab12a2d","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.conversion.6b545884","claim.ai-video-workflow-short-form-demo.use-case.912c8898","claim.ai-video-workflow-short-form-demo.use-case.6d8d5e4a","claim.ai-video-workflow-short-form-demo.use-case.75d8602f"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","video-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"}]</script>
+    <script type="application/json" id="section-provenance">[{"section_id":"intro","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"outcome-hero","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"starting-inputs","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"three-step-workflow","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"compact-tool-recommendation","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"worked-example","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"workflow-pack-cta","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"comparison","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"cta","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow-7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators-d6fe3178f3","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"}]</script>
   </body>
 </html>

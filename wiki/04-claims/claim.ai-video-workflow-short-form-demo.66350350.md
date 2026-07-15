@@ -12,7 +12,7 @@ freshness: "manual"
 reuse_priority: ""
 refresh_priority: ""
 lifecycle_decision: ""
-source_ids: ["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"]
+source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"]
 status: "accepted"
 last_verified: "2026-05-11"
 staleness_days: 14
@@ -42,3 +42,34 @@ If visitors want hands-on help, a consult CTA can outperform a low-friction down
 - faq
 - template-kit
 - use-cases
+
+## Reuse priority
+
+
+## Refresh priority
+
+
+## Quality score
+
+96
+
+## Performance note
+
+
+## Lifecycle decision
+
+
+## Refresh condition
+
+
+## Last verified
+
+2026-05-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.
