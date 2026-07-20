@@ -9,6 +9,7 @@ import {
   option,
   parseArgs,
   projectRoot,
+  readJsonIfExists,
   resolveApiBaseUrl,
   resolveSiteBaseUrl,
   trimTrailingSlash,
@@ -23,6 +24,15 @@ import {
   evaluateHomepageCompositionHtml,
   loadHomepageBudget,
 } from './homepage-composition-gate.mjs'
+import {
+  evaluateSiteAlignment,
+  loadThesisAlignmentConfig,
+} from './thesis-alignment-gate.mjs'
+import { getIndexableProductionPaths } from './route-manifest.mjs'
+import {
+  isProductionPublishAllowed,
+  summarizePipelinePublishGate,
+} from './publish-gate.mjs'
 
 async function checkUrl(url, options = {}) {
   const response = await fetch(url, {
@@ -120,6 +130,23 @@ export async function runReleaseHealth(options = {}) {
   const apiBaseUrl = resolveApiBaseUrl(options.apiBaseUrl)
   const assetPaths = getAssetFilePaths(siteSlug, assetSlug)
   const checks = []
+  const pipelineReport = await readJsonIfExists(path.join(projectRoot, 'public', 'generated', 'pipeline-report.json'), null)
+  const publishGate = summarizePipelinePublishGate(pipelineReport, siteSlug)
+
+  checks.push({
+    label: 'Publish gate',
+    url: `${trimTrailingSlash(siteBaseUrl)}/`,
+    method: 'LOCAL',
+    status: publishGate.status,
+    ok: isProductionPublishAllowed(publishGate.status),
+    bodyPreview: '',
+    contentType: 'application/json',
+    note:
+      publishGate.status === 'pass'
+        ? 'Pipeline publish gate is pass.'
+        : `${publishGate.status}: ${publishGate.reasons.slice(0, 3).join('; ')}`,
+    report: publishGate,
+  })
 
   const root = await checkUrl(trimTrailingSlash(siteBaseUrl), { includeBody: true })
   checks.push({
@@ -157,6 +184,32 @@ export async function runReleaseHealth(options = {}) {
     },
   })
 
+  const thesisAlignmentConfig = await loadThesisAlignmentConfig()
+  const liveAlignmentPages = await Promise.all(
+    thesisAlignmentConfig.pageIntents
+      .filter((intent) => intent.indexable !== false)
+      .map(async (intent) => {
+        if (intent.path === '/') return { path: '/', html: root.body ?? '' }
+        const result = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}${intent.path}`, { includeBody: true })
+        return { path: intent.path, html: result.ok ? result.body ?? '' : '' }
+      }),
+  )
+  const thesisAlignment = evaluateSiteAlignment(liveAlignmentPages, thesisAlignmentConfig)
+  checks.push({
+    label: 'Thesis alignment gate',
+    url: root.url,
+    method: 'GET',
+    status: root.status,
+    ok: root.ok && thesisAlignment.status === 'pass',
+    bodyPreview: root.bodyPreview,
+    contentType: root.contentType,
+    note:
+      thesisAlignment.status === 'pass'
+        ? `score=${thesisAlignment.siteScore}; pages=${thesisAlignment.pages.length}`
+        : `blocked=${thesisAlignment.blockedPaths.join(', ')}`,
+    report: thesisAlignment,
+  })
+
   const landing = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}${assetPaths.liveLandingRoute}`)
   checks.push({
     label: 'Primary asset landing',
@@ -174,11 +227,29 @@ export async function runReleaseHealth(options = {}) {
         : '',
   })
 
-  const sitemap = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}/sitemap.xml`)
+  const sitemap = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}/sitemap.xml`, { includeBody: true })
   checks.push({
     label: 'Sitemap',
     ...sitemap,
+    body: undefined,
     note: sitemap.bodyPreview.includes('<urlset') ? 'Sitemap XML rendered.' : '',
+  })
+  const sitemapBody = sitemap.body ?? sitemap.bodyPreview
+  const productionPathSample = getIndexableProductionPaths().slice(0, 6)
+  checks.push({
+    label: 'Route manifest sitemap sample',
+    url: `${trimTrailingSlash(siteBaseUrl)}/sitemap.xml`,
+    method: 'GET',
+    status: sitemap.status,
+    ok:
+      sitemap.ok &&
+      productionPathSample.every((routePath) =>
+        sitemapBody.includes(new URL(routePath, `${trimTrailingSlash(siteBaseUrl)}/`).toString()),
+      ) &&
+      !sitemapBody.includes('/generated-sites/'),
+    bodyPreview: sitemap.bodyPreview,
+    contentType: sitemap.contentType,
+    note: `sample=${productionPathSample.join(', ')}`,
   })
 
   const robots = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}/robots.txt`)
