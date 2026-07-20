@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { appendFile } from 'node:fs/promises'
 
 import { runDeliverHeadCheck } from './check-deliver-head.mjs'
 import { runGa4RealtimeCheck, seedGa4BrowserHits } from './check-ga4-realtime.mjs'
@@ -12,6 +13,7 @@ import {
   flag,
   getAssetFilePaths,
   getDefaultAssetSlug,
+  getDefaultPagesBranch,
   getDefaultPagesProject,
   getDefaultSiteSlug,
   option,
@@ -26,6 +28,10 @@ import {
   writeJson,
   writeText,
 } from './release-lib.mjs'
+import {
+  isProductionPublishAllowed,
+  summarizePipelinePublishGate,
+} from './publish-gate.mjs'
 
 async function checkLiveLandingPage(siteBaseUrl, siteSlug, assetSlug) {
   const liveRoute = getAssetFilePaths(siteSlug, assetSlug).liveLandingRoute
@@ -41,14 +47,43 @@ async function checkLiveLandingPage(siteBaseUrl, siteSlug, assetSlug) {
   }
 }
 
-function renderMarkdownReport(report) {
+async function runReleaseHealthWithRetry(
+  options,
+  { healthRetryAttempts = 4, healthRetryDelayMs = 5000 } = {},
+) {
+  let health = null
+
+  for (let attempt = 1; attempt <= healthRetryAttempts; attempt += 1) {
+    health = await runReleaseHealth(options)
+    if (health.overallStatus === 'pass' || attempt === healthRetryAttempts) {
+      return { health, attempts: attempt }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, healthRetryDelayMs))
+  }
+
+  return { health, attempts: healthRetryAttempts }
+}
+
+function renderGa4SummaryLines(report) {
+  const ga4Status = report.acceptance.ga4?.status ?? 'not_run'
+  const lines = [`- GA4 realtime: ${ga4Status}`]
+  if (report.acceptance.ga4?.checkedAt) {
+    lines.push(`  - Checked at: ${report.acceptance.ga4.checkedAt}`)
+    lines.push(`  - Events: ${(report.acceptance.ga4.expectedEvents ?? []).join(', ') || 'n/a'}`)
+    lines.push(`  - Wait: ${report.acceptance.ga4.waitMs ?? 0}ms`)
+    lines.push(`  - Judgement: ${report.acceptance.ga4.finalJudgement || report.acceptance.ga4.reason || 'n/a'}`)
+  }
+  return lines
+}
+
+export function renderMarkdownReport(report) {
   const liveLandingStatus = report.acceptance.liveLandingPage?.status ?? 'not_run'
   const redirectStatus = report.acceptance.wwwRedirect?.status ?? 'not_run'
   const deliveryStatus = report.acceptance.delivery?.status ?? 'not_run'
   const healthStatus = report.acceptance.health?.status ?? 'not_run'
   const seoDiagnosticsStatus = report.acceptance.seoDiagnostics?.status ?? 'not_run'
   const seoSubmissionStatus = report.acceptance.seoSubmission?.status ?? 'not_run'
-  const ga4Status = report.acceptance.ga4?.status ?? 'not_run'
   const lines = [
     '# Automiora Release Report',
     '',
@@ -77,7 +112,7 @@ function renderMarkdownReport(report) {
   lines.push(`- Deliver HEAD + GET: ${deliveryStatus}`)
   lines.push(`- SEO diagnostics: ${seoDiagnosticsStatus}`)
   lines.push(`- SEO submit: ${seoSubmissionStatus}`)
-  lines.push(`- GA4 realtime: ${ga4Status}`)
+  lines.push(...renderGa4SummaryLines(report))
   lines.push('')
   lines.push('## Lead test')
   lines.push(`- Lead id: ${report.acceptance.delivery?.leadId || 'n/a'}`)
@@ -98,6 +133,51 @@ function renderMarkdownReport(report) {
   return `${lines.join('\n')}\n`
 }
 
+export function renderActionsSummary(report) {
+  return [
+    '## Automiora Release',
+    '',
+    `- Overall status: ${report.overallStatus}`,
+    `- Publish gate: ${report.acceptance.publishGate?.status ?? 'not_run'}`,
+    ...renderGa4SummaryLines(report),
+    '',
+  ].join('\n')
+}
+
+export async function readPipelinePublishGate(siteSlug) {
+  const pipelineReport = await readJsonIfExists(
+    path.join(projectRoot, 'public', 'generated', 'pipeline-report.json'),
+    null,
+  )
+  return summarizePipelinePublishGate(pipelineReport, siteSlug)
+}
+
+async function writeReleaseReports(report) {
+  await writeJson(report.artifacts.jsonReport, report)
+  await writeText(report.artifacts.markdownReport, renderMarkdownReport(report))
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    await appendFile(process.env.GITHUB_STEP_SUMMARY, renderActionsSummary(report), 'utf8')
+  }
+}
+
+async function runReleaseSteps(sequence, report) {
+  for (const [name, [command, commandArgs]] of sequence) {
+    try {
+      await runCommand(command, commandArgs)
+      report.deploySteps.push({ name, status: 'pass' })
+    } catch (error) {
+      report.deploySteps.push({
+        name,
+        status: 'fail',
+        detail: error instanceof Error ? error.message : String(error),
+      })
+      report.overallStatus = 'fail'
+      await writeReleaseReports(report)
+      throw error
+    }
+  }
+}
+
 async function main() {
   const args = parseArgs()
   const skipLint = flag(args, 'skip-lint')
@@ -107,6 +187,7 @@ async function main() {
   const assetSlug = option(args, 'asset-slug', getDefaultAssetSlug())
   const siteBaseUrl = resolveSiteBaseUrl(option(args, 'site-base-url'))
   const pagesProject = option(args, 'pages-project', getDefaultPagesProject())
+  const pagesBranch = option(args, 'pages-branch', getDefaultPagesBranch())
   const runDirectory = await createReleaseRunDirectory(`prod-${siteSlug}`)
   const latestSuccessfulReleasePath = path.join(
     projectRoot,
@@ -133,33 +214,39 @@ async function main() {
     overallStatus: 'running',
   }
 
-  const deploySequence = [
+  const preflightSequence = [
     ...(skipLint ? [] : [['lint', ['pnpm', ['run', 'lint']]]]),
     ...(skipPipeline ? [] : [['pipeline', ['pnpm', ['run', 'pipeline']]]]),
     ['homepage:gate', ['pnpm', ['run', 'homepage:gate']]],
+    ['site:thesis-gate', ['pnpm', ['run', 'site:thesis-gate']]],
     ['seo:indexnow:init', ['pnpm', ['run', 'seo:indexnow:init']]],
     ...(skipBuild ? [] : [['build', ['pnpm', ['run', 'build']]]]),
+  ]
+  const deploymentSequence = [
     ['worker:r2:sync', ['pnpm', ['run', 'worker:r2:sync']]],
     ['worker:d1:migrate', ['pnpm', ['run', 'worker:d1:migrate']]],
     ['worker:deploy', ['pnpm', ['run', 'worker:deploy']]],
   ]
 
-  for (const [name, [command, commandArgs]] of deploySequence) {
-    try {
-      await runCommand(command, commandArgs)
-      report.deploySteps.push({ name, status: 'pass' })
-    } catch (error) {
-      report.deploySteps.push({
-        name,
-        status: 'fail',
-        detail: error instanceof Error ? error.message : String(error),
-      })
-      report.overallStatus = 'fail'
-      await writeJson(report.artifacts.jsonReport, report)
-      await writeText(report.artifacts.markdownReport, renderMarkdownReport(report))
-      throw error
-    }
+  await runReleaseSteps(preflightSequence, report)
+
+  const publishGate = await readPipelinePublishGate(siteSlug)
+  report.acceptance.publishGate = publishGate
+  report.deploySteps.push({
+    name: 'publish:gate',
+    status: publishGate.status,
+    detail:
+      publishGate.status === 'pass'
+        ? 'Publish gate is pass.'
+        : `${publishGate.status}: ${publishGate.reasons.join('; ') || 'No publishable gate state found.'}`,
+  })
+  if (!isProductionPublishAllowed(publishGate.status)) {
+    report.overallStatus = 'fail'
+    await writeReleaseReports(report)
+    throw new Error(`Publish gate blocked production deploy: ${publishGate.status}`)
   }
+
+  await runReleaseSteps(deploymentSequence, report)
 
   try {
     const deployment = await runCommandCapture('pnpm', [
@@ -170,6 +257,8 @@ async function main() {
       'dist',
       '--project-name',
       pagesProject,
+      '--branch',
+      pagesBranch,
     ])
     report.deploySteps.push({
       name: 'pages:deploy',
@@ -183,13 +272,12 @@ async function main() {
       detail: error instanceof Error ? error.message : String(error),
     })
     report.overallStatus = 'fail'
-    await writeJson(report.artifacts.jsonReport, report)
-    await writeText(report.artifacts.markdownReport, renderMarkdownReport(report))
+    await writeReleaseReports(report)
     throw error
   }
 
   try {
-    const health = await runReleaseHealth({
+    const { health, attempts } = await runReleaseHealthWithRetry({
       siteSlug,
       assetSlug,
       siteBaseUrl,
@@ -197,11 +285,12 @@ async function main() {
     report.acceptance.health = {
       status: health.overallStatus,
       checks: health.checks,
+      attempts,
     }
     report.deploySteps.push({
       name: 'release:health',
       status: health.overallStatus === 'pass' ? 'pass' : 'fail',
-      detail: `${health.checks.filter((check) => check.ok).length}/${health.checks.length} checks passed.`,
+      detail: `${health.checks.filter((check) => check.ok).length}/${health.checks.length} checks passed after ${attempts} attempt(s).`,
     })
     if (health.overallStatus !== 'pass') {
       fatalError ??= new Error('Release health checks failed.')
@@ -350,11 +439,15 @@ async function main() {
     assetSlug,
   }).catch((error) => ({
     pass: false,
+    status: 'fail',
+    checkedAt: new Date().toISOString(),
+    waitMs: 0,
     error: error instanceof Error ? error.message : String(error),
+    finalJudgement: 'GA4 realtime validation failed before a report could be produced.',
     missingEvents: [],
   }))
 
-  if (!ga4Check.pass) {
+  if (['delayed', 'warning'].includes(ga4Check.status)) {
     ga4Warmup = await seedGa4BrowserHits({
       siteSlug,
       assetSlug,
@@ -367,15 +460,22 @@ async function main() {
     ga4Check = await runGa4RealtimeCheck({
       siteSlug,
       assetSlug,
+      waitMs: 8000,
     }).catch((error) => ({
       pass: false,
+      status: 'fail',
+      checkedAt: new Date().toISOString(),
+      waitMs: 8000,
       error: error instanceof Error ? error.message : String(error),
+      finalJudgement: 'GA4 realtime validation failed after the warmup wait.',
       missingEvents: [],
     }))
   }
 
   report.acceptance.ga4 = {
-    status: ga4Check.pass ? 'pass' : 'warning',
+    status: ga4Check.status ?? (ga4Check.pass ? 'pass' : 'fail'),
+    checkedAt: ga4Check.checkedAt ?? new Date().toISOString(),
+    waitMs: ga4Check.waitMs ?? 0,
     propertyId: ga4Check.propertyId ?? process.env.GA4_PROPERTY_ID ?? '',
     measurementId:
       ga4Check.measurementId ||
@@ -384,10 +484,13 @@ async function main() {
       )),
     activeUsers: ga4Check.activeUsers ?? 0,
     eventCounts: ga4Check.eventCounts ?? {},
+    expectedEvents: ga4Check.expectedEvents ?? [],
     pageTitleViews: ga4Check.pageTitleViews ?? {},
     missingEvents: ga4Check.missingEvents ?? [],
     matchedPageTitles: ga4Check.matchedPageTitles ?? [],
     error: ga4Check.error ?? '',
+    reason: ga4Check.reason ?? '',
+    finalJudgement: ga4Check.finalJudgement ?? '',
     warmup:
       ga4Warmup && ga4Warmup.hits?.length
         ? {
@@ -410,8 +513,7 @@ async function main() {
 
   report.overallStatus = essentialPass ? (secondaryPass ? 'pass' : 'warning') : 'fail'
 
-  await writeJson(report.artifacts.jsonReport, report)
-  await writeText(report.artifacts.markdownReport, renderMarkdownReport(report))
+  await writeReleaseReports(report)
 
   if (!fatalError && report.overallStatus !== 'fail') {
     await writeJson(latestSuccessfulReleasePath, report)
