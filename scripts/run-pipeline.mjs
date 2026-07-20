@@ -44,6 +44,7 @@ const {
   normalizeRoutePath: normalizeManifestRoutePath,
   resolvePageIntentContracts,
 } = await import('./route-manifest.mjs')
+const { summarizePipelinePublishGates } = await import('./publish-gate.mjs')
 
 const projectRoot = process.cwd()
 const publicDir = path.join(projectRoot, 'public')
@@ -27927,10 +27928,13 @@ async function runPipeline() {
     },
   ]
 
+  const publishGate = summarizePipelinePublishGates({ sites: enrichedSites })
   const pipelineReport = {
     runId: config.runId,
     generatedAt: config.generatedAt,
     baseUrl: config.baseUrl,
+    publishGateStatus: publishGate.status,
+    publishGate,
     experiment: {
       thesisKey: experiment.thesisKey,
       thesisLabel: experiment.thesisLabel,

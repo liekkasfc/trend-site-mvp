@@ -37,3 +37,24 @@ export function summarizePipelinePublishGate(report, siteSlug) {
     source: 'public/generated/pipeline-report.json',
   }
 }
+
+export function summarizePipelinePublishGates(report) {
+  const sites = Array.isArray(report?.sites) ? report.sites : []
+  const entries = sites.map((site) => summarizePipelinePublishGate(report, site.siteSlug))
+  const statuses = entries.map((entry) => entry.status)
+  const status = statuses.includes('fail')
+    ? 'fail'
+    : statuses.includes('warning')
+      ? 'warning'
+      : statuses.includes('skipped') || entries.length === 0
+        ? 'skipped'
+        : 'pass'
+
+  return {
+    status,
+    sites: entries,
+    blockedPages: [...new Set(entries.flatMap((entry) => entry.blockedPages))],
+    reasons: [...new Set(entries.flatMap((entry) => entry.reasons))],
+    source: 'public/generated/pipeline-report.json',
+  }
+}

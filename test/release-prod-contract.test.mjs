@@ -9,6 +9,7 @@ import {
 import {
   isProductionPublishAllowed,
   normalizePublishGateStatus,
+  summarizePipelinePublishGates,
 } from '../scripts/publish-gate.mjs'
 import { runGa4RealtimeCheck } from '../scripts/check-ga4-realtime.mjs'
 import {
@@ -47,6 +48,29 @@ describe('production release contract', () => {
     assert.equal(isProductionPublishAllowed('fail'), false)
     assert.equal(isProductionPublishAllowed('skipped'), false)
     assert.equal(isProductionPublishAllowed(undefined), false)
+  })
+
+  it('writes an aggregate pipeline status without null for pass, fail, and missing data', () => {
+    const pass = summarizePipelinePublishGates({
+      sites: [{ siteSlug: 'automiora', gates: { publish: { status: 'pass' } } }],
+    })
+    const fail = summarizePipelinePublishGates({
+      sites: [{
+        siteSlug: 'automiora',
+        gates: {
+          publish: {
+            status: 'fail',
+            thesisAlignment: { blockedPaths: ['/compare/'] },
+          },
+        },
+      }],
+    })
+    const missing = summarizePipelinePublishGates({ sites: [] })
+
+    assert.equal(pass.status, 'pass')
+    assert.equal(fail.status, 'fail')
+    assert.deepEqual(fail.blockedPages, ['/compare/'])
+    assert.equal(missing.status, 'skipped')
   })
 
   it('checks the publish gate before any production deployment command', async () => {

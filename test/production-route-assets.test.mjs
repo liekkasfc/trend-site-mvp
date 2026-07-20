@@ -19,6 +19,15 @@ function publicFileForRoute(routePath) {
 }
 
 describe('generated production route assets', () => {
+  it('publishes a canonical non-null pipeline gate summary', async () => {
+    const report = JSON.parse(
+      await readFile(path.join(projectRoot, 'public', 'generated', 'pipeline-report.json'), 'utf8'),
+    )
+
+    assert.match(report.publishGateStatus, /^(?:pass|fail|warning|skipped)$/)
+    assert.equal(report.publishGate.status, report.publishGateStatus)
+  })
+
   it('uses production canonicals and never points social images at generated-sites', async () => {
     const manifest = loadRouteManifest()
     for (const routePath of getIndexableProductionPaths({ manifest })) {
