@@ -54,6 +54,8 @@ jobs:
             public/generated/review-queue.json
             public/generated/affiliate-summary.json
             public/generated/affiliate-release-check.json
+            public/generated/homepage-composition-report.json
+            public/generated/thesis-alignment-report.json
             public/generated/pinterest-pack.json
             public/sitemap.xml
             storage/affiliate-performance.json

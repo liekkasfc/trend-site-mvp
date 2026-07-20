@@ -17,17 +17,17 @@ const commercialPages = [
   {
     route: '/guides/ai-video-diy-vs-freelancer/',
     generatedFile: 'ai-video-diy-vs-freelancer.html',
-    titlePattern: /AI Video DIY vs Hiring/i,
+    titlePattern: /SaaS product demo DIY vs freelancer/i,
   },
   {
     route: '/cost/ai-video-production-cost/',
     generatedFile: 'ai-video-production-cost.html',
-    titlePattern: /AI Video Production Cost/i,
+    titlePattern: /SaaS product demo video cost/i,
   },
   {
     route: '/hire/ai-video-editor/',
     generatedFile: 'ai-video-editor.html',
-    titlePattern: /Hire an AI Video Editor/i,
+    titlePattern: /Hire a SaaS product demo video editor/i,
   },
 ]
 
@@ -72,17 +72,20 @@ describe('generated commercial affiliate pages', () => {
       assert.match(publicHtml, /<meta name="description" content="[^"]{80,}"/i)
       assert.ok(publicHtml.includes(`rel="canonical" href="${canonicalUrl(page.route)}"`))
       assert.doesNotMatch(publicHtml, /<meta\s+name="robots"[^>]+noindex/i)
-      assert.match(publicHtml, /This page contains affiliate links/)
       assert.match(publicHtml, /Who should not|Not suitable|Not a fit|not for/i)
       assert.match(publicHtml, /decision|trigger|scope|quote|cost|revision/i)
-      assert.equal(generatedHtml.includes('data-ga4-event="affiliate_click"'), true)
-
-      const disclosureIndex = publicHtml.indexOf('This page contains affiliate links')
-      const firstAffiliateIndex = publicHtml.indexOf('data-ga4-event="affiliate_click"')
-      assert.ok(disclosureIndex >= 0 && disclosureIndex < firstAffiliateIndex)
-
       const anchors = affiliateAnchors(publicHtml)
-      assert.ok(anchors.length > 0)
+      if (process.env.AFFILIATE_FEATURE_ENABLED === 'true') {
+        assert.match(publicHtml, /This page contains affiliate links/)
+        assert.equal(generatedHtml.includes('data-ga4-event="affiliate_click"'), true)
+        const disclosureIndex = publicHtml.indexOf('This page contains affiliate links')
+        const firstAffiliateIndex = publicHtml.indexOf('data-ga4-event="affiliate_click"')
+        assert.ok(disclosureIndex >= 0 && disclosureIndex < firstAffiliateIndex)
+        assert.ok(anchors.length > 0)
+      } else {
+        assert.doesNotMatch(publicHtml, /This page contains affiliate links/)
+        assert.equal(anchors.length, 0)
+      }
       assert.ok(anchors.length <= 3)
       for (const anchor of anchors) {
         assert.match(anchor, /\brel="[^"]*\bsponsored\b[^"]*\bnofollow\b[^"]*"/i)
