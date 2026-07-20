@@ -1,6 +1,13 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { getProductionRouteByIntent, loadRouteManifest } from './route-manifest.mjs'
+
+const routeManifest = loadRouteManifest()
+
+function manifestPathForIntent(intent) {
+  return getProductionRouteByIntent(intent, { manifest: routeManifest }).path
+}
 
 export const AFFILIATE_ALLOWED_PAGE_TYPES = [
   'cost-guide',
@@ -15,7 +22,7 @@ export const COMMERCIAL_PAGE_SPECS = [
     pageType: 'diy-vs-hire',
     slug: 'ai-video-diy-vs-freelancer',
     navLabel: 'DIY vs Hire',
-    publicPath: '/guides/ai-video-diy-vs-freelancer/',
+    publicPath: manifestPathForIntent('diy-vs-hire'),
     title: 'AI Video DIY vs Hiring a Freelancer: Cost and Fit',
     metaDescription:
       'Decide when to create AI video yourself, when to use templates, and when hiring a freelancer is safer for the project.',
@@ -26,7 +33,7 @@ export const COMMERCIAL_PAGE_SPECS = [
     pageType: 'cost-guide',
     slug: 'ai-video-production-cost',
     navLabel: 'Cost Guide',
-    publicPath: '/cost/ai-video-production-cost/',
+    publicPath: manifestPathForIntent('cost-guide'),
     title: 'AI Video Production Cost: Tools, Retries, and Hiring',
     metaDescription:
       'Break down AI video tool costs, retry costs, voice-over, editing, and outsourcing without inventing a single market average.',
@@ -41,7 +48,7 @@ export const COMMERCIAL_PAGE_SPECS = [
     pageType: 'hire-service',
     slug: 'ai-video-editor',
     navLabel: 'Hire Editor',
-    publicPath: '/hire/ai-video-editor/',
+    publicPath: manifestPathForIntent('hire-service'),
     title: 'How to Hire an AI Video Editor: Scope and Red Flags',
     metaDescription:
       'Use this hiring checklist to scope an AI video edit, prepare assets, avoid red flags, and ask better questions before ordering.',

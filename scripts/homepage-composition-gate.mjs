@@ -2,10 +2,12 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { getProductionPathForPageType, loadRouteManifest } from './route-manifest.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const projectRoot = path.resolve(__dirname, '..')
+const routeManifest = loadRouteManifest()
 
 export const defaultHomepageBudget = {
   maxMajorSections: 6,
@@ -21,13 +23,13 @@ export const defaultHomepageBudget = {
   maxRepeatedParagraphRatio: 0.1,
   primaryCtaText: 'Get the Product Demo Workflow Pack',
   secondaryCtaText: 'See the 5-Step Workflow',
-  requiredChildPageLinks: [
-    '/compare/',
-    '/workflow/',
-    '/pricing/',
-    '/free-vs-paid/',
-    '/templates/',
-    '/case-study/',
+  requiredChildPageTypes: [
+    'alternatives',
+    'workflow',
+    'pricing',
+    'free-vs-paid',
+    'template-kit',
+    'case-study',
   ],
 }
 
@@ -43,15 +45,15 @@ const removedModulePatterns = [
 ]
 
 const childPageDestinations = {
-  comparison: '/compare/',
-  workflow: '/workflow/',
-  promptGenerator: '/templates/',
-  repairGuide: '/workflow/',
-  pricing: '/pricing/',
-  freeVsPaid: '/free-vs-paid/',
-  fullExample: '/case-study/',
-  commercialService: '/hire/',
-  cost: '/cost/',
+  comparison: getProductionPathForPageType('alternatives', { manifest: routeManifest }),
+  workflow: getProductionPathForPageType('workflow', { manifest: routeManifest }),
+  promptGenerator: getProductionPathForPageType('template-kit', { manifest: routeManifest }),
+  repairGuide: getProductionPathForPageType('workflow', { manifest: routeManifest }),
+  pricing: getProductionPathForPageType('pricing', { manifest: routeManifest }),
+  freeVsPaid: getProductionPathForPageType('free-vs-paid', { manifest: routeManifest }),
+  fullExample: getProductionPathForPageType('case-study', { manifest: routeManifest }),
+  commercialService: getProductionPathForPageType('hire-service', { manifest: routeManifest }),
+  cost: getProductionPathForPageType('cost-guide', { manifest: routeManifest }),
 }
 
 function normalizeWhitespace(value) {
@@ -296,13 +298,16 @@ function safeArray(value) {
 }
 
 function mergeBudget(budget) {
+  const requiredChildPageTypes = safeArray(budget?.requiredChildPageTypes).length > 0
+    ? budget.requiredChildPageTypes
+    : defaultHomepageBudget.requiredChildPageTypes
   return {
     ...defaultHomepageBudget,
     ...(budget ?? {}),
-    requiredChildPageLinks:
-      safeArray(budget?.requiredChildPageLinks).length > 0
-        ? budget.requiredChildPageLinks
-        : defaultHomepageBudget.requiredChildPageLinks,
+    requiredChildPageTypes,
+    requiredChildPageLinks: requiredChildPageTypes.map((pageType) =>
+      getProductionPathForPageType(pageType, { manifest: routeManifest }),
+    ),
   }
 }
 
@@ -349,6 +354,7 @@ export function evaluateHomepageCompositionHtml(html, options = {}) {
   ).length
   const ogImages = extractOgImages(html)
   const badOgImages = ogImages.filter((url) => !isPublicCrawlableImage(url))
+  const fallbackHeroVisual = /data-visual-mode=["']fallback["']/i.test(headerHtml) || /<img\b[^>]*src=["'][^"']*\.svg(?:[?#][^"']*)?["']/i.test(headerHtml)
   const missingChildPageLinks = evaluateChildPageLinks(childPageLinks, budget.requiredChildPageLinks)
   const violations = [...removedModuleResult.violations]
   const warnings = []
@@ -426,6 +432,10 @@ export function evaluateHomepageCompositionHtml(html, options = {}) {
     }))
   }
 
+  if (fallbackHeroVisual) {
+    violations.push(buildViolation('fallback_hero_visual', 'Homepage hero must use a real product-demo proof visual, not a fallback SVG placeholder.'))
+  }
+
   const integrationChecks = {
     ga4: /gtag\(|G-[A-Z0-9]+|data-ga4-event/i.test(html),
     leadCaptureCta: /data-ga4-event=["'](?:asset_cta_click|lead_capture|asset_form_submit)|href=["']\/(?:prompt-pack|workflow-checklist|comparison-worksheet)\//i.test(html),
@@ -461,6 +471,7 @@ export function evaluateHomepageCompositionHtml(html, options = {}) {
     warnings,
     integrationChecks,
     ogImages,
+    fallbackHeroVisual,
     visibleText,
   }
 }

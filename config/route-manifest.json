@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "siteSlug": "ai-video-workflow-short-form-demo",
+  "baseUrl": "https://automiora.com",
+  "productionRoutes": [
+    { "path": "/", "kind": "core", "indexable": true, "monitoring": true, "analytics": true, "intent": "hub", "pageTypes": ["hub"], "ctaHref": "/prompt-pack/" },
+    { "path": "/workflow/", "kind": "core", "indexable": true, "monitoring": true, "analytics": true, "intent": "workflow", "pageTypes": ["workflow"], "ctaHref": "/workflow-checklist/" },
+    { "path": "/compare/", "kind": "core", "indexable": true, "monitoring": true, "analytics": true, "intent": "comparison", "pageTypes": ["alternatives"], "ctaHref": "/comparison-worksheet/" },
+    { "path": "/pricing/", "kind": "core", "indexable": true, "monitoring": false, "analytics": true, "intent": "pricing", "pageTypes": ["pricing"], "ctaHref": "/comparison-worksheet/" },
+    { "path": "/free-vs-paid/", "kind": "core", "indexable": true, "monitoring": false, "analytics": true, "intent": "free-vs-paid", "pageTypes": ["free-vs-paid"], "ctaHref": "/pricing/" },
+    { "path": "/templates/", "kind": "core", "indexable": true, "monitoring": false, "analytics": true, "intent": "template-kit", "pageTypes": ["template", "template-kit"], "ctaHref": "/prompt-pack/" },
+    { "path": "/case-study/", "kind": "core", "indexable": true, "monitoring": false, "analytics": true, "intent": "worked-example", "pageTypes": ["case-study"], "ctaHref": "/prompt-pack/" },
+    { "path": "/best-tools/", "kind": "support", "indexable": true, "monitoring": false, "analytics": true, "intent": "tool-shortlist", "pageTypes": ["best-of", "best-tools"], "ctaHref": "/comparison-worksheet/" },
+    { "path": "/faq/", "kind": "support", "indexable": true, "monitoring": false, "analytics": true, "intent": "faq", "pageTypes": ["faq"], "ctaHref": "/workflow/" },
+    { "path": "/use-cases/", "kind": "support", "indexable": true, "monitoring": false, "analytics": true, "intent": "use-cases", "pageTypes": ["use-case", "use-cases"], "ctaHref": "/prompt-pack/" },
+    { "path": "/prompt-pack/", "kind": "asset", "indexable": true, "monitoring": true, "analytics": true, "intent": "prompt-pack", "assetSlug": "prompt-pack", "ctaHref": "/prompt-pack/" },
+    { "path": "/prompt-pack/ready/", "kind": "confirmation", "indexable": false, "monitoring": false, "analytics": true, "intent": "prompt-pack-ready", "assetSlug": "prompt-pack" },
+    { "path": "/workflow-checklist/", "kind": "asset", "indexable": true, "monitoring": false, "analytics": true, "intent": "workflow-checklist", "assetSlug": "workflow-checklist", "ctaHref": "/workflow-checklist/" },
+    { "path": "/workflow-checklist/ready/", "kind": "confirmation", "indexable": false, "monitoring": false, "analytics": true, "intent": "workflow-checklist-ready", "assetSlug": "workflow-checklist" },
+    { "path": "/comparison-worksheet/", "kind": "asset", "indexable": true, "monitoring": false, "analytics": true, "intent": "comparison-worksheet", "assetSlug": "comparison-worksheet", "ctaHref": "/comparison-worksheet/" },
+    { "path": "/comparison-worksheet/ready/", "kind": "confirmation", "indexable": false, "monitoring": false, "analytics": true, "intent": "comparison-worksheet-ready", "assetSlug": "comparison-worksheet" },
+    { "path": "/audit/", "kind": "consult", "indexable": true, "monitoring": true, "analytics": true, "intent": "audit", "offerSlug": "audit", "ctaHref": "/audit/" },
+    { "path": "/audit/ready/", "kind": "confirmation", "indexable": false, "monitoring": false, "analytics": true, "intent": "audit-ready", "offerSlug": "audit" },
+    { "path": "/guides/ai-video-diy-vs-freelancer/", "kind": "commercial", "indexable": true, "monitoring": true, "analytics": true, "intent": "diy-vs-hire", "pageTypes": ["diy-vs-hire"], "ctaHref": "/hire/ai-video-editor/" },
+    { "path": "/cost/ai-video-production-cost/", "kind": "commercial", "indexable": true, "monitoring": true, "analytics": true, "intent": "cost-guide", "pageTypes": ["cost-guide"], "ctaHref": "/comparison-worksheet/" },
+    { "path": "/hire/ai-video-editor/", "kind": "commercial", "indexable": true, "monitoring": true, "analytics": true, "intent": "hire-service", "pageTypes": ["hire-service"], "ctaHref": "/audit/" }
+  ],
+  "excludedProductionPrefixes": [
+    "/generated-sites/",
+    "/ops/",
+    "/downloads/"
+  ]
+}

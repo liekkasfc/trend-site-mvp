@@ -12,12 +12,12 @@
   "maxRepeatedParagraphRatio": 0.1,
   "primaryCtaText": "Get the Product Demo Workflow Pack",
   "secondaryCtaText": "See the 5-Step Workflow",
-  "requiredChildPageLinks": [
-    "/compare/",
-    "/workflow/",
-    "/pricing/",
-    "/free-vs-paid/",
-    "/templates/",
-    "/case-study/"
+  "requiredChildPageTypes": [
+    "alternatives",
+    "workflow",
+    "pricing",
+    "free-vs-paid",
+    "template-kit",
+    "case-study"
   ]
 }

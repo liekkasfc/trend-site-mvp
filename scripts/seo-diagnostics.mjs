@@ -11,8 +11,18 @@ import {
   writeJson,
   writeText,
 } from './release-lib.mjs'
+import {
+  assertProductionUrl,
+  getProductionRoute,
+  loadRouteManifest,
+} from './route-manifest.mjs'
 
 const generatedDir = path.join(projectRoot, 'public', 'generated')
+const routeManifest = loadRouteManifest()
+
+export function routeRequiresStructuredData(route) {
+  return ['core', 'support', 'commercial'].includes(route?.kind)
+}
 
 function extractTagContent(html, pattern) {
   return html.match(pattern)?.[1]?.trim() ?? ''
@@ -21,7 +31,10 @@ function extractTagContent(html, pattern) {
 async function readHtmlFromUrl(url, baseUrl) {
   const pathname = new URL(url).pathname
   const relativePath = pathname.replace(/^\//, '')
-  const filePath = path.join(projectRoot, 'public', relativePath)
+  const routeFilePath = pathname.endsWith('/')
+    ? path.join(relativePath, 'index.html')
+    : relativePath
+  const filePath = path.join(projectRoot, 'public', routeFilePath)
   if (!existsSync(filePath)) {
     return {
       exists: false,
@@ -62,6 +75,8 @@ async function buildPageDiagnostics(urls, sitemapUrl, robotsUrl, baseUrl) {
     const noindex = /<meta[^>]+name="robots"[^>]+content="[^"]*noindex/i.test(page.html)
     const schemaCount = (page.html.match(/application\/ld\+json/g) ?? []).length
     const internalLinkCount = (page.html.match(/<a /g) ?? []).length
+    const productionRoute = getProductionRoute(url, { manifest: routeManifest })
+    const schemaRequired = routeRequiresStructuredData(productionRoute)
 
     diagnostics.push({
       url,
@@ -78,13 +93,17 @@ async function buildPageDiagnostics(urls, sitemapUrl, robotsUrl, baseUrl) {
       inSitemap: sitemapBody.includes(url),
       inRobotsContext: robotsBody.includes(sitemapUrl) && robotsBody.includes('Allow: /'),
       noindex,
+      productionRoute: assertProductionUrl(url, { manifest: routeManifest }),
+      productionRouteKind: productionRoute?.kind ?? 'unknown',
+      schemaRequired,
       checks: {
         hasTitle: Boolean(title),
         hasDescription: Boolean(description),
         hasCanonical: Boolean(canonical),
-        hasSchema: schemaCount > 0,
+        hasSchema: !schemaRequired || schemaCount > 0,
         hasEnoughInternalLinks: internalLinkCount >= 3,
         isIndexable: !noindex,
+        isProductionRoute: assertProductionUrl(url).ok,
       },
     })
   }
@@ -137,7 +156,10 @@ export async function runSeoDiagnostics() {
     existingFiles: pages.filter((page) => page.fileExists).length,
     canonicalMatches: pages.filter((page) => page.canonicalMatches).length,
     schemaBacked: pages.filter((page) => page.schemaCount > 0).length,
+    schemaRequired: pages.filter((page) => page.schemaRequired).length,
+    schemaRequirementsMet: pages.filter((page) => !page.schemaRequired || page.schemaCount > 0).length,
     indexable: pages.filter((page) => !page.noindex).length,
+    productionRoutes: pages.filter((page) => page.productionRoute.ok).length,
   }
 
   return {
@@ -158,8 +180,9 @@ export async function runSeoDiagnostics() {
       summary.queuedUrls > 0 &&
       summary.queuedUrls === summary.existingFiles &&
       summary.queuedUrls === summary.canonicalMatches &&
-      summary.queuedUrls === summary.schemaBacked &&
-      summary.queuedUrls === summary.indexable
+      summary.queuedUrls === summary.schemaRequirementsMet &&
+      summary.queuedUrls === summary.indexable &&
+      summary.queuedUrls === summary.productionRoutes
         ? 'pass'
         : 'warning',
   }
