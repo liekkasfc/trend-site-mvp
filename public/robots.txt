@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
-Disallow: /ops/
 Disallow: /generated-sites/
+Disallow: /ops/
+Disallow: /downloads/
 
 Sitemap: https://automiora.com/sitemap.xml

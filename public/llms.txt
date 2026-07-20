@@ -1,5 +1,21 @@
 # Automiora
 
-Automiora publishes practical guides, workflow pages, and downloadable templates for teams evaluating AI-powered production workflows.
+Automiora helps SaaS founders, indie hackers, and product marketers turn product screenshots, recordings, feature updates, and release notes into 15-60 second SaaS product demo videos.
 
-- AI video workflow for short-form product and demo content: https://automiora.com/
+- https://automiora.com/
+- https://automiora.com/workflow/
+- https://automiora.com/compare/
+- https://automiora.com/pricing/
+- https://automiora.com/free-vs-paid/
+- https://automiora.com/templates/
+- https://automiora.com/case-study/
+- https://automiora.com/best-tools/
+- https://automiora.com/faq/
+- https://automiora.com/use-cases/
+- https://automiora.com/prompt-pack/
+- https://automiora.com/workflow-checklist/
+- https://automiora.com/comparison-worksheet/
+- https://automiora.com/audit/
+- https://automiora.com/guides/ai-video-diy-vs-freelancer/
+- https://automiora.com/cost/ai-video-production-cost/
+- https://automiora.com/hire/ai-video-editor/
