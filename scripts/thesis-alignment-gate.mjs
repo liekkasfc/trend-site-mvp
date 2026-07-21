@@ -59,10 +59,28 @@ function extractCtaTexts(html) {
     .filter(Boolean)
 }
 
-function paragraphDuplicateRatio(html) {
-  const paragraphs = [...String(html ?? '').matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
-    .map((match) => normalize(match[1]))
-    .filter((text) => text.split(' ').length >= 7)
+function isGenericBoilerplateParagraph(text, attributes = '') {
+  if (/\bdata-(?:affiliate|legal)-disclosure\b/i.test(attributes)) return true
+  if (/\bclass=["'][^"']*(?:affiliate-disclosure|legal-disclosure|brand-description|site-boilerplate|boilerplate)[^"']*["']/i.test(attributes)) return true
+  if (/^(?:affiliate|advertiser) disclosure\b|\bwe may earn (?:an? )?commission\b/i.test(text)) return true
+  return /^(?:automiora|this site) (?:is|helps|offers|provides)\b/i.test(text) && text.split(' ').length <= 24
+}
+
+function substantiveParagraphs(html) {
+  const sourceHtml = String(html ?? '')
+  const mainHtml = sourceHtml.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1] ?? sourceHtml
+  const contentHtml = mainHtml
+    .replace(/<nav\b[\s\S]*?<\/nav>/gi, ' ')
+    .replace(/<footer\b[\s\S]*?<\/footer>/gi, ' ')
+    .replace(/<section\b[^>]*(?:data-decision-surface|class=["'][^"']*(?:next-step-bridge|cta|asset-preview-section|affiliate-decision-path|affiliate-service-section)[^"']*["'])[^>]*>[\s\S]*?<\/section>/gi, ' ')
+    .replace(/<aside\b[^>]*class=["'][^"']*affiliate-disclosure[^"']*["'][^>]*>[\s\S]*?<\/aside>/gi, ' ')
+  return [...contentHtml.matchAll(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi)]
+    .map((match) => ({ attributes: match[1], text: normalize(match[2]) }))
+    .filter(({ attributes, text }) => text.split(' ').length >= 9 && !isGenericBoilerplateParagraph(text, attributes))
+    .map(({ text }) => text)
+}
+
+function paragraphDuplicateRatio(paragraphs) {
   if (paragraphs.length === 0) return 0
   const counts = new Map()
   for (const paragraph of paragraphs) counts.set(paragraph, (counts.get(paragraph) ?? 0) + 1)
@@ -71,15 +89,7 @@ function paragraphDuplicateRatio(html) {
 }
 
 function substantiveParagraphFingerprints(html) {
-  const contentHtml = String(html ?? '')
-    .replace(/<nav\b[\s\S]*?<\/nav>/gi, ' ')
-    .replace(/<footer\b[\s\S]*?<\/footer>/gi, ' ')
-    .replace(/<[^>]+data-legal-disclosure[^>]*>[\s\S]*?<\/[^>]+>/gi, ' ')
-  return [...new Set(
-    [...contentHtml.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
-      .map((match) => normalize(match[1]))
-      .filter((text) => text.split(' ').length >= 9),
-  )]
+  return [...new Set(substantiveParagraphs(html))]
 }
 
 function violation(code, message, detail = {}) {
@@ -88,6 +98,32 @@ function violation(code, message, detail = {}) {
 
 function scoreComponent(pass, points) {
   return pass ? points : 0
+}
+
+function uniquenessScoreForDuplicateRatio(duplicateRatio) {
+  if (duplicateRatio <= 0.1) return 10
+  if (duplicateRatio <= 0.2) return 5
+  return 0
+}
+
+function calculatePageScore(signals) {
+  return (
+    scoreComponent(signals.titleThesisAligned, 15) +
+    scoreComponent(signals.audienceAligned, 15) +
+    scoreComponent(signals.inputAligned, 15) +
+    scoreComponent(signals.intentAligned, 15) +
+    scoreComponent(signals.proofAligned, 15) +
+    scoreComponent(signals.ctaAligned, 10) +
+    signals.contentUniquenessScore +
+    scoreComponent(signals.forbiddenPositioningClear, 5)
+  )
+}
+
+function recalculatePageScoreAfterSiteChecks(page) {
+  if (!page.violations.some((item) => item.code === 'cross_page_duplicate_ratio_high')) return
+  page.score -= page.contentUniquenessScore
+  page.contentUniquenessScore = 0
+  page.status = 'fail'
 }
 
 export function evaluatePageAlignment(html, intent, thesisContract, options = {}) {
@@ -108,7 +144,9 @@ export function evaluatePageAlignment(html, intent, thesisContract, options = {}
   const hasProof = /data-proof-object|data-claim-type=["'](?:verified_fact|sourced_claim|worked_example)["']|internal worked example|worked example|source note|evidence:/i.test(html)
   const hasVerdict = /data-page-verdict|data-tool-verdict|\bverdict\b|\bbest for\b|\brecommend(?:ed|ation)?\b/i.test(html)
   const hasWatchOut = /\bwatch[- ]?out\b|\bfailure mode\b|\bhidden cost\b|\blimitation\b|\bcaveat\b|\bred flag\b|\bwhat can go wrong\b/i.test(text)
-  const duplicateRatio = paragraphDuplicateRatio(html)
+  const pageParagraphs = substantiveParagraphs(html)
+  const duplicateRatio = paragraphDuplicateRatio(pageParagraphs)
+  const contentUniquenessScore = uniquenessScoreForDuplicateRatio(duplicateRatio)
   const requiredSignals = new Set(safeArray(intent?.requiredSignals))
   const violations = []
   const warnings = []
@@ -151,16 +189,22 @@ export function evaluatePageAlignment(html, intent, thesisContract, options = {}
   if (contextMatches.length < 2) {
     warnings.push({ code: 'thin_thesis_context', message: 'The page uses fewer than two thesis context terms.' })
   }
+  if (duplicateRatio > 0.2) {
+    violations.push(violation('in_page_duplicate_ratio_high', `Repeated substantive paragraphs account for ${duplicateRatio} of this page; max is 0.20.`, {
+      duplicateRatio,
+    }))
+  }
 
-  const score =
-    scoreComponent(queryMatches.length > 0 && outcomeMatches.length > 0, 15) +
-    scoreComponent(audienceMatches.length > 0 || !requiredSignals.has('audience'), 15) +
-    scoreComponent(inputMatches.length > 0 || !requiredSignals.has('input'), 15) +
-    scoreComponent(queryMatches.length > 0, 15) +
-    scoreComponent((!requiredSignals.has('proof') || hasProof) && (!requiredSignals.has('verdict') || hasVerdict) && (!requiredSignals.has('watchOut') || hasWatchOut), 15) +
-    scoreComponent(!requiredSignals.has('cta') || ctaMatches.length > 0, 10) +
-    scoreComponent(true, 10) +
-    scoreComponent(forbiddenMatches.length === 0, 5)
+  const score = calculatePageScore({
+    titleThesisAligned: queryMatches.length > 0 && outcomeMatches.length > 0,
+    audienceAligned: audienceMatches.length > 0 || !requiredSignals.has('audience'),
+    inputAligned: inputMatches.length > 0 || !requiredSignals.has('input'),
+    intentAligned: queryMatches.length > 0,
+    proofAligned: (!requiredSignals.has('proof') || hasProof) && (!requiredSignals.has('verdict') || hasVerdict) && (!requiredSignals.has('watchOut') || hasWatchOut),
+    ctaAligned: !requiredSignals.has('cta') || ctaMatches.length > 0,
+    contentUniquenessScore,
+    forbiddenPositioningClear: forbiddenMatches.length === 0,
+  })
 
   return {
     path: options.path ?? intent?.path ?? '',
@@ -178,6 +222,9 @@ export function evaluatePageAlignment(html, intent, thesisContract, options = {}
     verdictCount: hasVerdict ? 1 : 0,
     primaryCta: ctaTexts[0] ?? '',
     duplicateRatio,
+    substantiveParagraphCount: new Set(pageParagraphs).size,
+    crossPageDuplicateRatio: 0,
+    contentUniquenessScore,
     violations,
     warnings,
   }
@@ -202,6 +249,9 @@ export function evaluateSiteAlignment(pages, config) {
         verdictCount: 0,
         primaryCta: '',
         duplicateRatio: 0,
+        substantiveParagraphCount: 0,
+        crossPageDuplicateRatio: 0,
+        contentUniquenessScore: 0,
         violations: [violation('missing_page_intent_contract', `No page intent contract exists for ${page.path}.`)],
         warnings: [],
       }
@@ -221,29 +271,44 @@ export function evaluateSiteAlignment(pages, config) {
   const commonBoilerplate = new Set(
     [...documentFrequency.entries()].filter(([, count]) => count >= 3).map(([fingerprint]) => fingerprint),
   )
+  const comparableFingerprintsByPath = new Map()
+  for (const page of reports) {
+    const fingerprints = safeArray(fingerprintsByPath.get(page.path)).filter((item) => !commonBoilerplate.has(item))
+    comparableFingerprintsByPath.set(page.path, fingerprints)
+    page.substantiveParagraphCount = fingerprints.length
+    page.crossPageDuplicateRatio = 0
+    if (fingerprints.length < 4 && !page.warnings.some((item) => item.code === 'insufficient_content_for_duplicate_analysis')) {
+      page.warnings.push({
+        code: 'insufficient_content_for_duplicate_analysis',
+        message: `Only ${fingerprints.length} substantive paragraph(s) remain after boilerplate exclusion; cross-page duplication was not scored.`,
+      })
+    }
+  }
   for (let leftIndex = 0; leftIndex < reports.length; leftIndex += 1) {
     const left = reports[leftIndex]
-    const leftFingerprints = safeArray(fingerprintsByPath.get(left.path)).filter((item) => !commonBoilerplate.has(item))
-    if (leftFingerprints.length < 8) continue
+    const leftFingerprints = safeArray(comparableFingerprintsByPath.get(left.path))
+    if (leftFingerprints.length < 4) continue
     for (let rightIndex = leftIndex + 1; rightIndex < reports.length; rightIndex += 1) {
       const right = reports[rightIndex]
-      const rightFingerprints = safeArray(fingerprintsByPath.get(right.path)).filter((item) => !commonBoilerplate.has(item))
-      if (rightFingerprints.length < 8) continue
+      const rightFingerprints = safeArray(comparableFingerprintsByPath.get(right.path))
+      if (rightFingerprints.length < 4) continue
       const rightSet = new Set(rightFingerprints)
       const shared = leftFingerprints.filter((paragraph) => rightSet.has(paragraph))
       const ratio = Number((shared.length / Math.min(leftFingerprints.length, rightFingerprints.length)).toFixed(3))
-      if (ratio <= 0.25) continue
+      const usesShortPageRule = Math.min(leftFingerprints.length, rightFingerprints.length) < 8
+      const threshold = usesShortPageRule ? 0.35 : 0.25
+      if (ratio <= threshold || (usesShortPageRule && shared.length < 2)) continue
       for (const [page, other] of [[left, right], [right, left]]) {
-        page.violations.push(violation('cross_page_duplicate_ratio_high', `Body copy overlaps ${other.path} at ${ratio}; max is 0.25.`, {
+        page.violations.push(violation('cross_page_duplicate_ratio_high', `Body copy overlaps ${other.path} at ${ratio}; max is ${threshold}.`, {
           comparedWith: other.path,
           duplicateRatio: ratio,
           duplicateParagraphs: shared.slice(0, 4),
         }))
-        page.status = 'fail'
-        page.crossPageDuplicateRatio = Math.max(page.crossPageDuplicateRatio ?? 0, ratio)
+        page.crossPageDuplicateRatio = Math.max(page.crossPageDuplicateRatio, ratio)
       }
     }
   }
+  for (const page of reports) recalculatePageScoreAfterSiteChecks(page)
   const blockedPaths = reports.filter((page) => page.status !== 'pass').map((page) => page.path)
   const sitemapEligiblePaths = reports.filter((page) => page.status === 'pass').map((page) => page.path)
   const siteScore = reports.length > 0 ? Math.round(reports.reduce((sum, page) => sum + page.score, 0) / reports.length) : 0

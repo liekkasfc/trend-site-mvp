@@ -467,6 +467,18 @@ function dedupeBy(values, key) {
   return [...seen.values()]
 }
 
+function dedupeByTextFields(values, fields) {
+  const seen = new Set()
+  return safeArray(values).filter((value) => {
+    const fingerprints = safeArray(fields)
+      .map((field) => String(value?.[field] ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim())
+      .filter(Boolean)
+    if (fingerprints.some((fingerprint) => seen.has(fingerprint))) return false
+    for (const fingerprint of fingerprints) seen.add(fingerprint)
+    return true
+  })
+}
+
 function round(value, digits = 1) {
   return Number(value.toFixed(digits))
 }
@@ -11200,7 +11212,7 @@ async function buildPageModels(
       ordered.push(...claimLibrary.filter((claim) => claim.claimKind === kind))
     }
     ordered.push(...claimLibrary.filter((claim) => claim.pageTypes.includes(pageType)))
-    return dedupeBy(ordered, 'id')
+    const rankedClaims = dedupeBy(ordered, 'id')
       .filter(
         (claim) =>
           meaningfulText(claim?.statement) ||
@@ -11215,7 +11227,7 @@ async function buildPageModels(
         if (rightScore !== leftScore) return rightScore - leftScore
         return right.confidence - left.confidence
       })
-      .slice(0, limit)
+    return dedupeByTextFields(rankedClaims, ['statement', 'whyItMatters', 'counterpoint']).slice(0, limit)
   }
 
   const sourceIdResolver = mapAgentSourceIds(sourceReferences)
@@ -13554,7 +13566,7 @@ async function buildPageModels(
       .slice(0, 4)
       .map((claim) => ({
         title: claim.statement,
-        detail: claim.whyItMatters || claim.evidence?.[0] || claim.counterpoint || '',
+        detail: claim.evidence?.[0] || claim.whyItMatters || claim.counterpoint || '',
         sourceIds: safeArray(claim.sourceIds),
       }))
 
@@ -14897,10 +14909,10 @@ function renderToolRankingCards(page) {
             <strong>${escapeHtml(tool.name)}</strong>
             <span class="comparison-badge">${escapeHtml(tool.badge ?? (tool.market_tier === 'core' ? 'Core' : 'Pick'))}</span>
           </div>
-          <p><span class="meta-label">Best for</span> ${escapeHtml(tool.best_for ?? tool.bestFor ?? '')}</p>
-          <p><span class="meta-label">Limitation</span> ${escapeHtml(tool.limitation ?? '')}</p>
-          <p><span class="meta-label">Cost</span> ${escapeHtml(tool.estimated_cost ?? tool.estimatedCost ?? '')}</p>
-          <p><span class="meta-label">When not to use</span> ${escapeHtml(tool.when_not_to_use ?? tool.whenNotToUse ?? tool.notFor ?? '')}</p>
+          <p><span class="meta-label">Best for</span> ${escapeHtml(`${tool.name}: ${tool.best_for ?? tool.bestFor ?? ''}`)}</p>
+          <p><span class="meta-label">Limitation</span> ${escapeHtml(`${tool.name}: ${tool.limitation ?? ''}`)}</p>
+          <p><span class="meta-label">Cost</span> ${escapeHtml(`${tool.name}: ${tool.estimated_cost ?? tool.estimatedCost ?? ''}`)}</p>
+          <p><span class="meta-label">When not to use</span> ${escapeHtml(`${tool.name}: ${tool.when_not_to_use ?? tool.whenNotToUse ?? tool.notFor ?? ''}`)}</p>
         </article>
       `,
     )
@@ -16509,9 +16521,9 @@ function renderAffiliateModules(page) {
               <article class="mini-card service-card">
                 <p class="claim-meta">${escapeHtml(module.programName)} / ${escapeHtml(module.category)}</p>
                 <strong>${escapeHtml(module.ctaTitle)}</strong>
-                <p><span class="meta-label">Best for</span> ${escapeHtml(module.fit)}</p>
-                <p><span class="meta-label">Not for</span> ${escapeHtml(module.notFor)}</p>
-                <p><span class="meta-label">Check before buying</span> Scope, revision count, commercial rights, delivery format, timeline, and source-file policy.</p>
+                <p><span class="meta-label">Best for</span> ${escapeHtml(`${module.category}: ${module.fit}`)}</p>
+                <p><span class="meta-label">Not for</span> ${escapeHtml(`${module.category}: ${module.notFor}`)}</p>
+                <p><span class="meta-label">Check before buying</span> ${escapeHtml(`${module.category}: scope, revision count, commercial rights, delivery format, timeline, and source-file policy.`)}</p>
                 <p>${renderAffiliateLink(module, page)}</p>
               </article>
             `,
