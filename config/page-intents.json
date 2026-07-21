@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "pages": [
+    {
+      "pageType": "hub",
+      "primaryIntent": "Help a SaaS founder or product marketer turn existing product assets into a short product demo video.",
+      "queryTerms": ["product demo video", "SaaS demo video", "product demo workflow"],
+      "ctaTerms": ["Product Demo Workflow Pack"],
+      "modules": ["homepage"],
+      "presentation": {
+        "title": "SaaS product demo video workflow | Automiora",
+        "h1": "Turn product screenshots and feature updates into a short SaaS demo video",
+        "description": "Turn product screenshots, screen recordings, feature updates, and release notes into a 15-60 second SaaS product demo video workflow.",
+        "intro": "A focused product demo workflow for SaaS founders, indie hackers, and product marketers.",
+        "primaryCtaLabel": "Get the Product Demo Workflow Pack"
+      },
+      "requiredSignals": ["audience", "input", "outcome", "proof", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "workflow",
+      "primaryIntent": "Run a repeatable SaaS product demo video workflow.",
+      "queryTerms": ["product demo video workflow", "SaaS demo video workflow", "product screenshot to video"],
+      "ctaTerms": ["workflow", "checklist", "pack"],
+      "modules": ["decision", "verdicts", "facts", "sections", "workflowSteps", "failureFixes", "examples", "assetPreview", "sources"],
+      "presentation": {
+        "title": "SaaS product demo video workflow: from assets to review",
+        "h1": "Run a SaaS product demo video workflow that survives review",
+        "description": "Use product screenshots, screen recordings, or release notes to run a repeatable SaaS demo video workflow with clear review checkpoints.",
+        "intro": "SaaS founders and product marketers can use this operator playbook to turn product screenshots, screen recordings, and release notes into a reviewed product demo video.",
+        "primaryCtaLabel": "Get the Product Demo Workflow Checklist"
+      },
+      "requiredSignals": ["audience", "input", "outcome", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "alternatives",
+      "primaryIntent": "Choose the best AI video tool for a SaaS product demo.",
+      "queryTerms": ["product demo tool", "Runway vs Pika", "tool for product demos"],
+      "ctaTerms": ["compare", "worksheet", "workflow"],
+      "modules": ["decision", "verdicts", "comparison", "toolExperience", "evidence", "affiliate", "assetPreview", "sources"],
+      "presentation": {
+        "title": "Runway vs Pika for SaaS product demo videos",
+        "h1": "Choose the right product demo tool: Runway vs Pika",
+        "description": "Compare Runway, Pika, Veo, and Seedance for controlled SaaS product demo shots, UI handling, credits, and switch triggers.",
+        "intro": "This product demo tool comparison gives SaaS teams one first choice, one fallback, and a clear switch rule.",
+        "primaryCtaLabel": "Get the Product Demo Comparison Worksheet"
+      },
+      "requiredSignals": ["outcome", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "best-tools",
+      "primaryIntent": "Shortlist AI video tools for product-demo work.",
+      "queryTerms": ["product demo tools", "AI video tool for SaaS", "best tool for product demos"],
+      "ctaTerms": ["compare", "worksheet", "shortlist"],
+      "modules": ["decision", "verdicts", "toolRanking", "evidence", "affiliate", "sources"],
+      "presentation": {
+        "title": "Best AI product demo tools for SaaS teams",
+        "h1": "Shortlist the best tools for SaaS product demos",
+        "description": "Find the best AI video tool for SaaS product demos by interface stability, motion control, review cost, and buyer fit.",
+        "intro": "A ranked product demo tool shortlist for SaaS founders and product marketers who need a usable launch asset.",
+        "primaryCtaLabel": "Open the Product Demo Comparison Worksheet"
+      },
+      "requiredSignals": ["outcome", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "pricing",
+      "primaryIntent": "Understand AI product demo video tool and retry costs.",
+      "queryTerms": ["product demo video pricing", "product demo tool cost", "SaaS demo cost"],
+      "ctaTerms": ["pricing", "cost", "workflow", "compare"],
+      "modules": ["decision", "verdicts", "facts", "sections", "evidence", "assetPreview", "sources"],
+      "presentation": {
+        "title": "AI product demo video pricing and hidden retry costs",
+        "h1": "Estimate product demo video pricing before credits disappear",
+        "description": "Estimate SaaS demo costs across tool credits, failed generations, human review, UI repair, and final editing.",
+        "intro": "Product demo video pricing depends on retries and review time as much as the visible tool plan.",
+        "primaryCtaLabel": "Compare Product Demo Costs"
+      },
+      "requiredSignals": ["outcome", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "free-vs-paid",
+      "primaryIntent": "Decide when free AI tools are enough for a product demo and when to pay.",
+      "queryTerms": ["free vs paid AI product demo tools", "free vs paid product demo tools", "product demo free vs paid", "SaaS demo tools"],
+      "ctaTerms": ["compare", "workflow", "pricing"],
+      "modules": ["decision", "verdicts", "sections", "examples", "assetPreview", "sources"],
+      "presentation": {
+        "title": "Free vs paid AI product demo tools for SaaS",
+        "h1": "Know when free product demo tools stop being enough",
+        "description": "Compare free vs paid AI product demo tools and upgrade only when retries, watermark limits, queue speed, or review needs justify it.",
+        "intro": "This free-vs-paid product demo guide names the exact workflow breakpoints that make a paid SaaS demo tool rational.",
+        "primaryCtaLabel": "Compare Product Demo Pricing"
+      },
+      "requiredSignals": ["outcome", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "use-cases",
+      "primaryIntent": "Choose a SaaS feature-launch, onboarding, Product Hunt, or homepage demo use case.",
+      "queryTerms": ["product demo use cases", "SaaS feature launch video", "Product Hunt launch video"],
+      "ctaTerms": ["workflow", "pack", "template"],
+      "modules": ["decision", "verdicts", "useCases", "sections", "examples", "assetPreview", "sources"],
+      "presentation": {
+        "title": "SaaS product demo use cases: launches, onboarding, and updates",
+        "h1": "Match the product demo workflow to the SaaS job",
+        "description": "Choose a SaaS feature launch video, Product Hunt launch video, onboarding walkthrough, product update, or homepage demo workflow.",
+        "intro": "These product demo use cases start from screenshots, release notes, or a short recording and end in one clear launch asset.",
+        "verdict": "Start with the use case tied to the next product event, not a generic social-content goal.",
+        "watchOut": "Do not combine onboarding, launch, and sales-demo jobs in the same first video.",
+        "primaryCtaLabel": "Get the Product Demo Workflow Pack"
+      },
+      "requiredSignals": ["audience", "input", "outcome", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "template-kit",
+      "primaryIntent": "Use practical templates to make a SaaS product demo video.",
+      "queryTerms": ["product demo video templates", "SaaS demo template", "product demo workflow pack"],
+      "ctaTerms": ["pack", "template", "checklist"],
+      "modules": ["decision", "verdicts", "sections", "assetPreview", "deliveryFlow", "examples", "claims", "sources"],
+      "presentation": {
+        "title": "SaaS product demo video templates and workflow pack",
+        "h1": "Use a filled product demo template instead of a blank prompt",
+        "description": "Start with a SaaS demo shot planner, prompt matrix, review checklist, and cost worksheet, including blank and filled examples.",
+        "intro": "Filled worked example: the product demo workflow pack turns a screenshot, recording, or release note into a usable first storyboard within minutes.",
+        "primaryCtaLabel": "Get the Product Demo Template Pack"
+      },
+      "requiredSignals": ["input", "outcome", "proof", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "case-study",
+      "primaryIntent": "See a labelled worked example of a SaaS product-demo workflow.",
+      "queryTerms": ["product demo case study", "SaaS demo worked example", "product demo workflow example"],
+      "ctaTerms": ["workflow", "pack", "template"],
+      "modules": ["decision", "verdicts", "sections", "beforeAfter", "examples", "claims", "assetPreview", "sources"],
+      "presentation": {
+        "title": "SaaS product demo worked example: screenshots to final draft",
+        "h1": "See a product demo workflow example from source assets to review",
+        "description": "An internal SaaS demo worked example showing source screenshots, attempts, first failure, workflow change, and final product demo draft.",
+        "intro": "Internal worked example: product screenshots and a release note become a reviewed product demo video without pretending to be customer proof.",
+        "primaryCtaLabel": "Use the Product Demo Workflow Pack"
+      },
+      "requiredSignals": ["input", "outcome", "proof", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "faq",
+      "primaryIntent": "Answer practical SaaS product-demo workflow questions.",
+      "queryTerms": ["product demo workflow FAQ", "SaaS demo questions", "product demo video"],
+      "ctaTerms": ["workflow", "pack", "compare"],
+      "modules": ["decision", "faq", "claims", "sources"],
+      "presentation": {
+        "title": "SaaS product demo workflow FAQ",
+        "h1": "Answer the product demo questions that block the next shot",
+        "description": "Practical answers about SaaS product demo video inputs, tools, prompts, costs, failures, rights, and review workflows.",
+        "intro": "Direct product demo workflow answers for SaaS founders and product teams, with caveats and the next useful route.",
+        "primaryCtaLabel": "Open the Product Demo Workflow"
+      },
+      "requiredSignals": ["outcome", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "diy-vs-hire",
+      "primaryIntent": "Decide whether to make a SaaS product demo video in-house or hire a freelancer.",
+      "queryTerms": ["product demo DIY vs freelancer", "hire product demo freelancer", "make a SaaS demo video"],
+      "ctaTerms": ["editor", "audit", "workflow", "cost"],
+      "modules": ["decision", "verdicts", "facts", "qualification", "claims", "affiliate", "commercial", "sources"],
+      "presentation": {
+        "title": "SaaS product demo DIY vs freelancer",
+        "h1": "Make a SaaS product demo yourself or hire a freelancer?",
+        "description": "Compare DIY effort, review risk, and freelancer fit for a 15-60 second SaaS product demo or feature-launch video.",
+        "intro": "Use this product demo DIY-vs-freelancer decision guide before paying for an editor or burning another round of credits.",
+        "verdict": "DIY a narrow product update; hire when UI repair, pacing, and stakeholder review become the real work.",
+        "watchOut": "Do not outsource an unclear brief or a project without a named review owner.",
+        "notFor": "Not a fit for a team that has no approved screenshots, no named reviewer, or no delivery deadline.",
+        "primaryCtaLabel": "Browse Product Demo Editors"
+      },
+      "requiredSignals": ["audience", "outcome", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "cost-guide",
+      "primaryIntent": "Estimate the cost of a 15-60 second SaaS product demo video.",
+      "queryTerms": ["product demo video cost", "SaaS demo video cost", "cost to produce a product demo"],
+      "ctaTerms": ["cost", "audit", "editor", "workflow"],
+      "modules": ["decision", "verdicts", "facts", "qualification", "claims", "evidence", "affiliate", "commercial", "sources"],
+      "presentation": {
+        "title": "SaaS product demo video cost: tools, retries, and editing",
+        "h1": "Estimate the cost of a 15-60 second SaaS product demo video",
+        "description": "Break down product demo video cost across AI tools, retries, voice-over, UI repair, editing, and outsourced labor.",
+        "intro": "A product demo cost model for SaaS teams that separates sourced price anchors, operator estimates, and provider quotes.",
+        "verdict": "Budget attempts and review hours before comparing tool subscriptions or freelancer quotes.",
+        "watchOut": "A single market average hides retry cost, UI repair, and revision scope.",
+        "notFor": "Not a fit for budgeting a long brand film, live-action shoot, or an undefined multi-video campaign.",
+        "primaryCtaLabel": "Open the Product Demo Cost Worksheet"
+      },
+      "requiredSignals": ["outcome", "verdict", "watchOut", "cta"]
+    },
+    {
+      "pageType": "hire-service",
+      "primaryIntent": "Hire an editor for a SaaS product demo or feature-launch video.",
+      "queryTerms": ["hire a SaaS product demo video editor", "hire product demo video editor", "SaaS demo editor", "feature launch video editor"],
+      "ctaTerms": ["editor", "audit", "hire", "brief"],
+      "modules": ["decision", "verdicts", "facts", "qualification", "claims", "affiliate", "commercial", "sources"],
+      "presentation": {
+        "title": "Hire a SaaS product demo video editor",
+        "h1": "Hire a product demo editor with a clear SaaS brief",
+        "description": "Prepare scope, screenshots, rights, formats, revisions, and red-flag questions before hiring a SaaS product demo or feature-launch editor.",
+        "intro": "A hiring checklist for SaaS founders and product marketers commissioning a product demo video or walkthrough.",
+        "verdict": "Hire only after the source assets, commercial rights, delivery format, and revision count are written down.",
+        "watchOut": "Stop before ordering if the editor cannot confirm source files, rights, or revision limits.",
+        "notFor": "Not a fit when the product flow, commercial rights, or review owner are still undecided.",
+        "primaryCtaLabel": "Browse Product Demo Editors"
+      },
+      "requiredSignals": ["audience", "outcome", "verdict", "watchOut", "cta"]
+    }
+  ]
+}

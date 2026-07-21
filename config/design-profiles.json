@@ -89,17 +89,19 @@
   "profiles": [
     {
       "key": "video-creation",
-      "brandPositioning": "AI workflow decision and execution layer for short-form product content",
-      "primaryOutcome": "turn scattered tools, prompts, and approvals into a repeatable launch workflow",
+      "brandPositioning": "AI product demo video decision and execution layer for SaaS teams",
+      "primaryOutcome": "turn product screenshots, recordings, and feature updates into a repeatable short product demo workflow",
       "proofObjects": [
-        "workflow steps",
-        "comparison matrix",
-        "asset preview",
-        "ROI note",
-        "failure modes"
+        "product screenshots",
+        "storyboard frames",
+        "tool comparison matrix",
+        "credit and cost notes",
+        "generation failure examples",
+        "before and after demo sequence",
+        "filled workflow worksheet"
       ],
-      "primaryCtaLabel": "Get the workflow pack",
-      "secondaryCtaLabel": "Request a workflow audit",
+      "primaryCtaLabel": "Get the Product Demo Workflow Pack",
+      "secondaryCtaLabel": "See the Product Demo Workflow",
       "visual": {
         "motifs": [
           "workflow board",
@@ -115,7 +117,7 @@
           "decorative floating orbs"
         ],
         "pageScenes": {
-          "hub": "a product marketing decision desk with shortlist cards, storyboard frames, workflow notes, and one high-confidence next-step asset preview",
+          "hub": "an evidence-led SaaS product demo production desk with real interface screenshots, three storyboard frames, prompt notes, a review checklist, and a filled workflow worksheet",
           "workflow": "a realistic operator workflow board with source screenshots, prompt notes, a review loop, and a short-form demo timeline",
           "use-cases": "a three-panel operator scene showing product demo, launch update, and screenshot-to-video workflows for one SaaS team",
           "template-kit": "a premium but grounded team handoff kit with a prompt pack, checklist, worksheet, and annotated review notes",

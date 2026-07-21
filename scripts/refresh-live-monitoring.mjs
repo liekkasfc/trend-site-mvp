@@ -6,6 +6,7 @@ import {
   readJsonIfExists,
   writeJson,
 } from './release-lib.mjs'
+import { getMonitoringPaths, loadRouteManifest } from './route-manifest.mjs'
 
 loadProjectEnv()
 
@@ -14,7 +15,8 @@ const monitoringHistoryPath = path.join(generatedDir, 'monitoring-history.json')
 const pipelineReportPath = path.join(generatedDir, 'pipeline-report.json')
 const liveRefreshReportPath = path.join(generatedDir, 'live-monitoring-refresh.json')
 
-const baseUrl = process.env.SITE_BASE_URL ?? 'https://automiora.com'
+const routeManifest = loadRouteManifest()
+const baseUrl = process.env.SITE_BASE_URL ?? routeManifest.baseUrl
 const gscSiteUrl = String(process.env.GSC_SITE_URL ?? '').trim()
 const ga4PropertyId = String(process.env.GA4_PROPERTY_ID ?? '').replace(/^properties\//, '').trim()
 const gscLookbackDays = Number.parseInt(process.env.GSC_LOOKBACK_DAYS ?? '30', 10) || 30
@@ -28,19 +30,9 @@ const ga4ConversionEvents = String(process.env.GA4_CONVERSION_EVENTS ?? 'generat
   .filter(Boolean)
 
 const siteSlug = 'ai-video-workflow-short-form-demo'
-const commercialPublicPaths = [
-  '/guides/ai-video-diy-vs-freelancer/',
-  '/cost/ai-video-production-cost/',
-  '/hire/ai-video-editor/',
-]
-const publicPaths = [
-  '/',
-  '/workflow/',
-  '/compare/',
-  '/prompt-pack/',
-  '/audit/',
-  ...(affiliateFeatureEnabled ? commercialPublicPaths : []),
-]
+const publicPaths = getMonitoringPaths({ manifest: routeManifest }).filter((routePath) =>
+  affiliateFeatureEnabled || !['/guides/', '/cost/', '/hire/'].some((prefix) => routePath.startsWith(prefix)),
+)
 const contentUrls = publicPaths.map((routePath) => new URL(routePath, `${baseUrl}/`).toString())
 
 function meaningfulText(value) {

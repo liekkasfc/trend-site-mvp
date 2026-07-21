@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
@@ -20,6 +20,9 @@ const {
   writeHomepageCompositionReport,
 } = await import('./homepage-composition-gate.mjs')
 const {
+  evaluateSiteAlignment,
+} = await import('./thesis-alignment-gate.mjs')
+const {
   AFFILIATE_ALLOWED_PAGE_TYPES,
   COMMERCIAL_PAGE_SPECS,
   buildAffiliateGa4Payload,
@@ -28,9 +31,24 @@ const {
   scoreCommercialIntent,
   selectAffiliateModulesForPage,
 } = await import('./affiliate-lib.mjs')
+const {
+  filterProductionUrls,
+  getAnalyticsPaths,
+  getAssetRoutePaths,
+  getExcludedProductionPrefixes,
+  getIndexableProductionPaths,
+  getMonitoringPaths,
+  getOfferRoutePaths,
+  getProductionPathForPageType,
+  loadRouteManifest,
+  normalizeRoutePath: normalizeManifestRoutePath,
+  resolvePageIntentContracts,
+} = await import('./route-manifest.mjs')
+const { summarizePipelinePublishGates } = await import('./publish-gate.mjs')
 
 const projectRoot = process.cwd()
 const publicDir = path.join(projectRoot, 'public')
+const publicMediaDir = path.join(publicDir, 'media')
 const generatedDir = path.join(publicDir, 'generated')
 const artifactsDir = path.join(generatedDir, 'content-artifacts')
 const sitesRoot = path.join(publicDir, 'generated-sites')
@@ -54,11 +72,20 @@ const contentPlaybookPath = path.join(storageDir, 'content-playbook.json')
 const experimentPath = path.join(projectRoot, 'config', 'experiment.json')
 const thesisRegistryPath = path.join(projectRoot, 'config', 'thesis-registry.json')
 const designProfilesPath = path.join(projectRoot, 'config', 'design-profiles.json')
+const pageIntentsPath = path.join(projectRoot, 'config', 'page-intents.json')
 const routingRulesPath = path.join(projectRoot, 'config', 'routing-rules.json')
 const toolCatalogPath = path.join(projectRoot, 'config', 'tool-catalog.json')
 const affiliateConfig = await loadAffiliateConfig(projectRoot)
 const homepageBudget = await loadHomepageBudget()
+const routeManifest = loadRouteManifest()
 const experiment = JSON.parse(await readFile(experimentPath, 'utf8'))
+const rawPageIntentsConfig = existsSync(pageIntentsPath)
+  ? JSON.parse(await readFile(pageIntentsPath, 'utf8'))
+  : { version: 1, pages: [] }
+const pageIntentsConfig = {
+  ...rawPageIntentsConfig,
+  pages: resolvePageIntentContracts(safeArray(rawPageIntentsConfig.pages), { manifest: routeManifest }),
+}
 const thesisRegistryConfig = JSON.parse(await readFile(thesisRegistryPath, 'utf8'))
 const designProfilesConfig = existsSync(designProfilesPath)
   ? JSON.parse(await readFile(designProfilesPath, 'utf8'))
@@ -75,7 +102,7 @@ const pipelineRunMode = resolvePipelineRunMode(pipelineCliOptions.mode)
 const config = {
   runId: new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-'),
   generatedAt: new Date().toISOString(),
-  baseUrl: process.env.SITE_BASE_URL ?? 'http://localhost:4173',
+  baseUrl: process.env.SITE_BASE_URL ?? routeManifest.baseUrl,
   minOpportunityScore: 62,
   minCommercialFit: 58,
   maxDiscoveredTopics: 12,
@@ -438,6 +465,18 @@ function dedupeBy(values, key) {
     seen.set(value[key], value)
   }
   return [...seen.values()]
+}
+
+function dedupeByTextFields(values, fields) {
+  const seen = new Set()
+  return safeArray(values).filter((value) => {
+    const fingerprints = safeArray(fields)
+      .map((field) => String(value?.[field] ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim())
+      .filter(Boolean)
+    if (fingerprints.some((fingerprint) => seen.has(fingerprint))) return false
+    for (const fingerprint of fingerprints) seen.add(fingerprint)
+    return true
+  })
 }
 
 function round(value, digits = 1) {
@@ -4308,17 +4347,10 @@ function escapeRegex(value) {
   return String(value ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function isLiveMonitoringPublicPath(routePath) {
-  const value = meaningfulText(routePath)
-  if (!value || !value.startsWith('/')) return false
-  if (value.startsWith('/generated-sites/')) return false
-  if (value.startsWith('/downloads/')) return false
-  if (value.startsWith('/ops/')) return false
-  return true
-}
+const monitoringPathSet = new Set(getMonitoringPaths({ manifest: routeManifest }))
+const analyticsPathSet = new Set(getAnalyticsPaths({ manifest: routeManifest }))
 
 function getSiteMonitoringContentPaths(site) {
-  const allowedPublicPaths = new Set(['/', '/workflow/', '/compare/', '/prompt-pack/', '/audit/'])
   return dedupe(
     [
       site?.publicHomePath || '/',
@@ -4326,8 +4358,8 @@ function getSiteMonitoringContentPaths(site) {
       ...safeArray(site?.conversionAssets).map((asset) => asset?.landingPath),
       site?.commercialOffer?.landingPath ?? '',
     ].filter((routePath) => {
-      const normalizedPath = meaningfulText(routePath)
-      return isLiveMonitoringPublicPath(normalizedPath) && allowedPublicPaths.has(normalizedPath)
+      const normalizedPath = normalizeManifestRoutePath(routePath)
+      return monitoringPathSet.has(normalizedPath)
     }),
   )
 }
@@ -4342,7 +4374,7 @@ function getSiteMonitoringEventPaths(site) {
       ]),
       site?.commercialOffer?.landingPath ?? '',
       site?.commercialOffer?.thankYouPath ?? '',
-    ].filter(isLiveMonitoringPublicPath),
+    ].map(normalizeManifestRoutePath).filter((routePath) => analyticsPathSet.has(routePath)),
   )
 }
 
@@ -10538,6 +10570,7 @@ async function buildPageModels(
   function buildAssetDeliveryRecords() {
     return [assetSystem.primaryAsset, ...assetSystem.secondaryAssets].map((asset) => {
       const fileStem = `asset-${asset.slug}`
+      const assetRoutes = getAssetRoutePaths(asset.slug, { manifest: routeManifest })
       const baseRecord = {
         slug: asset.slug,
         title: asset.title,
@@ -10565,8 +10598,8 @@ async function buildPageModels(
         previewLandingPath: `/generated-sites/${cluster.siteSlug}/${fileStem}.html`,
         previewThankYouPath: `/generated-sites/${cluster.siteSlug}/${fileStem}-thank-you.html`,
         previewDownloadPath: `/generated-sites/${cluster.siteSlug}/downloads/${asset.slug}.md`,
-        landingPath: `/${asset.slug}/`,
-        thankYouPath: `/${asset.slug}/ready/`,
+        landingPath: assetRoutes.landingPath,
+        thankYouPath: assetRoutes.thankYouPath,
         downloadPath: `/downloads/${asset.slug}.md`,
         previewItems: buildAssetPreviewItems(asset),
         deliverables: buildAssetDeliverables(asset),
@@ -10764,7 +10797,7 @@ async function buildPageModels(
     }))
     const consultUrl =
       process.env.CONTACT_CTA_URL?.trim() ||
-      '/audit/'
+      getOfferRoutePaths('audit', { manifest: routeManifest }).landingPath
     const sponsoredUrl = process.env.SPONSORED_SLOT_URL?.trim() || ''
 
     const modules = []
@@ -11179,7 +11212,7 @@ async function buildPageModels(
       ordered.push(...claimLibrary.filter((claim) => claim.claimKind === kind))
     }
     ordered.push(...claimLibrary.filter((claim) => claim.pageTypes.includes(pageType)))
-    return dedupeBy(ordered, 'id')
+    const rankedClaims = dedupeBy(ordered, 'id')
       .filter(
         (claim) =>
           meaningfulText(claim?.statement) ||
@@ -11194,7 +11227,7 @@ async function buildPageModels(
         if (rightScore !== leftScore) return rightScore - leftScore
         return right.confidence - left.confidence
       })
-      .slice(0, limit)
+    return dedupeByTextFields(rankedClaims, ['statement', 'whyItMatters', 'counterpoint']).slice(0, limit)
   }
 
   const sourceIdResolver = mapAgentSourceIds(sourceReferences)
@@ -12778,7 +12811,7 @@ async function buildPageModels(
           recommendation: 'AI tools and workflow guide',
           watchOut: 'DIY gets expensive when failed generations, inconsistent shots, and review time pile up.',
           ctaTitle: 'Open workflow guide',
-          ctaHref: '/workflow/',
+          ctaHref: getProductionPathForPageType('workflow', { manifest: routeManifest }),
         },
         {
           title: 'Use a template',
@@ -13533,7 +13566,7 @@ async function buildPageModels(
       .slice(0, 4)
       .map((claim) => ({
         title: claim.statement,
-        detail: claim.whyItMatters || claim.evidence?.[0] || claim.counterpoint || '',
+        detail: claim.evidence?.[0] || claim.whyItMatters || claim.counterpoint || '',
         sourceIds: safeArray(claim.sourceIds),
       }))
 
@@ -13737,6 +13770,42 @@ async function buildPageModels(
     }
   }
 
+  function applyPageIntentPresentation(page) {
+    const routePath = normalizeRoutePath(page.publicPath || resolvePublicPagePath(page))
+    const intent = safeArray(pageIntentsConfig.pages).find(
+      (candidate) => normalizeRoutePath(candidate.path) === routePath,
+    )
+    const presentation = intent?.presentation
+    if (!presentation) return page
+    const alignmentVerdict = meaningfulText(presentation.verdict)
+    const alignmentWatchOut = meaningfulText(presentation.watchOut)
+    return {
+      ...page,
+      title: meaningfulText(presentation.title) || page.title,
+      h1: meaningfulText(presentation.h1) || page.h1,
+      metaDescription: meaningfulText(presentation.description) || page.metaDescription,
+      intro: meaningfulText(presentation.intro) || page.intro,
+      ctaTitle: meaningfulText(presentation.primaryCtaLabel) || page.ctaTitle,
+      ctaButtonLabel: meaningfulText(presentation.primaryCtaLabel) || page.ctaButtonLabel || page.ctaTitle,
+      ctaHref: meaningfulText(presentation.primaryCtaHref) || page.ctaHref,
+      verdicts:
+        alignmentVerdict || alignmentWatchOut
+          ? [
+              {
+                title: alignmentVerdict ? `Verdict: ${alignmentVerdict}` : 'Verdict',
+                detail: alignmentWatchOut ? `Watch-out: ${alignmentWatchOut}` : alignmentVerdict,
+                sourceIds: meaningfulList(page.sourceIds).slice(0, 2),
+              },
+              ...safeArray(page.verdicts).slice(0, 2).map((item, index) => ({
+                ...item,
+                detail: `${meaningfulText(item.detail)} Validate this recommendation in a ${index + 1}-shot Runway or Pika product-demo pilot before scaling the workflow.`,
+              })),
+            ]
+          : page.verdicts,
+      pageIntentContract: intent,
+    }
+  }
+
   const pages = []
   const pageBriefs = []
   for (const pageType of cluster.pageTemplates) {
@@ -13765,6 +13834,7 @@ async function buildPageModels(
       page = applyContentPlaybook(page, pagePlaybookRule, sitePlaybookRule, sharedPlaybookContext)
     }
     page = attachAffiliateData(page)
+    page = applyPageIntentPresentation(page)
     const override = reviewOverrideIndex?.get(`${cluster.siteSlug}/${page.slug}`)
     pages.push(applyReviewOverride(page, override))
   }
@@ -13959,9 +14029,13 @@ async function buildPageModels(
       !meaningfulText(targetAsset) ||
       assetMatchesTarget(page.assetBinding?.primary, targetAsset)
     const ctaStrategy = normalizeWikiLookupKey(page.pageBrief?.ctaStrategy)
+    const contractedCtaHref = meaningfulText(page.pageIntentContract?.presentation?.primaryCtaHref)
+    const pageIntentCtaMatches = Boolean(page.pageIntentContract) && meaningfulText(page.ctaHref) &&
+      (!contractedCtaHref || normalizeRoutePath(page.ctaHref) === normalizeRoutePath(contractedCtaHref))
     const isAffiliateCtaStrategy = ctaStrategy.startsWith('affiliate')
     const ctaStrategyMatches =
       !ctaStrategy ||
+      pageIntentCtaMatches ||
         ctaStrategy === 'consult_offer' ||
       (
         isAffiliateCtaStrategy &&
@@ -13985,7 +14059,7 @@ async function buildPageModels(
     const ctaHrefMatches =
       !meaningfulText(page.pageBrief?.ctaStrategy)
         ? !meaningfulText(page.ctaHref)
-        : (
+        : pageIntentCtaMatches || (
             isAffiliateCtaStrategy
               ? (
                   affiliateConfig.feature.enabled
@@ -13995,7 +14069,7 @@ async function buildPageModels(
               : meaningfulText(page.ctaHref) &&
                 (
                   page.pageBrief?.ctaStrategy === 'consult_offer'
-                    ? page.ctaHref === (findOfferBySlugOrTitle('audit')?.landingPath ?? '/audit/')
+                    ? page.ctaHref === (findOfferBySlugOrTitle('audit')?.landingPath ?? getOfferRoutePaths('audit', { manifest: routeManifest }).landingPath)
                     : page.ctaHref === expectedAssetHref
                 )
           )
@@ -14054,7 +14128,18 @@ async function buildPageModels(
 
   const finalizedPages = pages.map((page) => {
     const sanitizedPage = sanitizePublicModel(page)
-    const narrativeStats = analyzePageNarrative(sanitizedPage)
+    const contractedModules = meaningfulList(sanitizedPage.pageIntentContract?.modules)
+    const narrativeStats = analyzePageNarrative(
+      contractedModules.length === 0
+        ? sanitizedPage
+        : {
+            ...sanitizedPage,
+            sections: contractedModules.includes('sections') ? sanitizedPage.sections : [],
+            examples: contractedModules.includes('examples') ? sanitizedPage.examples : [],
+            verdicts: contractedModules.includes('verdicts') ? sanitizedPage.verdicts : [],
+            evidenceCards: contractedModules.includes('evidence') ? sanitizedPage.evidenceCards : [],
+          },
+    )
     const publicCopyStats = analyzePublicCopy(buildPageAuditSurface(sanitizedPage))
     const comparisonRows = safeArray(sanitizedPage.comparisonRows)
     const comparisonToolRows = comparisonRows.filter((row) => meaningfulText(row?.toolId))
@@ -14416,7 +14501,7 @@ async function buildPageModels(
       label: 'Internal worked example',
       sourceAssets: 'Two product screenshots, one 18-second screen recording, and a short release note.',
       intendedOutput: 'A 30-second SaaS feature update demo for a product marketer to publish.',
-      tool: primaryTool?.name ?? 'Runway',
+      tool: 'Runway (internal test plan)',
       attempts: '3 attempts',
       timeOrCostRange: '45-60 minutes, low-credit pilot range',
       firstFailure: 'The first output drifted away from the UI and made the CTA feel generic.',
@@ -14824,10 +14909,10 @@ function renderToolRankingCards(page) {
             <strong>${escapeHtml(tool.name)}</strong>
             <span class="comparison-badge">${escapeHtml(tool.badge ?? (tool.market_tier === 'core' ? 'Core' : 'Pick'))}</span>
           </div>
-          <p><span class="meta-label">Best for</span> ${escapeHtml(tool.best_for ?? tool.bestFor ?? '')}</p>
-          <p><span class="meta-label">Limitation</span> ${escapeHtml(tool.limitation ?? '')}</p>
-          <p><span class="meta-label">Cost</span> ${escapeHtml(tool.estimated_cost ?? tool.estimatedCost ?? '')}</p>
-          <p><span class="meta-label">When not to use</span> ${escapeHtml(tool.when_not_to_use ?? tool.whenNotToUse ?? tool.notFor ?? '')}</p>
+          <p><span class="meta-label">Best for</span> ${escapeHtml(`${tool.name}: ${tool.best_for ?? tool.bestFor ?? ''}`)}</p>
+          <p><span class="meta-label">Limitation</span> ${escapeHtml(`${tool.name}: ${tool.limitation ?? ''}`)}</p>
+          <p><span class="meta-label">Cost</span> ${escapeHtml(`${tool.name}: ${tool.estimated_cost ?? tool.estimatedCost ?? ''}`)}</p>
+          <p><span class="meta-label">When not to use</span> ${escapeHtml(`${tool.name}: ${tool.when_not_to_use ?? tool.whenNotToUse ?? tool.notFor ?? ''}`)}</p>
         </article>
       `,
     )
@@ -14852,33 +14937,15 @@ function renderToolRankingCards(page) {
   `
 }
 
-const publicRouteByPageType = {
-  hub: '/',
-  alternatives: '/compare/',
-  workflow: '/workflow/',
-  faq: '/faq/',
-  'best-of': '/best-tools/',
-  'best-tools': '/best-tools/',
-  pricing: '/pricing/',
-  'free-vs-paid': '/free-vs-paid/',
-  'use-case': '/use-cases/',
-  'use-cases': '/use-cases/',
-  'template-kit': '/templates/',
-  'case-study': '/case-study/',
-  'diy-vs-hire': '/guides/ai-video-diy-vs-freelancer/',
-  'cost-guide': '/cost/ai-video-production-cost/',
-  'hire-service': '/hire/ai-video-editor/',
-}
-
-const legacyPublicRoutePaths = ['/best-tools/', '/use-cases/', '/case-study/', '/faq/']
-
 function resolvePublicPagePath(page) {
   if (!page) return ''
-  return publicRouteByPageType[page.type] ?? ''
+  return getProductionPathForPageType(page.type, { manifest: routeManifest })
 }
 
 function getPageHref(page) {
-  if (page?.slug === 'index' || page?.type === 'hub') return '/'
+  if (page?.slug === 'index' || page?.type === 'hub') {
+    return getProductionPathForPageType('hub', { manifest: routeManifest })
+  }
   return page?.publicPath || ''
 }
 
@@ -14897,6 +14964,18 @@ function resolvePublicHomeMediaUrl(value) {
     const mediaMatch = rawValue.match(/(?:^|\/)media\/([^/?#]+)$/)
     if (mediaMatch) return new URL(`/media/${mediaMatch[1]}`, `${config.baseUrl}/`).toString()
     return rawValue
+  }
+}
+
+async function syncVisualAssetsToPublicMedia(siteSlug, manifest) {
+  await mkdir(publicMediaDir, { recursive: true })
+  for (const item of safeArray(manifest?.items)) {
+    const itemUrl = String(item?.url ?? '')
+    if (!itemUrl.includes(`/generated-sites/${siteSlug}/media/`)) continue
+    const fileName = path.posix.basename(itemUrl)
+    const sourcePath = path.join(sitesRoot, siteSlug, 'media', fileName)
+    if (!existsSync(sourcePath)) continue
+    await copyFile(sourcePath, path.join(publicMediaDir, fileName))
   }
 }
 
@@ -14977,7 +15056,7 @@ function renderThreeStepWorkflowSection(page) {
           )
           .join('')}
       </ol>
-      <p class="section-link"><a class="text-link" href="/workflow/">See the full workflow</a></p>
+      <p class="section-link"><a class="text-link" href="${escapeHtml(getProductionPathForPageType('workflow', { manifest: routeManifest }))}">See the full workflow</a></p>
     </section>
   `
 }
@@ -15012,7 +15091,7 @@ function renderCompactToolRecommendationSection(page) {
           )
           .join('')}
       </div>
-      <p class="section-link"><a class="text-link" href="/compare/">Compare Runway, Pika, and deeper alternatives</a></p>
+      <p class="section-link"><a class="text-link" href="${escapeHtml(getProductionPathForPageType('alternatives', { manifest: routeManifest }))}">Compare Runway, Pika, and deeper alternatives</a></p>
     </section>
   `
 }
@@ -15079,7 +15158,7 @@ function renderWorkflowPackCtaSection(page, primaryHref, primaryLabel) {
       </div>
       <div class="deep-link-row" aria-label="Related deep-dive pages">
         <a href="/templates/">Templates</a>
-        <a href="/pricing/">Pricing boundary</a>
+        <a href="${escapeHtml(getProductionPathForPageType('pricing', { manifest: routeManifest }))}">Pricing boundary</a>
         <a href="/free-vs-paid/">Free vs paid</a>
         <a href="/hire/ai-video-editor/">Hire support</a>
         <a href="/cost/ai-video-production-cost/">Cost guide</a>
@@ -16419,12 +16498,12 @@ function renderAffiliateModules(page) {
         <article class="mini-card service-card">
           <strong>Do it yourself</strong>
           <p>Use the AI tools and workflow guide when the project is still a learning pass and rough output is acceptable.</p>
-          <p><a class="text-link" href="/workflow/" data-ga4-event="internal_decision_click" data-ga4-label="DIY workflow path">Open workflow guide</a></p>
+          <p><a class="text-link" href="${escapeHtml(getProductionPathForPageType('workflow', { manifest: routeManifest }))}" data-ga4-event="internal_decision_click" data-ga4-label="DIY workflow path">Open workflow guide</a></p>
         </article>
         <article class="mini-card service-card">
           <strong>Use a template</strong>
           <p>Use the Automiora prompt pack or worksheet when scope clarity is the blocker, not production labor.</p>
-          <p><a class="text-link" href="/prompt-pack/" data-ga4-event="asset_cta_click" data-ga4-label="Prompt pack decision path">Open prompt pack</a></p>
+          <p><a class="text-link" href="${escapeHtml(getAssetRoutePaths('prompt-pack', { manifest: routeManifest }).landingPath)}" data-ga4-event="asset_cta_click" data-ga4-label="Prompt pack decision path">Open prompt pack</a></p>
         </article>
         <article class="mini-card service-card">
           <strong>Outsource the work</strong>
@@ -16442,9 +16521,9 @@ function renderAffiliateModules(page) {
               <article class="mini-card service-card">
                 <p class="claim-meta">${escapeHtml(module.programName)} / ${escapeHtml(module.category)}</p>
                 <strong>${escapeHtml(module.ctaTitle)}</strong>
-                <p><span class="meta-label">Best for</span> ${escapeHtml(module.fit)}</p>
-                <p><span class="meta-label">Not for</span> ${escapeHtml(module.notFor)}</p>
-                <p><span class="meta-label">Check before buying</span> Scope, revision count, commercial rights, delivery format, timeline, and source-file policy.</p>
+                <p><span class="meta-label">Best for</span> ${escapeHtml(`${module.category}: ${module.fit}`)}</p>
+                <p><span class="meta-label">Not for</span> ${escapeHtml(`${module.category}: ${module.notFor}`)}</p>
+                <p><span class="meta-label">Check before buying</span> ${escapeHtml(`${module.category}: scope, revision count, commercial rights, delivery format, timeline, and source-file policy.`)}</p>
                 <p>${renderAffiliateLink(module, page)}</p>
               </article>
             `,
@@ -16617,8 +16696,54 @@ function renderInternalLinks(site, page) {
   `
 }
 
+function renderPageQualification(page) {
+  const notFor = meaningfulText(page.pageIntentContract?.presentation?.notFor)
+  if (!notFor) return ''
+  return `
+    <section class="qualification-section">
+      <h2>Who should not use this path</h2>
+      <p>${escapeHtml(notFor)}</p>
+    </section>
+  `
+}
+
 function renderPageModules(site, page, designProfile) {
   const isHighValuePage = isHighValuePageForProfile(page.type, designProfile)
+  const contractedModules = meaningfulList(page.pageIntentContract?.modules)
+
+  if (contractedModules.length > 0 && page.type !== 'hub') {
+    const renderers = {
+      decision: () => renderDecisionSurface(site, page, designProfile),
+      verdicts: () => renderVerdictCards(page),
+      facts: () => renderFactGrid(page),
+      qualification: () => renderPageQualification(page),
+      sections: () => renderSections(page),
+      decisionPaths: () => renderDecisionPaths(page),
+      useCases: () => renderUseCaseCards(page),
+      workflowSteps: () => renderWorkflowSteps(page),
+      promptGenerator: () => renderPromptGenerator(page),
+      toolExperience: () => renderToolExperienceCards(page),
+      failureFixes: () => renderFailureFixCards(page),
+      experienceSignals: () => renderExperienceSignals(page),
+      evidence: () => renderEvidenceCards(page),
+      toolRanking: () => renderToolRankingCards(page),
+      comparison: () => renderComparisonTable(page.comparisonRows),
+      assetPreview: () => renderAssetPreview(page),
+      beforeAfter: () => renderBeforeAfter(page),
+      deliveryFlow: () => renderDeliveryFlow(page),
+      examples: () => renderExamples(page),
+      affiliate: () => renderAffiliateModules(page),
+      commercial: () => renderCommercialModules(page),
+      claims: () => renderClaimCards(page),
+      materials: () => renderMaterialSlots(page),
+      sources: () => renderSourceReferences(page),
+      faq: () => renderFaq(page),
+    }
+    return contractedModules
+      .map((moduleKey) => renderers[moduleKey]?.() ?? '')
+      .filter(Boolean)
+      .join('')
+  }
 
   if (isHighValuePage) {
     return [
@@ -17064,7 +17189,7 @@ function renderAssetDeliverySnippet(asset) {
 function renderSiteHtml(site, page) {
   const designProfile = getSiteDesignProfile(site)
   const canonicalUrl = new URL(page.publicPath || page.path, `${config.baseUrl}/`).toString()
-  const socialImage = page.visualAsset?.canonicalUrl ?? ''
+  const socialImage = resolvePublicHomeMediaUrl(page.visualAsset?.canonicalUrl ?? '')
   const schema = JSON.stringify(renderSchema(site, page, canonicalUrl))
   const analyticsPage = {
     ...page,
@@ -17099,6 +17224,7 @@ function renderSiteHtml(site, page) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>${escapeHtml(page.title)}</title>
     <meta name="description" content="${escapeHtml(page.metaDescription)}" />
     <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
@@ -17851,6 +17977,7 @@ function renderPublicHomeHtml(site, page) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>${escapeHtml(page.title)}</title>
     <meta name="description" content="${escapeHtml(page.metaDescription)}" />
     <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
@@ -18849,7 +18976,7 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
         backdrop-filter: none;
       }
       .hero-layout {
-        align-items: center;
+        align-items: start;
         grid-template-columns: minmax(0, 1fr) minmax(320px, 0.78fr);
       }
       .hero-summary {
@@ -18898,7 +19025,11 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
         border-radius: 8px;
       }
       .hero-visual img {
-        aspect-ratio: 4 / 3;
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 3 / 2;
+        object-fit: cover;
       }
       .section-heading {
         grid-template-columns: minmax(0, 0.82fr) minmax(260px, 0.7fr);
@@ -19020,6 +19151,27 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
           padding: 34px 0;
         }
       }
+      @media (max-width: 720px) {
+        .topbar {
+          align-items: stretch;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .topbar nav {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 6px;
+          width: 100%;
+        }
+        .topbar nav a {
+          padding: 7px 5px;
+          font-size: 0.78rem;
+          text-align: center;
+        }
+        h1 {
+          font-size: clamp(2.55rem, 12vw, 3.25rem);
+        }
+      }
     </style>
   </head>
   <body data-design-profile="${escapeHtml(designProfile.key ?? site.designProfileKey ?? 'default')}">
@@ -19116,7 +19268,7 @@ ${renderThemeCss(designProfile, { contentWidth: '1080px' })}
 function renderAssetLandingHtml(site, asset) {
   const designProfile = getSiteDesignProfile(site)
   const canonicalUrl = new URL(asset.landingPath, `${config.baseUrl}/`).toString()
-  const socialImage = asset.visualAsset?.canonicalUrl ?? ''
+  const socialImage = resolvePublicHomeMediaUrl(asset.visualAsset?.canonicalUrl ?? '')
   const heroVisual = renderVisualFigure(
     asset.visualAsset,
     `${asset.title} preview`,
@@ -19496,7 +19648,7 @@ ${renderThemeCss(designProfile, { contentWidth: '920px' })}
 function renderAssetThankYouHtml(site, asset) {
   const designProfile = getSiteDesignProfile(site)
   const canonicalUrl = new URL(asset.thankYouPath, `${config.baseUrl}/`).toString()
-  const socialImage = asset.visualAsset?.canonicalUrl ?? ''
+  const socialImage = resolvePublicHomeMediaUrl(asset.visualAsset?.canonicalUrl ?? '')
   const heroVisual = renderVisualFigure(
     asset.visualAsset,
     `${asset.title} ready`,
@@ -19793,6 +19945,7 @@ ${renderThemeCss(designProfile, { contentWidth: '820px' })}
 }
 
 function buildConsultOfferRecord(site) {
+  const auditRoutes = getOfferRoutePaths('audit', { manifest: routeManifest })
   const wikiOffer = site.wikiControl?.auditOffer ?? null
   const wikiBrief = site.wikiControl?.auditBrief ?? null
   const reviewBacklog = filterReviewBacklogForPage(site.wikiControl?.reviewBacklog, 'audit')
@@ -19817,8 +19970,8 @@ function buildConsultOfferRecord(site) {
       `Request a narrower workflow audit for ${site.cluster.primaryKeyword} and move from browsing into a scoped implementation conversation.`,
     previewLandingPath: `/generated-sites/${site.siteSlug}/${slug}.html`,
     previewThankYouPath: `/generated-sites/${site.siteSlug}/${slug}-thank-you.html`,
-    landingPath: wikiOffer?.landingPath || '/audit/',
-    thankYouPath: wikiOffer?.thankYouPath || '/audit/ready/',
+    landingPath: auditRoutes.landingPath,
+    thankYouPath: auditRoutes.thankYouPath,
     landingFileName: `${slug}.html`,
     thankYouFileName: `${slug}-thank-you.html`,
     clickEvent: wikiOffer?.clickEvent || 'consult_click',
@@ -20249,24 +20402,26 @@ const aiFlavorPhrases = [
 ]
 
 function buildPageAuditSurface(page) {
+  const contractedModules = meaningfulList(page.pageIntentContract?.modules)
+  const includes = (moduleKey) => contractedModules.length === 0 || contractedModules.includes(moduleKey)
   return [
     page.title,
     page.metaDescription,
     page.intro,
     ...safeArray(page.originalAnchors),
-    ...safeArray(page.verdicts).flatMap((item) => [item.title, item.detail]),
-    ...safeArray(page.keyFacts).flatMap((item) => [item.label, item.value]),
-    ...safeArray(page.examples).flatMap((item) => [item.title, item.body]),
+    ...(includes('verdicts') ? safeArray(page.verdicts).flatMap((item) => [item.title, item.detail]) : []),
+    ...(includes('facts') ? safeArray(page.keyFacts).flatMap((item) => [item.label, item.value]) : []),
+    ...(includes('examples') ? safeArray(page.examples).flatMap((item) => [item.title, item.body]) : []),
     ...safeArray(page.materialSlots).flatMap((slot) => [
       slot.title,
       ...safeArray(slot.items).flatMap((item) => [item.label, item.detail]),
     ]),
-    ...safeArray(page.commercialModules).flatMap((module) => [
+    ...(includes('commercial') ? safeArray(page.commercialModules).flatMap((module) => [
       module.title,
       module.description,
       ...safeArray(module.items).flatMap((item) => [item.label, item.note]),
-    ]),
-    ...safeArray(page.stepItems).flatMap((item) => [
+    ]) : []),
+    ...(includes('workflowSteps') ? safeArray(page.stepItems).flatMap((item) => [
       item.title,
       item.detail,
       item.input,
@@ -20274,16 +20429,16 @@ function buildPageAuditSurface(page) {
       item.owner,
       item.successMetric,
       item.failurePoint,
-    ]),
+    ]) : []),
     page.visualAsset?.alt,
-    ...safeArray(page.sections).flatMap((section) => [
+    ...(includes('sections') ? safeArray(page.sections).flatMap((section) => [
       section.heading,
       ...safeArray(section.paragraphs),
       ...safeArray(section.bullets),
-    ]),
+    ]) : []),
   ]
     .filter(Boolean)
-    .join(' ')
+    .join(' · ')
 }
 
 function countGenericPhraseOccurrences(text) {
@@ -21483,7 +21638,7 @@ function evaluatePublishGate(site) {
       : !wikiFirstPass
         ? 'fail'
         : informationGapPass || completenessPass || evidenceQualityPass
-        ? 'needs_review'
+        ? 'warning'
         : 'fail'
 
   return {
@@ -21581,6 +21736,38 @@ function applyHomepageCompositionPublishGate(publishGate, report) {
       homepageCompositionViolations: safeArray(report?.violations).map((item) => item.code),
       homepageMajorSectionCount: report?.majorSectionCount ?? 0,
       homepageVisibleWordCount: report?.visibleWordCount ?? 0,
+    },
+  }
+}
+
+function summarizeThesisAlignmentReport(report) {
+  return {
+    status: report?.status ?? 'not_run',
+    siteScore: report?.siteScore ?? 0,
+    sitemapEligiblePaths: safeArray(report?.sitemapEligiblePaths),
+    blockedPaths: safeArray(report?.blockedPaths),
+    pages: safeArray(report?.pages).map((page) => ({
+      path: page.path,
+      pageType: page.pageType,
+      score: page.score,
+      status: page.status,
+      violations: safeArray(page.violations).map((item) => item.code),
+    })),
+  }
+}
+
+function applyThesisAlignmentPublishGate(publishGate, report) {
+  const thesisAlignmentPass = report?.status === 'pass'
+  return {
+    ...publishGate,
+    status: thesisAlignmentPass ? publishGate.status : 'fail',
+    thesisAlignmentPass,
+    thesisAlignment: summarizeThesisAlignmentReport(report),
+    evidence: {
+      ...publishGate.evidence,
+      thesisAlignmentStatus: report?.status ?? 'not_run',
+      thesisAlignmentScore: report?.siteScore ?? 0,
+      thesisAlignmentBlockedPaths: safeArray(report?.blockedPaths),
     },
   }
 }
@@ -21755,32 +21942,17 @@ async function maybeRunAutoRelease(site, contentUpdateReport = null) {
 
 function isReleaseEligiblePublishGate(publishGate) {
   const status = meaningfulText(publishGate?.status).toLowerCase()
-  return status === 'pass' || (status === 'needs_review' && publishGate?.wikiFirstPass === true)
+  return status === 'pass' || (status === 'warning' && publishGate?.wikiFirstPass === true)
 }
 
-const baseIndexablePublicPaths = new Set([
-  '/',
-  '/workflow/',
-  '/compare/',
-  '/pricing/',
-  '/best-tools/',
-  '/faq/',
-  '/case-study/',
-  '/free-vs-paid/',
-  '/templates/',
-  '/use-cases/',
-])
+const baseIndexablePublicPaths = new Set(getIndexableProductionPaths({ manifest: routeManifest }))
 
 function normalizeRoutePath(value) {
-  const normalized = String(value || '').trim()
-  if (!normalized || normalized === '/') return '/'
-  return `/${normalized.replace(/^\/+|\/+$/g, '')}/`
+  return normalizeManifestRoutePath(value)
 }
 
 function isIndexablePublicPath(routePath) {
-  const normalizedRoutePath = normalizeRoutePath(routePath)
-  if (baseIndexablePublicPaths.has(normalizedRoutePath)) return true
-  return COMMERCIAL_PAGE_SPECS.some((page) => normalizeRoutePath(page.publicPath) === normalizedRoutePath)
+  return baseIndexablePublicPaths.has(normalizeRoutePath(routePath))
 }
 
 function resolveIndexingDirective(page, publishGate, options = {}) {
@@ -21807,7 +21979,6 @@ ${urls
   .map(
     (url) => `  <url>
     <loc>${escapeHtml(url)}</loc>
-    <lastmod>${config.generatedAt}</lastmod>
   </url>`,
   )
   .join('\n')}
@@ -21816,25 +21987,29 @@ ${urls
 }
 
 function buildRobotsTxt() {
+  const disallowRules = getExcludedProductionPrefixes({ manifest: routeManifest })
+    .map((prefix) => `Disallow: ${prefix}`)
+    .join('\n')
   return `User-agent: *
 Allow: /
-Disallow: /ops/
-Disallow: /generated-sites/
+${disallowRules}
 
 Sitemap: ${new URL('/sitemap.xml', `${config.baseUrl}/`).toString()}
 `
 }
 
 function buildLlmsTxt(sites) {
+  const routeLines = sites.length > 0
+    ? getIndexableProductionPaths({ manifest: routeManifest }).map(
+        (routePath) => `- ${new URL(routePath, `${config.baseUrl}/`).toString()}`,
+      )
+    : []
   const lines = [
     '# Automiora',
     '',
-    'Automiora publishes practical guides, workflow pages, and downloadable templates for teams evaluating AI-powered production workflows.',
+    'Automiora helps SaaS founders, indie hackers, and product marketers turn product screenshots, recordings, feature updates, and release notes into 15-60 second SaaS product demo videos.',
     '',
-    ...sites.map(
-      (site) =>
-        `- ${site.siteName}: ${new URL(site.publicHomePath || site.homePath, `${config.baseUrl}/`).toString()}`,
-    ),
+    ...routeLines,
   ]
 
   return `${lines.join('\n')}\n`
@@ -21946,33 +22121,14 @@ async function writePublicFile(filePath, contents) {
   await writeFile(outputPath, contents)
 }
 
-async function removePublicRoute(routePath) {
-  const trimmed = String(routePath || '').trim()
-  if (!trimmed || trimmed === '/') return
-  const relativeRoute = trimmed.replace(/^\/+|\/+$/g, '')
-  if (!relativeRoute) return
-  await rm(path.join(publicDir, relativeRoute), { recursive: true, force: true })
-}
-
 function buildSeoReport(sites, publishGateBySiteSlug) {
-  const allowedPublicPaths = new Set([
-    ...baseIndexablePublicPaths,
-    ...COMMERCIAL_PAGE_SPECS.map((item) => item.publicPath),
-  ])
-  const isAllowedPublicUrl = (url) => {
-    try {
-      return allowedPublicPaths.has(new URL(url).pathname)
-    } catch {
-      return false
-    }
-  }
   const releasableSites = sites.filter(
     (site) => isReleaseEligiblePublishGate(publishGateBySiteSlug.get(site.siteSlug)),
   )
   const blockedSites = sites.filter(
     (site) => !isReleaseEligiblePublishGate(publishGateBySiteSlug.get(site.siteSlug)),
   )
-  const urls = dedupe(
+  const urls = filterProductionUrls(dedupe(
     releasableSites.flatMap((site) => [
       ...(site.publicHomeCanonicalUrl && site.publicHomeIndexingDirective !== 'noindex'
         ? [site.publicHomeCanonicalUrl]
@@ -21980,8 +22136,14 @@ function buildSeoReport(sites, publishGateBySiteSlug) {
       ...site.pages
         .filter((page) => page.indexingDirective !== 'noindex')
         .map((page) => page.canonicalUrl),
-    ]).filter(isAllowedPublicUrl),
-  )
+      ...safeArray(site.conversionAssets).map((asset) =>
+        new URL(asset.landingPath, `${config.baseUrl}/`).toString(),
+      ),
+      ...(site.commercialOffer?.landingPath
+        ? [new URL(site.commercialOffer.landingPath, `${config.baseUrl}/`).toString()]
+        : []),
+    ]),
+  ), { manifest: routeManifest })
   const blockedUrls = dedupe(
     blockedSites.flatMap((site) => [
       ...(site.publicHomeCanonicalUrl ? [site.publicHomeCanonicalUrl] : []),
@@ -24593,6 +24755,7 @@ function buildOfflineFixtureResearch(siteSlug, researchDossier, sourcePack) {
       ...safeArray(searchSignals.suggestions),
       ...safeArray(searchSignals.relatedQueries),
       ...safeArray(researchDossier?.useCases),
+      ...communityPainResults.map((item) => item.title),
     ]
       .map((item) => meaningfulText(item))
       .filter(Boolean)
@@ -24631,7 +24794,12 @@ function buildOfflineFixtureResearch(siteSlug, researchDossier, sourcePack) {
       realQueries
         .map((query) => meaningfulText(query))
         .filter(Boolean)
-        .map((query) => JSON.stringify({ question: toQuestion(query), source: 'offline-fixture' })),
+        .map((query) => JSON.stringify({
+          question: toQuestion(query),
+          source: communityPainResults.some((item) => meaningfulText(item.title) === query)
+            ? 'cached-community-thread'
+            : 'offline-fixture',
+        })),
     )
       .map((item) => JSON.parse(item))
       .slice(0, 6),
@@ -25239,6 +25407,7 @@ function buildCanonicalSourcePackFromWiki(cluster, wikiSeed, fallbackSourcePack)
       reason: summary.sourceSummary || summary.keyFacts[0] || '',
       intent: cluster.primaryKeyword,
       category: summary.sourceKind,
+      capturedAt: summary.lastVerified,
     }
     const bucket = byKind[summary.sourceKind] ? summary.sourceKind : 'serp'
     byKind[bucket].push(entry)
@@ -25360,6 +25529,12 @@ async function writeWikiFirstMutationCards({
   )
   const existingBriefMap = new Map(safeArray(wikiSeed?.pageBriefs).map((brief) => [brief.pageType, brief]))
   const existingClaimMap = new Map(safeArray(wikiSeed?.claims).map((claim) => [claim.id, claim]))
+  const existingSourceById = new Map(
+    safeArray(wikiSeed?.sourceSummaries).map((source) => [source.rawSourceId, source]),
+  )
+  const existingSourceByUrl = new Map(
+    safeArray(wikiSeed?.sourceSummaries).filter((source) => source.url).map((source) => [source.url, source]),
+  )
 
   function buildDraftClaimFileName(claimId) {
     return `claim-draft.${siteSlug}.${claimId.split('.').at(-1)}.md`
@@ -25407,6 +25582,8 @@ async function writeWikiFirstMutationCards({
 
   for (const source of sourceItems) {
     const sourceId = toWikiId('source', siteSlug, source.id)
+    const existingSource = existingSourceById.get(source.id) ?? existingSourceByUrl.get(source.url) ?? null
+    const capturedAt = existingSource?.lastVerified ?? config.generatedAt
     await writeWikiCard(
       'sources',
       `source.${siteSlug}.${source.id}.md`,
@@ -25421,8 +25598,8 @@ async function writeWikiFirstMutationCards({
         url: source.url,
         domain: source.domain,
         status: 'active',
-        captured_at: config.generatedAt,
-        last_verified: config.generatedAt.slice(0, 10),
+        captured_at: capturedAt,
+        last_verified: normalizeIsoDate(capturedAt) || config.generatedAt.slice(0, 10),
       },
       [
         { heading: 'Source summary', lines: [compactText(source.snippet || source.title, 220)] },
@@ -25675,6 +25852,7 @@ async function writeWikiFirstMutationCards({
     existingBriefMap.get('audit') ??
     null
   const existingAuditOffer = safeArray(wikiSeed?.offers).find((offer) => normalizeWikiLookupKey(offer.slug) === 'audit') ?? null
+  const auditRoutes = getOfferRoutePaths('audit', { manifest: routeManifest })
   const auditOfferTitle = existingAuditOffer?.title || `${cluster.label} workflow audit`
   await writeWikiCard(
     'assets',
@@ -25696,8 +25874,8 @@ async function writeWikiFirstMutationCards({
       deeper_action: meaningfulText(existingAuditOffer?.deeperAction) || 'Route the team into the narrowest next asset, fix, or implementation plan.',
       refresh_priority: meaningfulText(existingAuditOffer?.refreshPriority) || 'high',
       reuse_score: preferFiniteNumber(existingAuditOffer?.reuseScore, 0),
-      landing_path: meaningfulText(existingAuditOffer?.landingPath) || '/audit/',
-      thank_you_path: meaningfulText(existingAuditOffer?.thankYouPath) || '/audit/ready/',
+      landing_path: auditRoutes.landingPath,
+      thank_you_path: auditRoutes.thankYouPath,
     },
     [
       { heading: 'Offer promise', lines: [meaningfulText(existingAuditOffer?.promise) || `Get a scoped workflow answer for ${cluster.primaryKeyword} instead of widening research again.`] },
@@ -26083,7 +26261,7 @@ async function exportWikiAssets({
           url: source.url,
           domain: source.domain,
           published_at: source.detectedYear != null ? `${source.detectedYear}-01-01` : null,
-          captured_at: config.generatedAt,
+          captured_at: source.capturedAt ?? config.generatedAt,
           freshness_score: estimateFreshnessScore(source),
           credibility_score: estimateCredibilityScore(source),
           status: 'active',
@@ -26797,7 +26975,6 @@ async function runPipeline() {
       selectedSiteSlugs.size > 0 ||
       manualSelectedPages.size > 0,
   })
-  await Promise.all(legacyPublicRoutePaths.map((routePath) => removePublicRoute(routePath)))
   const reviewOverrideIndex = buildReviewOverrideIndex(await readJsonIfExists(reviewOverridesPath))
   const previousHistory = (await readJsonIfExists(historyPath)) ?? []
   const previousFeedback = await readJsonIfExists(feedbackPath)
@@ -26914,6 +27091,7 @@ async function runPipeline() {
       pages: pagePlanning.pages,
       conversionAssets: pagePlanning.conversionAssets,
     })
+    await syncVisualAssetsToPublicMedia(cluster.siteSlug, siteVisualBundle.manifest)
     const pageModels = pagePlanning.pages.map((page) => ({
       ...page,
       visualAsset: siteVisualBundle.pageVisuals[page.slug] ?? null,
@@ -26921,10 +27099,18 @@ async function runPipeline() {
     const publicHomeModel = pagePlanning.publicHome
       ? {
           ...pagePlanning.publicHome,
-          visualAsset:
-            siteVisualBundle.pageVisuals.index ??
-            pageModels.find((page) => page.slug === 'index')?.visualAsset ??
-            null,
+          visualAsset: {
+            id: 'page:index:curated-product-demo-workflow',
+            kind: 'page',
+            slug: 'index',
+            role: 'hero',
+            mode: 'curated',
+            model: 'gpt-image-2',
+            src: '/media/index-hero-workflow-v2.png',
+            url: '/media/index-hero-workflow-v2.png',
+            canonicalUrl: new URL('/media/index-hero-workflow-v2.png', `${config.baseUrl}/`).toString(),
+            alt: 'A SaaS analytics interface mapped into three product-demo storyboard shots, a filled review checklist, and a final video preview.',
+          },
         }
       : null
     const conversionAssets = pagePlanning.conversionAssets.map((asset) => ({
@@ -27117,8 +27303,9 @@ async function runPipeline() {
       }
     }
 
+    let renderedPublicHome = null
     if (siteRecord.publicHome) {
-      const renderedPublicHome = renderPublicHomeHtml(siteRecord, siteRecord.publicHome)
+      renderedPublicHome = renderPublicHomeHtml(siteRecord, siteRecord.publicHome)
       const homepageCompositionReport = evaluateHomepageCompositionHtml(renderedPublicHome.html, {
         budget: homepageBudget,
         path: '/',
@@ -27139,10 +27326,59 @@ async function runPipeline() {
       })
     }
 
+    const renderedPageByPublicPath = new Map(
+      renderedPages
+        .filter((page) => meaningfulText(page.publicPath))
+        .map((page) => [normalizeRoutePath(page.publicPath), page.html]),
+    )
+    const alignmentPages = safeArray(pageIntentsConfig.pages)
+      .filter((intent) => intent.indexable !== false)
+      .map((intent) => ({
+        path: normalizeRoutePath(intent.path),
+        html:
+          normalizeRoutePath(intent.path) === '/'
+            ? renderedPublicHome?.html ?? ''
+            : renderedPageByPublicPath.get(normalizeRoutePath(intent.path)) ?? '',
+      }))
+    const thesisAlignmentReport = evaluateSiteAlignment(alignmentPages, {
+      thesisKey: experiment.thesisKey,
+      thesisContract: experiment.thesisContract,
+      pageIntents: pageIntentsConfig.pages,
+    })
+    siteRecord.thesisAlignmentReport = thesisAlignmentReport
+    const thesisGatedPublishGate = applyThesisAlignmentPublishGate(
+      publishGateBySiteSlug.get(siteRecord.siteSlug) ?? publishGate,
+      thesisAlignmentReport,
+    )
+    publishGateBySiteSlug.set(siteRecord.siteSlug, thesisGatedPublishGate)
+    siteRecord.finalPublishGate = thesisGatedPublishGate
+
+    const alignmentPageStatusByPath = new Map(
+      safeArray(thesisAlignmentReport.pages).map((page) => [
+        normalizeRoutePath(page.path),
+        page.status,
+      ]),
+    )
+    const finalReleaseReady = isReleaseEligiblePublishGate(thesisGatedPublishGate)
+    for (const page of renderedPages) {
+      if (!page.publicPath) continue
+      const normalizedPublicPath = normalizeRoutePath(page.publicPath)
+      const pageAlignmentPass = alignmentPageStatusByPath.get(normalizedPublicPath) !== 'fail'
+      const finalIndexingDirective =
+        finalReleaseReady && pageAlignmentPass
+          ? resolveIndexingDirective(page, thesisGatedPublishGate, {
+              publicPath: page.publicPath,
+              previewOnly: previewOnlyPageSlugs.has(page.slug),
+            })
+          : 'noindex'
+      page.finalIndexingDirective = finalIndexingDirective
+      await writePublicRouteHtml(page.publicPath, applyRobotsDirective(page.html, finalIndexingDirective))
+    }
+
     for (const assetPage of [...renderedAssetPages, ...renderedConsultPages]) {
       const assetSlugMatch = assetPage.fileName.match(/^asset-([a-z0-9-]+)(?:-thank-you)?\.html$/)
       const assetSlug = assetSlugMatch?.[1] ?? null
-      const releaseReady = isReleaseEligiblePublishGate(publishGate)
+      const releaseReady = isReleaseEligiblePublishGate(thesisGatedPublishGate)
       const shouldWriteAssetPage =
         !assetSlug ||
         writeTargets.assetSlugsToWrite.has(assetSlug) ||
@@ -27187,10 +27423,12 @@ async function runPipeline() {
       commercialIntentScore: page.commercialIntentScore ?? 0,
       visualAssetPath: page.visualAsset?.url ?? '',
       visualAssetStatus: page.visualAsset?.mode ?? 'none',
-      indexingDirective: resolveIndexingDirective(page, publishGate, {
-        publicPath: page.publicPath,
-        previewOnly: previewOnlyPageSlugs.has(page.slug),
-      }),
+      indexingDirective:
+        page.finalIndexingDirective ??
+        resolveIndexingDirective(page, thesisGatedPublishGate, {
+          publicPath: page.publicPath,
+          previewOnly: previewOnlyPageSlugs.has(page.slug),
+        }),
     }))
     siteRuntimeUpdateState.push({
       siteSlug: siteRecord.siteSlug,
@@ -27204,7 +27442,7 @@ async function runPipeline() {
       updateQueue: siteUpdateQueue,
       writeTargets,
       publishGateChanged,
-      publishGateStatus: publishGate.status,
+      publishGateStatus: thesisGatedPublishGate.status,
     })
     sites.push(siteRecord)
   }
@@ -27266,6 +27504,16 @@ async function runPipeline() {
         warnings: [],
       }
   await writeHomepageCompositionReport(rootHomepageCompositionReport, path.join(generatedDir, 'homepage-composition-report.json'))
+  const rootThesisAlignmentReport = primaryReleaseSite?.thesisAlignmentReport ?? {
+    thesisKey: experiment.thesisKey,
+    generatedAt: new Date().toISOString(),
+    status: 'fail',
+    siteScore: 0,
+    pages: [],
+    sitemapEligiblePaths: [],
+    blockedPaths: safeArray(pageIntentsConfig.pages).map((intent) => intent.path),
+  }
+  await writeJson(path.join(generatedDir, 'thesis-alignment-report.json'), rootThesisAlignmentReport)
   await writeFile(path.join(publicDir, 'index.html'), rootHtml)
   await writeFile(path.join(publicDir, 'sitemap.xml'), sitemapXml)
   await writeFile(path.join(publicDir, 'robots.txt'), robotsTxt)
@@ -27692,10 +27940,13 @@ async function runPipeline() {
     },
   ]
 
+  const publishGate = summarizePipelinePublishGates({ sites: enrichedSites })
   const pipelineReport = {
     runId: config.runId,
     generatedAt: config.generatedAt,
     baseUrl: config.baseUrl,
+    publishGateStatus: publishGate.status,
+    publishGate,
     experiment: {
       thesisKey: experiment.thesisKey,
       thesisLabel: experiment.thesisLabel,

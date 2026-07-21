@@ -222,4 +222,14 @@ describe('homepage composition gate', () => {
     assert.equal(report.integrationChecks.leadCaptureCta, true)
     assert.equal(report.integrationChecks.affiliateDisclosurePreserved, true)
   })
+
+  it('fails when the hero is still a fallback SVG placeholder', () => {
+    const html = passingHome()
+      .replace('/media/index-hero.png', '/media/index-hero.svg')
+      .replace('<figure>', '<figure data-visual-mode="fallback">')
+    const report = evaluateHomepageCompositionHtml(html, { budget: baseBudget })
+
+    assert.equal(report.status, 'fail')
+    assert.ok(report.violations.some((item) => item.code === 'fallback_hero_visual'))
+  })
 })

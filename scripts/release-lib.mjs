@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import { getAssetRoutePaths } from './route-manifest.mjs'
 
 const execFileAsync = promisify(execFile)
 const __filename = fileURLToPath(import.meta.url)
@@ -295,10 +296,9 @@ export async function fetchManual(url, options = {}) {
 }
 
 export function getAssetFilePaths(siteSlug, assetSlug) {
-  const publicAssetDirectory = path.join(projectRoot, 'public', assetSlug)
-  const publicThankYouDirectory = path.join(publicAssetDirectory, 'ready')
-  const publicLandingPath = `/${assetSlug}/`
-  const publicThankYouPath = `/${assetSlug}/ready/`
+  const { landingPath: publicLandingPath, thankYouPath: publicThankYouPath } = getAssetRoutePaths(assetSlug)
+  const publicAssetDirectory = path.join(projectRoot, 'public', publicLandingPath.replace(/^\/+|\/+$/g, ''))
+  const publicThankYouDirectory = path.join(projectRoot, 'public', publicThankYouPath.replace(/^\/+|\/+$/g, ''))
 
   return {
     localLandingFile: path.join(publicAssetDirectory, 'index.html'),

@@ -1,15 +1,54 @@
 {
   "thesisKey": "video-creation",
-  "thesisLabel": "AI Video Workflow",
+  "thesisLabel": "AI Product Demo Video Workflow",
   "siteSlug": "ai-video-workflow-short-form-demo",
-  "thesisName": "AI video workflow for short-form product and demo content",
-  "siteDefinition": "A decision site for indie hackers, product marketers, and content operators who need to turn scripts, screenshots, and product updates into short-form demo videos quickly.",
-  "targetAudience": "indie hackers, product marketers, and content operators shipping short-form product/demo videos",
-  "offer": "tool comparisons, workflow guides, and a reusable prompt pack",
+  "thesisName": "AI product demo video workflows for SaaS founders, product marketers, and indie hackers",
+  "siteDefinition": "A practical decision and execution site that helps SaaS teams turn product screenshots, screen recordings, scripts, release notes, and feature updates into short product demo videos with AI.",
+  "targetAudience": "SaaS founders, indie hackers, product marketers, developer advocates, and small product teams",
+  "primaryOutcome": "Create a clear 15-60 second SaaS product demo video without wasting time and credits on broad AI video experimentation.",
+  "jobToBeDone": "When a SaaS team launches a product or feature, help them choose the right workflow, prepare source assets, generate the required shots, review failures, and publish a usable product demo video.",
+  "primaryInputs": [
+    "product screenshots",
+    "screen recordings",
+    "feature descriptions",
+    "release notes",
+    "product scripts"
+  ],
+  "primaryOutputs": [
+    "short SaaS product demo video",
+    "feature launch video",
+    "Product Hunt launch video",
+    "product update video",
+    "onboarding walkthrough video"
+  ],
+  "primarySearchIntent": "Help the visitor make or buy a SaaS product demo video.",
+  "offer": "tested tool comparisons, product-demo workflows, prompt recipes, cost guidance, production templates, and qualified editor recommendations",
   "monetization": ["affiliate", "template-sale", "lead-gen"],
-  "leadMagnet": "Short-form AI video workflow prompt pack",
-  "ctaLabel": "Download the short-form prompt pack",
-  "conversionAsset": "Prompt pack + workflow checklist",
+  "leadMagnet": "SaaS Product Demo Video Workflow Pack",
+  "ctaLabel": "Get the Product Demo Workflow Pack",
+  "conversionAsset": "Product demo prompt pack, shot planner, workflow checklist, and comparison worksheet",
+  "excludedAudience": [
+    "AI art filmmakers",
+    "music video creators",
+    "general entertainment video creators",
+    "faceless content farms",
+    "cinematic storytelling users without a product-demo use case"
+  ],
+  "forbiddenPositioning": [
+    "general AI video portal",
+    "all-purpose AI video generator directory",
+    "generic prompt library",
+    "AI news site",
+    "creative AI video inspiration gallery"
+  ],
+  "thesisContract": {
+    "requiredAudienceTerms": ["SaaS founder", "indie hacker", "product marketer", "product team"],
+    "requiredInputTerms": ["product screenshot", "screen recording", "feature update", "release note", "product script"],
+    "requiredOutcomeTerms": ["product demo video", "feature launch video", "product walkthrough"],
+    "requiredContextTerms": ["SaaS", "product", "feature", "launch", "demo"],
+    "forbiddenPrimaryContexts": ["music video", "AI film", "cinematic story", "faceless channel", "anime video", "general social media content"],
+    "claimLabels": ["verified_fact", "sourced_claim", "operator_recommendation", "estimate", "worked_example"]
+  },
   "pageTemplates": ["hub", "alternatives", "faq", "workflow"],
   "commercialPageTemplates": ["diy-vs-hire", "cost-guide", "hire-service"],
   "commercialPages": [
@@ -35,14 +74,17 @@
     "attach real product demo teardown examples"
   ],
   "discoveryKeywords": [
-    "video",
-    "veo",
-    "kling",
-    "seedance",
-    "short-form",
-    "demo",
-    "image to video",
-    "prompt"
+    "ai product demo video",
+    "saas demo video",
+    "product screenshot to video",
+    "product launch video",
+    "feature announcement video",
+    "product walkthrough video",
+    "runway product demo",
+    "pika product demo",
+    "ai video workflow for saas",
+    "product demo video cost",
+    "hire product demo video editor"
   ],
   "maxSitesPerRun": 1,
   "gateRules": {

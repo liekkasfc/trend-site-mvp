@@ -7,46 +7,45 @@
       "domain": "automiora.com",
       "siteSlug": "ai-video-workflow-short-form-demo",
       "theme": "video-creation",
-      "label": "AI Video Workflow",
-      "thesisName": "AI video workflow for short-form product and demo content",
+      "label": "AI Product Demo Video Workflow",
+      "thesisName": "AI product demo video workflows for SaaS founders, product marketers, and indie hackers",
       "primaryKeywordStrategy": "pinned",
-      "pinnedPrimaryKeyword": "ai video workflow",
-      "audience": "indie hackers, product marketers, and content operators shipping short-form product/demo videos",
+      "pinnedPrimaryKeyword": "ai product demo video",
+      "audience": "SaaS founders, indie hackers, product marketers, developer advocates, and small product teams",
       "intentTypes": ["tool", "compare", "buy"],
       "monetization": ["affiliate", "template-sale", "lead-gen"],
       "seedKeywords": [
-        "ai video workflow",
-        "image to video workflow",
         "ai product demo video",
-        "product screenshot to demo video"
+        "saas demo video",
+        "product screenshot to demo video",
+        "product launch video"
       ],
       "topicKeywords": [
         "short-form product demo video",
         "screenshot to video",
         "launch video workflow",
         "product update video",
-        "ai video prompts",
+        "product demo video prompts",
         "demo video generator for saas"
       ],
       "keywordBoundary": [
-        "ai video workflow",
-        "image to video workflow",
         "ai product demo video",
+        "saas demo video",
         "product screenshot to demo video",
         "short-form product demo video",
         "screenshot to video",
         "launch video workflow",
         "product update video",
-        "ai video prompts",
+        "product demo video prompts",
         "demo video generator for saas"
       ],
       "contentAssets": [
-        "prompt pack",
+        "product demo prompt pack",
         "workflow checklist",
         "comparison table",
         "template stack"
       ],
-      "brandBoundary": "Focused on AI-assisted product demo, launch, and screenshot-to-video workflows for SaaS and product teams."
+      "brandBoundary": "Only AI-assisted SaaS product demo, feature launch, onboarding, Product Hunt, and screenshot-to-video workflows for product teams; excludes general entertainment and cinematic AI video."
     },
     {
       "thesisKey": "agent-infrastructure",
