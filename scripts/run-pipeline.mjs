@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
@@ -14,6 +14,14 @@ if (typeof process.loadEnvFile === 'function') {
 }
 
 const { buildSiteVisualAssets } = await import('./site-visuals.mjs')
+const {
+  buildStableClaimKey,
+  buildStableReviewKey,
+  canonicalizeSourceUrl,
+  pipelineNow,
+  stableUniqueByCanonicalUrl,
+  writeFileIfChanged,
+} = await import('./pipeline-stability.mjs')
 const {
   evaluateHomepageCompositionHtml,
   loadHomepageBudget,
@@ -31,6 +39,7 @@ const {
 
 const projectRoot = process.cwd()
 const publicDir = path.join(projectRoot, 'public')
+const publicMediaDir = path.join(publicDir, 'media')
 const generatedDir = path.join(publicDir, 'generated')
 const artifactsDir = path.join(generatedDir, 'content-artifacts')
 const sitesRoot = path.join(publicDir, 'generated-sites')
@@ -71,10 +80,12 @@ let designProfileRegistry = null
 const execFileAsync = promisify(execFile)
 const pipelineCliOptions = parsePipelineCliOptions(process.argv.slice(2))
 const pipelineRunMode = resolvePipelineRunMode(pipelineCliOptions.mode)
+const pipelineClock = pipelineNow()
+const changedPublicRoutePaths = new Set()
 
 const config = {
-  runId: new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-'),
-  generatedAt: new Date().toISOString(),
+  runId: pipelineClock.toISOString().replaceAll(':', '-').replaceAll('.', '-'),
+  generatedAt: pipelineClock.toISOString(),
   baseUrl: process.env.SITE_BASE_URL ?? 'http://localhost:4173',
   minOpportunityScore: 62,
   minCommercialFit: 58,
@@ -90,7 +101,9 @@ const config = {
   autoReleaseEnabled: parseBooleanFlag(process.env.AUTO_RELEASE_ENABLED, false),
   autoReleaseOnGatePass: parseBooleanFlag(process.env.AUTO_RELEASE_ON_GATE_PASS, false),
   offlineFixturesEnabled: parseBooleanFlag(process.env.PIPELINE_OFFLINE_FIXTURES, false),
+  updateTrackedFixtures: parseBooleanFlag(process.env.PIPELINE_UPDATE_TRACKED_FIXTURES, false),
 }
+config.writeTrackedOutputs = !config.offlineFixturesEnabled || config.updateTrackedFixtures
 
 const googleConfig = {
   serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? '',
@@ -3597,7 +3610,7 @@ function safeDomainFromBaseUrl(baseUrl) {
 }
 
 function isoDaysAgo(days) {
-  const date = new Date()
+  const date = new Date(pipelineClock)
   date.setUTCDate(date.getUTCDate() - days)
   return date.toISOString().slice(0, 10)
 }
@@ -3989,7 +4002,7 @@ function scoreFirecrawlResearchQuality(item, firecrawl, keyword) {
     .join(' ')
   const matchStats = keywordMatchStats(evidenceText, keyword)
   const detectedYear = detectYear(evidenceText)
-  const currentYear = new Date().getUTCFullYear()
+  const currentYear = pipelineClock.getUTCFullYear()
 
   let score = 0.12
   score += matchStats.ratio * 0.22
@@ -5395,7 +5408,7 @@ async function fetchHackerNewsSignals(keyword) {
       `https://hn.algolia.com/api/v1/search_by_date?query=${encodeURIComponent(keyword)}&tags=story&hitsPerPage=10`,
     )
     const hits = data.hits ?? []
-    const thirtyDaysAgo = Date.now() - 1000 * 60 * 60 * 24 * 30
+    const thirtyDaysAgo = pipelineClock.getTime() - 1000 * 60 * 60 * 24 * 30
     const recentHits = hits.filter((hit) => {
       const createdAt = Date.parse(hit.created_at ?? '')
       return (
@@ -5607,7 +5620,7 @@ async function fetchPublishResearch(keyword) {
   const workflowCoverage = topResults.filter((result) => result.intent === 'workflow').length
   const outdatedResultCount = topResults.filter((result) => {
     if (result.detectedYear == null) return false
-    return result.detectedYear <= new Date().getUTCFullYear() - 1
+    return result.detectedYear <= pipelineClock.getUTCFullYear() - 1
   }).length
 
   const communityPainResults = dedupeBy(
@@ -6231,7 +6244,7 @@ function sourceCredibilityScore(result, category) {
 function sourceFreshnessScore(result) {
   const detectedYear = result.detectedYear ?? detectYear(`${result.title ?? ''} ${result.snippet ?? ''}`)
   if (!detectedYear) return 0.46
-  const delta = new Date().getUTCFullYear() - detectedYear
+  const delta = pipelineClock.getUTCFullYear() - detectedYear
   if (delta <= 0) return 0.96
   if (delta === 1) return 0.8
   if (delta === 2) return 0.58
@@ -6247,36 +6260,37 @@ function sourceQualityScore(result, category) {
 }
 
 function normalizeSourcePackItems(results, category, query) {
-  return dedupeBy(
-    (results ?? []).map((result, index) => ({
-      id: `${category}-${slugify(`${result.domain ?? category} ${result.title ?? query}`).slice(0, 42) || `${category}-${index + 1}`}-${shortHash(result.url ?? `${query}-${index}`)}`,
-      category,
-      query,
-      title: result.title,
-      url: result.url,
-      domain: result.domain,
-      snippet: result.snippet,
-      detectedYear:
-        result.detectedYear ?? detectYear(`${result.title ?? ''} ${result.snippet ?? ''}`),
-      intent: result.intent ?? classifyIntent(`${result.title ?? ''} ${result.snippet ?? ''}`),
-      sourceSubtype: detectSourceSubtype(result, category),
-      credibilityScore: sourceCredibilityScore(result, category),
-      freshnessScore: sourceFreshnessScore(result),
-      sourceQualityScore: sourceQualityScore(result, category),
-      collectedAt: config.generatedAt,
-      firecrawl: result.firecrawl ?? null,
-      seededToolId: result.seededToolId ?? '',
-      seededSourceType: result.seededSourceType ?? '',
-      seedPriority: preferFiniteNumber(result.seedPriority, 0),
-    })),
-    'url',
+  return stableUniqueByCanonicalUrl(
+    (results ?? []).map((result) => {
+      const canonicalUrl = canonicalizeSourceUrl(result.url)
+      return {
+        id: `${category}-${slugify(`${result.domain ?? category} ${result.title ?? query}`).slice(0, 42) || category}-${shortHash(canonicalUrl || `${query}:${result.title ?? ''}`)}`,
+        category,
+        query,
+        title: result.title,
+        url: canonicalUrl,
+        domain: result.domain,
+        snippet: result.snippet,
+        detectedYear:
+          result.detectedYear ?? detectYear(`${result.title ?? ''} ${result.snippet ?? ''}`),
+        intent: result.intent ?? classifyIntent(`${result.title ?? ''} ${result.snippet ?? ''}`),
+        sourceSubtype: detectSourceSubtype(result, category),
+        credibilityScore: sourceCredibilityScore(result, category),
+        freshnessScore: sourceFreshnessScore(result),
+        sourceQualityScore: sourceQualityScore(result, category),
+        collectedAt: config.generatedAt,
+        firecrawl: result.firecrawl ?? null,
+        seededToolId: result.seededToolId ?? '',
+        seededSourceType: result.seededSourceType ?? '',
+        seedPriority: preferFiniteNumber(result.seedPriority, 0),
+      }
+    }),
   )
 }
 
 function mergeSourcePackItems(primary, fallback, limit) {
-  return dedupeBy(
+  return stableUniqueByCanonicalUrl(
     [...(primary ?? []), ...(fallback ?? [])].filter((item) => item?.url),
-    'url',
   ).slice(0, limit)
 }
 
@@ -10924,8 +10938,14 @@ async function buildPageModels(
     counterpoint,
     evidence,
   }) {
-    const seed = `${cluster.siteSlug}:${claimKind}:${statement}:${sourceIds.join('|')}`
-    const confidence = round(clamp(0.58 + Math.min(sourceIds.length, 3) * 0.12, 0.55, 0.94), 2)
+    const stableSourceIds = dedupe(sourceIds).sort((left, right) => left.localeCompare(right, 'en'))
+    const seed = buildStableClaimKey({
+      siteSlug: cluster.siteSlug,
+      claimKind,
+      statement,
+      sourceIds: stableSourceIds,
+    })
+    const confidence = round(clamp(0.58 + Math.min(stableSourceIds.length, 3) * 0.12, 0.55, 0.94), 2)
     const reusePriority =
       pageTypes.length >= 4 || ['comparison', 'pricing', 'workflow', 'conversion'].includes(claimKind)
         ? 'high'
@@ -10933,7 +10953,7 @@ async function buildPageModels(
           ? 'medium'
           : 'low'
     const lifecycleDecision =
-      sourceIds.length === 0
+      stableSourceIds.length === 0
         ? 'refresh'
         : topCommunity.length > 0 || decisionStage === 'buy' || confidence >= 0.72
           ? 'active'
@@ -10948,7 +10968,7 @@ async function buildPageModels(
       decisionStage,
       confidence,
       freshness: topCommunity.length > 0 ? 'current-run' : 'derived',
-      sourceIds: dedupe(sourceIds),
+      sourceIds: stableSourceIds,
       status: 'active',
       statement,
       whyItMatters,
@@ -14897,6 +14917,31 @@ function resolvePublicHomeMediaUrl(value) {
     const mediaMatch = rawValue.match(/(?:^|\/)media\/([^/?#]+)$/)
     if (mediaMatch) return new URL(`/media/${mediaMatch[1]}`, `${config.baseUrl}/`).toString()
     return rawValue
+  }
+}
+
+function withPublicVisualCanonicalUrl(visualAsset) {
+  if (!visualAsset) return null
+  const fileName = path.posix.basename(String(visualAsset.url || visualAsset.src || ''))
+  if (!fileName) return visualAsset
+  return {
+    ...visualAsset,
+    canonicalUrl: new URL(`/media/${fileName}`, `${config.baseUrl}/`).toString(),
+  }
+}
+
+async function syncVisualAssetsToPublicMedia(siteSlug, manifest) {
+  await mkdir(publicMediaDir, { recursive: true })
+  for (const item of safeArray(manifest?.items)) {
+    const itemUrl = String(item?.url ?? '')
+    if (!itemUrl.includes(`/generated-sites/${siteSlug}/media/`)) continue
+    const fileName = path.posix.basename(itemUrl)
+    const sourcePath = path.join(sitesRoot, siteSlug, 'media', fileName)
+    const targetPath = path.join(publicMediaDir, fileName)
+    if (!existsSync(sourcePath)) continue
+    const source = await readFile(sourcePath)
+    const target = existsSync(targetPath) ? await readFile(targetPath) : null
+    if (!target || !source.equals(target)) await copyFile(sourcePath, targetPath)
   }
 }
 
@@ -19117,6 +19162,13 @@ function renderAssetLandingHtml(site, asset) {
   const designProfile = getSiteDesignProfile(site)
   const canonicalUrl = new URL(asset.landingPath, `${config.baseUrl}/`).toString()
   const socialImage = asset.visualAsset?.canonicalUrl ?? ''
+  const schema = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: `${asset.title} delivery`,
+    description: asset.summary,
+    url: canonicalUrl,
+  })
   const heroVisual = renderVisualFigure(
     asset.visualAsset,
     `${asset.title} preview`,
@@ -19170,6 +19222,7 @@ function renderAssetLandingHtml(site, asset) {
     <meta name="twitter:title" content="${escapeHtml(asset.title)} delivery" />
     <meta name="twitter:description" content="${escapeHtml(asset.summary)}" />
     ${socialImage ? `<meta name="twitter:image" content="${escapeHtml(socialImage)}" />` : ''}
+    <script type="application/ld+json">${schema}</script>
 ${ga4Snippet}
 ${leadCaptureSnippet}
     <style>
@@ -19869,6 +19922,14 @@ function buildConsultOfferRecord(site) {
 function renderConsultOfferHtml(site, offer) {
   const designProfile = getSiteDesignProfile(site)
   const canonicalUrl = new URL(offer.landingPath, `${config.baseUrl}/`).toString()
+  const socialImage = site.publicHome?.visualAsset?.canonicalUrl ?? ''
+  const schema = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: offer.title,
+    description: offer.summary,
+    url: canonicalUrl,
+  })
   const ga4Snippet = renderGa4Snippet(
     {
       title: offer.title,
@@ -19908,6 +19969,10 @@ function renderConsultOfferHtml(site, offer) {
     <title>${escapeHtml(offer.title)}</title>
     <meta name="description" content="${escapeHtml(offer.summary)}" />
     <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
+    ${socialImage ? `<meta property="og:image" content="${escapeHtml(socialImage)}" />` : ''}
+    <meta name="twitter:card" content="summary_large_image" />
+    ${socialImage ? `<meta name="twitter:image" content="${escapeHtml(socialImage)}" />` : ''}
+    <script type="application/ld+json">${schema}</script>
 ${ga4Snippet}
 ${leadCaptureSnippet}
     <style>
@@ -21211,7 +21276,7 @@ function buildSiteDesignReviewReport(site, renderedPages) {
       : 'needs_review'
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt: config.generatedAt,
     siteSlug: site.siteSlug,
     designProfileKey: designProfile?.key ?? site.designProfileKey ?? 'default',
     status,
@@ -21769,6 +21834,10 @@ const baseIndexablePublicPaths = new Set([
   '/free-vs-paid/',
   '/templates/',
   '/use-cases/',
+  '/audit/',
+  '/prompt-pack/',
+  '/workflow-checklist/',
+  '/comparison-worksheet/',
 ])
 
 function normalizeRoutePath(value) {
@@ -21800,15 +21869,32 @@ function applyRobotsDirective(html, directive) {
   return applyNoindexDirective(html)
 }
 
-function buildSitemapXml(urls) {
+function readSitemapLastmodByUrl(xml = '') {
+  const lastmodByUrl = new Map()
+  for (const match of String(xml).matchAll(/<url>\s*<loc>([^<]+)<\/loc>\s*<lastmod>([^<]+)<\/lastmod>\s*<\/url>/g)) {
+    lastmodByUrl.set(match[1], match[2])
+  }
+  return lastmodByUrl
+}
+
+function buildSitemapXml(urls, options = {}) {
+  const existingLastmodByUrl = readSitemapLastmodByUrl(options.existingXml)
+  const sortedUrls = dedupe(urls).sort((left, right) => left.localeCompare(right, 'en'))
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls
+${sortedUrls
   .map(
-    (url) => `  <url>
+    (url) => {
+      const routePath = normalizeRoutePath(new URL(url).pathname)
+      const lastmod =
+        !options.changedRoutes?.has(routePath) && existingLastmodByUrl.has(url)
+          ? existingLastmodByUrl.get(url)
+          : config.generatedAt
+      return `  <url>
     <loc>${escapeHtml(url)}</loc>
-    <lastmod>${config.generatedAt}</lastmod>
-  </url>`,
+    <lastmod>${lastmod}</lastmod>
+  </url>`
+    },
   )
   .join('\n')}
 </urlset>
@@ -21934,16 +22020,16 @@ async function writePublicRouteHtml(routePath, html) {
   if (!trimmed || trimmed === '/') return
   const relativeRoute = trimmed.replace(/^\/+|\/+$/g, '')
   const outputDir = path.join(publicDir, relativeRoute)
-  await mkdir(outputDir, { recursive: true })
-  await writeFile(path.join(outputDir, 'index.html'), `${html}\n`)
+  const changed = await writeFileIfChanged(path.join(outputDir, 'index.html'), html)
+  if (changed) changedPublicRoutePaths.add(normalizeRoutePath(routePath))
+  return changed
 }
 
 async function writePublicFile(filePath, contents) {
   const trimmed = String(filePath || '').trim().replace(/^\/+/, '')
   if (!trimmed) return
   const outputPath = path.join(publicDir, trimmed)
-  await mkdir(path.dirname(outputPath), { recursive: true })
-  await writeFile(outputPath, contents)
+  return writeFileIfChanged(outputPath, contents)
 }
 
 async function removePublicRoute(routePath) {
@@ -21980,8 +22066,14 @@ function buildSeoReport(sites, publishGateBySiteSlug) {
       ...site.pages
         .filter((page) => page.indexingDirective !== 'noindex')
         .map((page) => page.canonicalUrl),
+      ...safeArray(site.conversionAssets)
+        .filter((asset) => isIndexablePublicPath(asset.landingPath))
+        .map((asset) => new URL(asset.landingPath, `${config.baseUrl}/`).toString()),
+      ...(site.commercialOffer?.landingPath && isIndexablePublicPath(site.commercialOffer.landingPath)
+        ? [new URL(site.commercialOffer.landingPath, `${config.baseUrl}/`).toString()]
+        : []),
     ]).filter(isAllowedPublicUrl),
-  )
+  ).sort((left, right) => left.localeCompare(right, 'en'))
   const blockedUrls = dedupe(
     blockedSites.flatMap((site) => [
       ...(site.publicHomeCanonicalUrl ? [site.publicHomeCanonicalUrl] : []),
@@ -24617,7 +24709,7 @@ function buildOfflineFixtureResearch(siteSlug, researchDossier, sourcePack) {
       workflowCoverage: safeArray(serpResults).filter((result) => result.intent === 'workflow').length,
       outdatedResultCount: safeArray(serpResults).filter((result) => {
         if (result.detectedYear == null) return false
-        return result.detectedYear <= new Date().getUTCFullYear() - 1
+        return result.detectedYear <= pipelineClock.getUTCFullYear() - 1
       }).length,
       communityPainCount: communityPainResults.length,
       productSignalCount: productSignals.length,
@@ -24706,11 +24798,11 @@ async function ensureDirectories({ preserveOutputs = config.preserveGeneratedOut
 }
 
 async function writeJson(filePath, payload) {
-  await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`)
+  return writeFileIfChanged(filePath, JSON.stringify(payload, null, 2))
 }
 
 async function writeMarkdown(filePath, content) {
-  await writeFile(filePath, `${content.trimEnd()}\n`)
+  return writeFileIfChanged(filePath, content)
 }
 
 async function writeWikiCard(directoryKey, fileName, frontmatter, sections) {
@@ -24721,7 +24813,7 @@ async function writeWikiCard(directoryKey, fileName, frontmatter, sections) {
 
 async function readWikiCards(directoryKey, prefix) {
   const directory = wikiDirectoryMap[directoryKey]
-  const fileNames = await readdir(directory)
+  const fileNames = (await readdir(directory)).sort((left, right) => left.localeCompare(right, 'en'))
   const matchingFiles = fileNames.filter((fileName) => fileName.startsWith(prefix) && fileName.endsWith('.md'))
   const cards = []
 
@@ -24741,7 +24833,7 @@ async function readWikiCards(directoryKey, prefix) {
 async function removeWikiCardsByPrefix(directoryKey, prefix, keepFileNames = []) {
   const directory = wikiDirectoryMap[directoryKey]
   const keep = new Set(keepFileNames)
-  const fileNames = await readdir(directory)
+  const fileNames = (await readdir(directory)).sort((left, right) => left.localeCompare(right, 'en'))
   const staleFiles = fileNames.filter(
     (fileName) => fileName.startsWith(prefix) && fileName.endsWith('.md') && !keep.has(fileName),
   )
@@ -25216,7 +25308,23 @@ async function promoteDraftClaimsToCanonical(cluster) {
 }
 
 function buildCanonicalSourcePackFromWiki(cluster, wikiSeed, fallbackSourcePack) {
-  const summaries = safeArray(wikiSeed?.sourceSummaries)
+  const sourceKindPriority = new Map([
+    ['official', 0],
+    ['competitive', 1],
+    ['community', 2],
+    ['workflow', 3],
+    ['serp', 4],
+    ['product', 5],
+    ['video', 6],
+    ['deepResearch', 7],
+  ])
+  const summaries = [...safeArray(wikiSeed?.sourceSummaries)].sort((left, right) => {
+    const priorityOrder =
+      (sourceKindPriority.get(left.sourceKind) ?? 99) - (sourceKindPriority.get(right.sourceKind) ?? 99)
+    if (priorityOrder !== 0) return priorityOrder
+    return canonicalizeSourceUrl(left.url).localeCompare(canonicalizeSourceUrl(right.url), 'en')
+  })
+  const seenSourceUrls = new Set()
   const byKind = {
     official: [],
     competitive: [],
@@ -25229,11 +25337,14 @@ function buildCanonicalSourcePackFromWiki(cluster, wikiSeed, fallbackSourcePack)
   }
 
   for (const summary of summaries) {
+    const canonicalUrl = canonicalizeSourceUrl(summary.url)
+    if (!canonicalUrl || seenSourceUrls.has(canonicalUrl)) continue
+    seenSourceUrls.add(canonicalUrl)
     const rawId = meaningfulText(summary.rawSourceId) || summary.id
     const entry = {
       id: rawId,
       title: summary.title,
-      url: summary.url,
+      url: canonicalUrl,
       domain: summary.domain,
       snippet: summary.sourceSummary || summary.keyFacts[0] || summary.buyerPainSignals[0] || summary.title,
       reason: summary.sourceSummary || summary.keyFacts[0] || '',
@@ -25245,7 +25356,7 @@ function buildCanonicalSourcePackFromWiki(cluster, wikiSeed, fallbackSourcePack)
   }
 
   const categories = Object.fromEntries(
-    Object.entries(byKind).map(([key, value]) => [key, value]),
+    Object.entries(byKind).map(([key, value]) => [key, stableUniqueByCanonicalUrl(value)]),
   )
   const sourceCounts = {
     official: 0,
@@ -25347,7 +25458,7 @@ async function writeWikiFirstMutationCards({
   const siteSlug = cluster.siteSlug
   const thesisId = toWikiId('thesis', cluster.thesisKey)
   const clusterId = toWikiId('cluster', siteSlug)
-  const sourceItems = dedupeBy(
+  const sourceItems = stableUniqueByCanonicalUrl(
     [
       ...safeArray(rawSourcePack?.categories?.official),
       ...safeArray(rawSourcePack?.categories?.competitive),
@@ -25356,7 +25467,6 @@ async function writeWikiFirstMutationCards({
       ...safeArray(rawSourcePack?.categories?.serp),
       ...safeArray(rawSourcePack?.categories?.deepResearch),
     ],
-    'id',
   )
   const existingBriefMap = new Map(safeArray(wikiSeed?.pageBriefs).map((brief) => [brief.pageType, brief]))
   const existingClaimMap = new Map(safeArray(wikiSeed?.claims).map((claim) => [claim.id, claim]))
@@ -25402,7 +25512,9 @@ async function writeWikiFirstMutationCards({
   await removeWikiCardsByPrefix(
     'claims',
     `claim-draft.${siteSlug}.`,
-    safeArray(mutationPlan?.generatedClaims).map((claim) => buildDraftClaimFileName(claim.id)),
+    safeArray(mutationPlan?.generatedClaims)
+      .filter((claim) => !canPromoteGeneratedClaim(claim) && !existingClaimMap.has(claim.id))
+      .map((claim) => buildDraftClaimFileName(claim.id)),
   )
 
   for (const source of sourceItems) {
@@ -25462,32 +25574,37 @@ async function writeWikiFirstMutationCards({
   for (const generatedClaim of safeArray(mutationPlan?.generatedClaims)) {
     if (!generatedClaim?.id) continue
     const claimHash = generatedClaim.id.split('.').at(-1)
-    await writeWikiCard(
-      'claims',
-      buildDraftClaimFileName(generatedClaim.id),
-      {
-        id: toWikiId('claim-draft', siteSlug, claimHash),
-        canonical_id: generatedClaim.id,
-        type: 'claim_draft',
-        thesis_id: generatedClaim.thesisId,
-        cluster_id: generatedClaim.clusterId,
-        page_types: generatedClaim.pageTypes,
-        claim_kind: generatedClaim.claimKind,
-        decision_stage: generatedClaim.decisionStage,
-        confidence: generatedClaim.confidence,
-        source_ids: generatedClaim.sourceIds.map((sourceId) => toWikiId('source', siteSlug, sourceId)),
-        status: 'draft',
-        last_verified: normalizeIsoDate(generatedClaim.lastVerified) || config.generatedAt.slice(0, 10),
-      },
-      [
-        { heading: 'Claim', lines: [generatedClaim.statement] },
-        { heading: 'Why it matters', lines: [generatedClaim.whyItMatters] },
-        { heading: 'Evidence', lines: formatMarkdownBullets(generatedClaim.evidence) },
-        { heading: 'Counterpoint / limitation', lines: [generatedClaim.counterpoint] },
-        { heading: 'Best page types to use this in', lines: formatMarkdownBullets(generatedClaim.bestPageTypes) },
-      ],
-    )
-    if (!canPromoteGeneratedClaim(generatedClaim)) continue
+    if (!canPromoteGeneratedClaim(generatedClaim)) {
+      if (existingClaimMap.has(generatedClaim.id)) continue
+      await writeWikiCard(
+        'claims',
+        buildDraftClaimFileName(generatedClaim.id),
+        {
+          id: toWikiId('claim-draft', siteSlug, claimHash),
+          canonical_id: generatedClaim.id,
+          type: 'claim_draft',
+          thesis_id: generatedClaim.thesisId,
+          cluster_id: generatedClaim.clusterId,
+          page_types: [...generatedClaim.pageTypes].sort((left, right) => left.localeCompare(right, 'en')),
+          claim_kind: generatedClaim.claimKind,
+          decision_stage: generatedClaim.decisionStage,
+          confidence: generatedClaim.confidence,
+          source_ids: generatedClaim.sourceIds
+            .map((sourceId) => toWikiId('source', siteSlug, sourceId))
+            .sort((left, right) => left.localeCompare(right, 'en')),
+          status: 'draft',
+          last_verified: normalizeIsoDate(generatedClaim.lastVerified) || config.generatedAt.slice(0, 10),
+        },
+        [
+          { heading: 'Claim', lines: [generatedClaim.statement] },
+          { heading: 'Why it matters', lines: [generatedClaim.whyItMatters] },
+          { heading: 'Evidence', lines: formatMarkdownBullets(generatedClaim.evidence) },
+          { heading: 'Counterpoint / limitation', lines: [generatedClaim.counterpoint] },
+          { heading: 'Best page types to use this in', lines: formatMarkdownBullets(generatedClaim.bestPageTypes) },
+        ],
+      )
+      continue
+    }
     const existingClaim = existingClaimMap.get(generatedClaim.id) ?? null
     await writeWikiCard(
       'claims',
@@ -25497,7 +25614,7 @@ async function writeWikiFirstMutationCards({
         type: 'claim',
         thesis_id: generatedClaim.thesisId,
         cluster_id: generatedClaim.clusterId,
-        page_types: generatedClaim.pageTypes,
+        page_types: [...generatedClaim.pageTypes].sort((left, right) => left.localeCompare(right, 'en')),
         claim_kind: generatedClaim.claimKind,
         decision_stage: generatedClaim.decisionStage,
         confidence: generatedClaim.confidence,
@@ -25509,7 +25626,9 @@ async function writeWikiFirstMutationCards({
         reuse_priority: generatedClaim.reusePriority ?? 'medium',
         refresh_priority: generatedClaim.refreshPriority ?? generatedClaim.reusePriority ?? 'medium',
         lifecycle_decision: generatedClaim.lifecycleDecision ?? 'active',
-        source_ids: generatedClaim.sourceIds.map((sourceId) => toWikiId('source', siteSlug, sourceId)),
+        source_ids: generatedClaim.sourceIds
+          .map((sourceId) => toWikiId('source', siteSlug, sourceId))
+          .sort((left, right) => left.localeCompare(right, 'en')),
         status: resolvePromotedClaimStatus(existingClaim, generatedClaim),
         last_verified: normalizeIsoDate(generatedClaim.lastVerified) || config.generatedAt.slice(0, 10),
         staleness_days: Math.max(1, parsePositiveInt(generatedClaim.stalenessDays, 14)),
@@ -25843,7 +25962,6 @@ async function exportWikiAssets({
   wikiWritebackQueue,
   assetPerformanceView,
   phase2ExpansionTrigger,
-  currentRunSnapshot,
 }) {
   const exported = {
     generatedAt: config.generatedAt,
@@ -25868,7 +25986,7 @@ async function exportWikiAssets({
   function estimateFreshnessScore(source) {
     const year = source.detectedYear
     if (!year) return 72
-    const currentYear = new Date().getUTCFullYear()
+    const currentYear = pipelineClock.getUTCFullYear()
     if (year >= currentYear) return 92
     if (year === currentYear - 1) return 80
     if (year === currentYear - 2) return 64
@@ -25965,7 +26083,7 @@ async function exportWikiAssets({
       toolRankings: [],
       rankingNotes: [],
     }
-    const sourceItems = dedupeBy(
+    const sourceItems = stableUniqueByCanonicalUrl(
       [
         ...site.sourcePack.categories.official,
         ...site.sourcePack.categories.competitive,
@@ -25973,7 +26091,6 @@ async function exportWikiAssets({
         ...site.sourcePack.categories.workflow,
         ...site.sourcePack.categories.serp,
       ],
-      'id',
     )
     const canonicalClaims = safeArray(canonicalWikiSeed.claims).filter((claim) => {
       const type = meaningfulText(claim?.type).toLowerCase()
@@ -26612,10 +26729,14 @@ async function exportWikiAssets({
     }
 
     const reviewFinding = `Gate 2 is ${site.gates.publish.status}; Gate 3 is ${site.gates.expansion.day30.status}; lifecycle is ${site.lifecycle.state}.`
-    const reviewId = toWikiId('review', site.siteSlug, shortHash(currentRunSnapshot.runId, 8))
+    const reviewHash = shortHash(
+      buildStableReviewKey({ siteSlug: site.siteSlug, targetId: clusterId }),
+      8,
+    )
+    const reviewId = toWikiId('review', site.siteSlug, reviewHash)
     const reviewPath = await writeWikiCard(
       'reviews',
-      `review.${site.siteSlug}.${shortHash(currentRunSnapshot.runId, 8)}.md`,
+      `review.${site.siteSlug}.${reviewHash}.md`,
       {
         id: reviewId,
         type: 'review',
@@ -26785,7 +26906,9 @@ async function runPipeline() {
   const manualSelectedPages = new Set(
     [...pipelineCliOptions.selectedPages].map((value) => normalizePageSelectionKey(value)).filter(Boolean),
   )
-  const previousUpdateState = (await readJsonIfExists(contentUpdateStatePath)) ?? { sites: [] }
+  const previousUpdateState = config.offlineFixturesEnabled
+    ? { sites: [] }
+    : (await readJsonIfExists(contentUpdateStatePath)) ?? { sites: [] }
   const previousUpdateSiteMap = new Map(
     safeArray(previousUpdateState?.sites).map((site) => [site.siteSlug, site]),
   )
@@ -26797,11 +26920,13 @@ async function runPipeline() {
       selectedSiteSlugs.size > 0 ||
       manualSelectedPages.size > 0,
   })
-  await Promise.all(legacyPublicRoutePaths.map((routePath) => removePublicRoute(routePath)))
+  if (config.writeTrackedOutputs) {
+    await Promise.all(legacyPublicRoutePaths.map((routePath) => removePublicRoute(routePath)))
+  }
   const reviewOverrideIndex = buildReviewOverrideIndex(await readJsonIfExists(reviewOverridesPath))
-  const previousHistory = (await readJsonIfExists(historyPath)) ?? []
-  const previousFeedback = await readJsonIfExists(feedbackPath)
-  const previousPlaybook = await readJsonIfExists(contentPlaybookPath)
+  const previousHistory = config.offlineFixturesEnabled ? [] : (await readJsonIfExists(historyPath)) ?? []
+  const previousFeedback = config.offlineFixturesEnabled ? null : await readJsonIfExists(feedbackPath)
+  const previousPlaybook = config.offlineFixturesEnabled ? null : await readJsonIfExists(contentPlaybookPath)
   const activeContentPlaybook = buildContentPlaybook(
     previousFeedback,
     previousHistory,
@@ -26882,15 +27007,17 @@ async function runPipeline() {
       wikiSeed,
       { mode: 'mutation' },
     )
-    await writeWikiFirstMutationCards({
-      cluster,
-      research,
-      rawSourcePack: sourcePack,
-      mutationPlan: wikiMutationPlan,
-      wikiSeed,
-    })
-    await promoteDraftClaimsToCanonical(cluster)
-    const wikiCanonicalSeed = await loadWikiSeedBundle(cluster)
+    if (config.writeTrackedOutputs) {
+      await writeWikiFirstMutationCards({
+        cluster,
+        research,
+        rawSourcePack: sourcePack,
+        mutationPlan: wikiMutationPlan,
+        wikiSeed,
+      })
+      await promoteDraftClaimsToCanonical(cluster)
+    }
+    const wikiCanonicalSeed = config.writeTrackedOutputs ? await loadWikiSeedBundle(cluster) : wikiSeed
     const canonicalSourcePack = buildCanonicalSourcePackFromWiki(cluster, wikiCanonicalSeed, sourcePack)
     const canonicalResearch = buildCanonicalResearchFromWiki(cluster, wikiCanonicalSeed, research)
     const pagePlanning = await buildPageModels(
@@ -26906,30 +27033,36 @@ async function runPipeline() {
     await writeJson(path.join(siteArtifactsDir, 'facts-extraction.json'), pagePlanning.factsExtraction)
     await writeJson(path.join(siteArtifactsDir, 'tool-ranking.json'), pagePlanning.toolRanking)
     await writeJson(path.join(siteArtifactsDir, 'comparison-debug-report.json'), pagePlanning.comparisonDebugReport)
+    const visualSiteDir = config.writeTrackedOutputs
+      ? siteDir
+      : path.join(generatedDir, 'offline-sites', cluster.siteSlug)
     const siteVisualBundle = await buildSiteVisualAssets({
       baseUrl: config.baseUrl,
-      siteDir,
+      siteDir: visualSiteDir,
       siteArtifactsDir,
       cluster,
       pages: pagePlanning.pages,
       conversionAssets: pagePlanning.conversionAssets,
     })
+    if (config.writeTrackedOutputs) {
+      await syncVisualAssetsToPublicMedia(cluster.siteSlug, siteVisualBundle.manifest)
+    }
     const pageModels = pagePlanning.pages.map((page) => ({
       ...page,
-      visualAsset: siteVisualBundle.pageVisuals[page.slug] ?? null,
+      visualAsset: withPublicVisualCanonicalUrl(siteVisualBundle.pageVisuals[page.slug] ?? null),
     }))
     const publicHomeModel = pagePlanning.publicHome
       ? {
           ...pagePlanning.publicHome,
           visualAsset:
-            siteVisualBundle.pageVisuals.index ??
+            withPublicVisualCanonicalUrl(siteVisualBundle.pageVisuals.index) ??
             pageModels.find((page) => page.slug === 'index')?.visualAsset ??
             null,
         }
       : null
     const conversionAssets = pagePlanning.conversionAssets.map((asset) => ({
       ...asset,
-      visualAsset: siteVisualBundle.assetVisuals[asset.slug] ?? null,
+      visualAsset: withPublicVisualCanonicalUrl(siteVisualBundle.assetVisuals[asset.slug] ?? null),
     }))
     const previousSiteState = previousUpdateSiteMap.get(cluster.siteSlug) ?? null
     const siteRecord = {
@@ -27000,8 +27133,10 @@ async function runPipeline() {
     const renderedAssetPages = []
 
     for (const asset of siteRecord.conversionAssets) {
-      await writeMarkdown(path.join(downloadsDir, asset.downloadFileName), asset.downloadMarkdown)
-      await writePublicFile(asset.downloadPath, asset.downloadMarkdown)
+      if (config.writeTrackedOutputs) {
+        await writeMarkdown(path.join(downloadsDir, asset.downloadFileName), asset.downloadMarkdown)
+        await writePublicFile(asset.downloadPath, asset.downloadMarkdown)
+      }
       const landingPage = renderAssetLandingHtml(siteRecord, asset)
       const thankYouPage = renderAssetThankYouHtml(siteRecord, asset)
       renderedAssetPages.push({
@@ -27102,9 +27237,9 @@ async function runPipeline() {
     const previewOnlyPageSlugs = new Set(siteRecord.publicHome ? ['index'] : [])
 
     for (const page of renderedPages) {
-      if (writeTargets.pageSlugsToWrite.has(page.slug)) {
+      if (config.writeTrackedOutputs && writeTargets.pageSlugsToWrite.has(page.slug)) {
         const previewHtml = applyNoindexDirective(page.html)
-        await writeFile(path.join(siteDir, page.fileName), `${previewHtml}\n`)
+        await writeFileIfChanged(path.join(siteDir, page.fileName), previewHtml)
 
         if (page.publicPath) {
           const indexingDirective = resolveIndexingDirective(page, publishGate, {
@@ -27148,9 +27283,9 @@ async function runPipeline() {
         writeTargets.assetSlugsToWrite.has(assetSlug) ||
         publishGateChanged ||
         forceFullRebuild
-      if (shouldWriteAssetPage) {
+      if (config.writeTrackedOutputs && shouldWriteAssetPage) {
         const previewHtml = applyNoindexDirective(assetPage.html)
-        await writeFile(path.join(siteDir, assetPage.fileName), `${previewHtml}\n`)
+        await writeFileIfChanged(path.join(siteDir, assetPage.fileName), previewHtml)
         const finalHtml = releaseReady ? assetPage.html : applyNoindexDirective(assetPage.html)
         if (assetPage.routePath) {
           await writePublicRouteHtml(assetPage.routePath, finalHtml)
@@ -27209,9 +27344,11 @@ async function runPipeline() {
     sites.push(siteRecord)
   }
 
-  await writeFile(path.join(sitesRoot, 'index.html'), buildSiteIndexHtml(sites))
+  if (config.writeTrackedOutputs) {
+    await writeFileIfChanged(path.join(sitesRoot, 'index.html'), buildSiteIndexHtml(sites))
+  }
 
-    const deploymentSites = sites.map((site) =>
+  const deploymentSites = sites.map((site) =>
       buildDeploymentSite(
         site,
         site.audit.status,
@@ -27220,7 +27357,6 @@ async function runPipeline() {
   )
 
   const seoReport = buildSeoReport(sites, publishGateBySiteSlug)
-  const sitemapXml = buildSitemapXml(seoReport.queuedUrls)
   const robotsTxt = buildRobotsTxt()
   const llmsTxt = buildLlmsTxt(
     sites.filter((site) => isReleaseEligiblePublishGate(publishGateBySiteSlug.get(site.siteSlug))),
@@ -27266,10 +27402,19 @@ async function runPipeline() {
         warnings: [],
       }
   await writeHomepageCompositionReport(rootHomepageCompositionReport, path.join(generatedDir, 'homepage-composition-report.json'))
-  await writeFile(path.join(publicDir, 'index.html'), rootHtml)
-  await writeFile(path.join(publicDir, 'sitemap.xml'), sitemapXml)
-  await writeFile(path.join(publicDir, 'robots.txt'), robotsTxt)
-  await writeFile(path.join(publicDir, 'llms.txt'), llmsTxt)
+  const sitemapPath = path.join(publicDir, 'sitemap.xml')
+  const existingSitemap = existsSync(sitemapPath) ? await readFile(sitemapPath, 'utf8') : ''
+  if (config.writeTrackedOutputs) {
+    const rootChanged = await writeFileIfChanged(path.join(publicDir, 'index.html'), rootHtml)
+    if (rootChanged) changedPublicRoutePaths.add('/')
+    const sitemapXml = buildSitemapXml(seoReport.queuedUrls, {
+      existingXml: existingSitemap,
+      changedRoutes: changedPublicRoutePaths,
+    })
+    await writeFileIfChanged(sitemapPath, sitemapXml)
+    await writeFileIfChanged(path.join(publicDir, 'robots.txt'), robotsTxt)
+    await writeFileIfChanged(path.join(publicDir, 'llms.txt'), llmsTxt)
+  }
 
   const currentRunNumber = previousHistory.length + 1
   const previousRun = previousHistory.at(-1) ?? null
@@ -27289,7 +27434,7 @@ async function runPipeline() {
     previousHistory.length === 0
       ? {
           runId: 'seed-baseline',
-          generatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+          generatedAt: new Date(pipelineClock.getTime() - 1000 * 60 * 60 * 24 * 7).toISOString(),
           mode: currentMonitoringMode || config.monitoringMode,
           seeded: true,
           sites: currentMonitoringSites.map((site) => ({
@@ -27438,7 +27583,9 @@ async function runPipeline() {
     entries: assetReviewQueue,
   })
   await writeMarkdown(assetReviewQueueMarkdownPath, buildAssetReviewQueueMarkdown(assetReviewQueue))
-  await writeJson(reviewOverridesTemplatePath, buildReviewOverrideTemplate(enrichedSites))
+  if (config.writeTrackedOutputs) {
+    await writeJson(reviewOverridesTemplatePath, buildReviewOverrideTemplate(enrichedSites))
+  }
   const commercialOpsSnapshot = await readJsonIfExists(path.join(storageDir, 'commercial-ops.json'))
   const affiliatePerformanceSnapshot = await readJsonIfExists(path.join(storageDir, 'affiliate-performance.json'))
   const commercialIntentModel = buildCommercialIntentModel(enrichedSites)
@@ -27484,18 +27631,48 @@ async function runPipeline() {
       )
     : null
   const autoRelease = await maybeRunAutoRelease(primaryReleaseSite, contentUpdateReport)
-  const wikiExport = await exportWikiAssets({
-    thesisRegistry,
-    enrichedSites,
-    routingSummary,
-    contentFeedback,
-    contentPlaybook,
-    pageRefreshPlans,
-    wikiWritebackQueue,
-    assetPerformanceView,
-    phase2ExpansionTrigger,
-    currentRunSnapshot,
-  })
+  const wikiExport = config.writeTrackedOutputs
+    ? await exportWikiAssets({
+        thesisRegistry,
+        enrichedSites,
+        routingSummary,
+        contentFeedback,
+        contentPlaybook,
+        pageRefreshPlans,
+        wikiWritebackQueue,
+        assetPerformanceView,
+        phase2ExpansionTrigger,
+      })
+    : {
+        generatedAt: config.generatedAt,
+        rootDir: wikiRoot,
+        mode: 'preserved-offline',
+        counts: {
+          theses: thesisRegistry.length,
+          clusters: enrichedSites.length,
+          sources: enrichedSites.reduce((sum, site) => sum + safeArray(site.wikiSeedBundle?.sourceSummaries).length, 0),
+          claims: enrichedSites.reduce((sum, site) => sum + safeArray(site.wikiSeedBundle?.claims).length, 0),
+          pageBriefs: enrichedSites.reduce((sum, site) => sum + safeArray(site.wikiSeedBundle?.pageBriefs).length, 0),
+          assets: enrichedSites.reduce((sum, site) => sum + safeArray(site.wikiSeedBundle?.assets).length, 0),
+          offers: enrichedSites.reduce((sum, site) => sum + safeArray(site.wikiSeedBundle?.offers).length, 0),
+          proofs: enrichedSites.reduce((sum, site) => sum + safeArray(site.wikiSeedBundle?.proofs).length, 0),
+          scenarioPacks: enrichedSites.reduce((sum, site) => sum + safeArray(site.wikiSeedBundle?.scenarioPacks).length, 0),
+          reviews: enrichedSites.reduce((sum, site) => sum + safeArray(site.wikiSeedBundle?.reviews).length, 0),
+          experiments: enrichedSites.reduce((sum, site) => sum + safeArray(site.wikiSeedBundle?.experiments).length, 0),
+          rankings: enrichedSites.reduce(
+            (sum, site) =>
+              sum +
+              safeArray(site.wikiSeedBundle?.toolRankings).length +
+              safeArray(site.wikiSeedBundle?.rankingNotes).length,
+            0,
+          ),
+        },
+        sites: enrichedSites.map((site) => ({
+          siteSlug: site.siteSlug,
+          thesisKey: site.cluster.thesisKey,
+          preserved: true,
+        })),
+      }
   await writeJson(path.join(generatedDir, 'phase1-validation.json'), phase1Validation)
   await writeJson(path.join(generatedDir, 'design-review-report.json'), {
     generatedAt: config.generatedAt,

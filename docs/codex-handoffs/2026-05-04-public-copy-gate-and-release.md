@@ -2,7 +2,7 @@
 
 ## Scope
 
-- Repo path: `/Users/max/code/trend-site-mvp`
+- Repo path: `<repo-root>`
 - Branch: `codex/root-thesis-ops-release`
 - Handoff path: `docs/codex-handoffs/2026-05-04-public-copy-gate-and-release.md`
 - Prior broader handoff: `docs/codex-handoffs/2026-05-04-root-thesis-ops-release.md`
@@ -151,11 +151,11 @@ This is currently raw research input, not visitor-facing page copy. If desired l
 Paste this into a fresh Codex chat:
 
 ```text
-Continue work on /Users/max/code/trend-site-mvp on branch codex/root-thesis-ops-release.
+Continue work on <repo-root> on branch codex/root-thesis-ops-release.
 
 Read these handoffs first:
-- /Users/max/code/trend-site-mvp/docs/codex-handoffs/2026-05-04-root-thesis-ops-release.md
-- /Users/max/code/trend-site-mvp/docs/codex-handoffs/2026-05-04-public-copy-gate-and-release.md
+- <repo-root>/docs/codex-handoffs/2026-05-04-root-thesis-ops-release.md
+- <repo-root>/docs/codex-handoffs/2026-05-04-public-copy-gate-and-release.md
 
 Current state:
 - Public-copy leak rules were added to generation and QA in scripts/run-pipeline.mjs.
@@ -173,8 +173,8 @@ Most recent important command results:
 - SITE_IMAGE_GENERATION_ENABLED=false SITE_IMAGE_REUSE_EXISTING_ASSETS=true pnpm run release:prod -> deployed successfully, but overallStatus stayed warning
 
 Most recent release artifact:
-- /Users/max/code/trend-site-mvp/storage/release-runs/2026-05-04T11-24-59-453Z-prod-ai-video-workflow-short-form-demo/report.json
-- /Users/max/code/trend-site-mvp/storage/release-runs/2026-05-04T11-24-59-453Z-prod-ai-video-workflow-short-form-demo/report.md
+- <repo-root>/storage/release-runs/2026-05-04T11-24-59-453Z-prod-ai-video-workflow-short-form-demo/report.json
+- <repo-root>/storage/release-runs/2026-05-04T11-24-59-453Z-prod-ai-video-workflow-short-form-demo/report.md
 
 Open issues to continue from:
 - release report still shows seo:submit warning with queue:blocked_gate2

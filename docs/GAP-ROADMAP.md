@@ -1,6 +1,6 @@
 # Trend Site Pipeline 当前缺口清单 + 优先级路线图
 
-> 状态提示（2026-05-03）：这份路线图保留了更早阶段的判断。当前以真实发布、SEO 提交、GA4 验收后的最新状态为准，请优先看 [CURRENT-GAPS-V2.md](/Users/max/code/trend-site-mvp/docs/CURRENT-GAPS-V2.md)。
+> 状态提示（2026-05-03）：这份路线图保留了更早阶段的判断。当前以真实发布、SEO 提交、GA4 验收后的最新状态为准，请优先看 [CURRENT-GAPS-V2.md](<repo-root>/docs/CURRENT-GAPS-V2.md)。
 
 ## 1. 这份文档是干什么的
 

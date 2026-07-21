@@ -31,8 +31,8 @@
 
 最新真实发布结果见：
 
-- [latest-successful.json](/Users/max/code/trend-site-mvp/storage/release-runs/latest-successful.json)
-- [release report](/Users/max/code/trend-site-mvp/storage/release-runs/2026-05-03T07-22-23-326Z-prod-ai-video-workflow-short-form-demo/report.md)
+- [latest-successful.json](<repo-root>/storage/release-runs/latest-successful.json)
+- [release report](<repo-root>/storage/release-runs/2026-05-03T07-22-23-326Z-prod-ai-video-workflow-short-form-demo/report.md)
 
 ### 2.2 现在不缺什么
 
@@ -328,25 +328,25 @@
 
 ### 仍然可信
 
-- [docs/SYSTEM.md](/Users/max/code/trend-site-mvp/docs/SYSTEM.md)
+- [docs/SYSTEM.md](<repo-root>/docs/SYSTEM.md)
   - 系统骨架和边界说明仍然可信
-- [docs/OPERATION.md](/Users/max/code/trend-site-mvp/docs/OPERATION.md)
+- [docs/OPERATION.md](<repo-root>/docs/OPERATION.md)
   - 操作流程大体可信，尤其是发布/验收链路
-- [docs/ASSET-ACCEPTANCE-GATE.md](/Users/max/code/trend-site-mvp/docs/ASSET-ACCEPTANCE-GATE.md)
+- [docs/ASSET-ACCEPTANCE-GATE.md](<repo-root>/docs/ASSET-ACCEPTANCE-GATE.md)
   - 资产验收标准仍然有价值
 
 ### 部分过时，应当按“历史材料”来看
 
-- [docs/PRD.md](/Users/max/code/trend-site-mvp/docs/PRD.md)
+- [docs/PRD.md](<repo-root>/docs/PRD.md)
   - 第 1 节里“当前版本：P1 + P2 已闭环，P3 标准已定义”偏旧
   - 现在不是只“定义了 P3 标准”，而是已经完成了大块 P3 基础设施
 
-- [docs/TODO.md](/Users/max/code/trend-site-mvp/docs/TODO.md)
+- [docs/TODO.md](<repo-root>/docs/TODO.md)
   - `Priority 1 / 2 / 3` 顶层复选框仍是未完成，但很多下层项已经完成
   - “当前剩余”部分里关于 `live submit` 的描述偏旧，现在 GSC + IndexNow 已真实通过
   - 它仍然适合看历史设计，不适合直接当最新状态面板
 
-- [docs/GAP-ROADMAP.md](/Users/max/code/trend-site-mvp/docs/GAP-ROADMAP.md)
+- [docs/GAP-ROADMAP.md](<repo-root>/docs/GAP-ROADMAP.md)
   - 其中 “现在更像 SEO 资产生成器，还不是 SEO 提交操作器” 已偏旧
   - “当前 live submit 仍依赖 GSC_SITE_URL / Google auth / INDEXNOW_KEY” 这句技术上没错，但状态判断偏旧，因为 adapter 已经落地并通过
   - 更适合看“为什么当时这么排优先级”，不适合看“现在到底完成到哪”

@@ -15,11 +15,11 @@
 ## 2. 核心入口
 
 - 主脚本：
-  - [`scripts/run-pipeline.mjs`](/Users/max/code/trend-site-mvp/scripts/run-pipeline.mjs)
+  - [`scripts/run-pipeline.mjs`](<repo-root>/scripts/run-pipeline.mjs)
 - thesis 晋升脚本：
-  - [`scripts/thesis-promote.mjs`](/Users/max/code/trend-site-mvp/scripts/thesis-promote.mjs)
+  - [`scripts/thesis-promote.mjs`](<repo-root>/scripts/thesis-promote.mjs)
 - 前端控制台：
-  - [`src/App.tsx`](/Users/max/code/trend-site-mvp/src/App.tsx)
+  - [`src/App.tsx`](<repo-root>/src/App.tsx)
 
 ## 3. thesis 路由层
 
@@ -262,7 +262,7 @@
 
 完整规范见：
 
-- [`docs/ASSET-ACCEPTANCE-GATE.md`](/Users/max/code/trend-site-mvp/docs/ASSET-ACCEPTANCE-GATE.md)
+- [`docs/ASSET-ACCEPTANCE-GATE.md`](<repo-root>/docs/ASSET-ACCEPTANCE-GATE.md)
 
 ## 7. 人工审校入口
 

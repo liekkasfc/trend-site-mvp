@@ -4,7 +4,7 @@
 
 This handoff was reconstructed from the current repo state, git diff, repo docs, and saved release artifacts before archiving Codex history.
 
-- Repo path: `/Users/max/code/trend-site-mvp`
+- Repo path: `<repo-root>`
 - Branch: `codex/root-thesis-ops-release`
 - HEAD: `4550206` (`2026-05-03 Add Hermes wiki layer and visual asset pipeline`)
 - Handoff path: `docs/codex-handoffs/2026-05-04-root-thesis-ops-release.md`
@@ -421,15 +421,15 @@ Practical do-not-touch caution areas:
 Paste this into a fresh Codex chat:
 
 ```text
-Continue work in /Users/max/code/trend-site-mvp on branch codex/root-thesis-ops-release.
+Continue work in <repo-root> on branch codex/root-thesis-ops-release.
 
 Before doing anything else, read this handoff file:
-/Users/max/code/trend-site-mvp/docs/codex-handoffs/2026-05-04-root-thesis-ops-release.md
+<repo-root>/docs/codex-handoffs/2026-05-04-root-thesis-ops-release.md
 
 Important context:
 - The repo is in a dirty worktree with an in-flight design-profile + visual-polish + worker follow-up pass.
 - Local checks already passed in this checkout: pnpm run lint, pnpm run build, pnpm run validate.
-- A cached-data local Wave 7 rebuild passes audit/design/publish and is recorded in /Users/max/code/trend-site-mvp/public/generated/wave7-local-verification.json.
+- A cached-data local Wave 7 rebuild passes audit/design/publish and is recorded in <repo-root>/public/generated/wave7-local-verification.json.
 - A fresh full pipeline run now completes with restored `apimart` visuals when run with preserved outputs and slower image-task settings.
 - The visual-stage root causes that were fixed in this thread were:
   - older pipeline runs wiped `public/generated-sites` and `public/generated/content-artifacts` before visual reuse could benefit from them,
@@ -440,9 +440,9 @@ Important context:
 Your first tasks:
 1. Read the handoff and inspect git status/diff.
 2. Compare these three artifacts before changing anything:
-   - /Users/max/code/trend-site-mvp/public/generated/wave7-local-verification.json
-   - /Users/max/code/trend-site-mvp/public/generated/pipeline-report.json
-   - /Users/max/code/trend-site-mvp/public/generated/design-review-report.json
+   - <repo-root>/public/generated/wave7-local-verification.json
+   - <repo-root>/public/generated/pipeline-report.json
+   - <repo-root>/public/generated/design-review-report.json
 3. Investigate why `publishGateStatus` is null in the fresh pipeline report.
 4. Decide whether to codify the working `apimart` retry settings or leave them as operator overrides.
 5. Keep `consult / qualified / won` items honestly undone unless you produce real live commercial signals.

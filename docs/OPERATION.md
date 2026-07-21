@@ -110,9 +110,9 @@ pnpm run pipeline
 
 如果这次变更影响了首页、高价值页、资产页或视觉层，继续执行：
 
-1. 对照 [`SITE-DESIGN-SPEC.md`](/Users/max/code/trend-site-mvp/docs/SITE-DESIGN-SPEC.md) 过一轮首页 / 高价值页 / 资产 / 视觉 Gate
+1. 对照 [`SITE-DESIGN-SPEC.md`](<repo-root>/docs/SITE-DESIGN-SPEC.md) 过一轮首页 / 高价值页 / 资产 / 视觉 Gate
 2. 如需记录结果，复制：
-   - [`storage/design-review.template.json`](/Users/max/code/trend-site-mvp/storage/design-review.template.json)
+   - [`storage/design-review.template.json`](<repo-root>/storage/design-review.template.json)
    - 到 `storage/design-review.json`
 3. 先改设计和文案层问题，再决定是否正式发布
 
@@ -483,7 +483,7 @@ pnpm exec wrangler pages deploy dist --project-name "$CLOUDFLARE_PAGES_PROJECT" 
 
 完整规则见：
 
-- [`ASSET-ACCEPTANCE-GATE.md`](/Users/max/code/trend-site-mvp/docs/ASSET-ACCEPTANCE-GATE.md)
+- [`ASSET-ACCEPTANCE-GATE.md`](<repo-root>/docs/ASSET-ACCEPTANCE-GATE.md)
 
 ## 6.4 Site Design Spec 现在怎么执行
 
@@ -527,7 +527,7 @@ pnpm exec wrangler pages deploy dist --project-name "$CLOUDFLARE_PAGES_PROJECT" 
 
 完整标准见：
 
-- [`SITE-DESIGN-SPEC.md`](/Users/max/code/trend-site-mvp/docs/SITE-DESIGN-SPEC.md)
+- [`SITE-DESIGN-SPEC.md`](<repo-root>/docs/SITE-DESIGN-SPEC.md)
 
 ## 7. 启用 GSC + GA4 真数据
 

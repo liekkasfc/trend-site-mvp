@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 
 import {
   createReleaseRunDirectory,
@@ -13,21 +13,47 @@ import {
 } from './release-lib.mjs'
 
 const generatedDir = path.join(projectRoot, 'public', 'generated')
+const defaultPublicDir = path.join(projectRoot, 'public')
 
 function extractTagContent(html, pattern) {
   return html.match(pattern)?.[1]?.trim() ?? ''
 }
 
-async function readHtmlFromUrl(url, baseUrl) {
+export async function resolvePublicRouteFile(publicDir, routePath) {
+  const pathname = new URL(routePath, 'https://automiora.invalid').pathname
+  const normalized = pathname.replace(/^\/+|\/+$/g, '')
+  const directPath = pathname === '/' ? path.join(publicDir, 'index.html') : path.join(publicDir, normalized)
+
+  try {
+    const directStat = await stat(directPath)
+    if (directStat.isFile()) return directPath
+    if (directStat.isDirectory()) {
+      const indexPath = path.join(directPath, 'index.html')
+      const indexStat = await stat(indexPath).catch(() => null)
+      if (indexStat?.isFile()) return indexPath
+      throw new Error(`SEO route ${pathname} resolved to ${indexPath}, but the directory has no index.html`)
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
+
+  const indexPath = pathname === '/' ? directPath : path.join(directPath, 'index.html')
+  throw new Error(`SEO route ${pathname} resolved to missing public file ${indexPath}`)
+}
+
+export async function readPublicRouteHtml(url, baseUrl, options = {}) {
   const pathname = new URL(url).pathname
-  const relativePath = pathname.replace(/^\//, '')
-  const filePath = path.join(projectRoot, 'public', relativePath)
-  if (!existsSync(filePath)) {
+  const publicDir = options.publicDir ?? defaultPublicDir
+  let filePath
+  try {
+    filePath = await resolvePublicRouteFile(publicDir, pathname)
+  } catch (error) {
     return {
       exists: false,
-      filePath,
+      filePath: path.join(publicDir, pathname.replace(/^\/+|\/+$/g, ''), 'index.html'),
       html: '',
       pathname,
+      error: error instanceof Error ? error.message : String(error),
     }
   }
   return {
@@ -49,7 +75,7 @@ async function buildPageDiagnostics(urls, sitemapUrl, robotsUrl, baseUrl) {
     : ''
 
   for (const url of urls) {
-    const page = await readHtmlFromUrl(url, baseUrl)
+    const page = await readPublicRouteHtml(url, baseUrl)
     const title = extractTagContent(page.html, /<title>([^<]*)<\/title>/i)
     const description = extractTagContent(
       page.html,
@@ -68,6 +94,7 @@ async function buildPageDiagnostics(urls, sitemapUrl, robotsUrl, baseUrl) {
       pathname: page.pathname,
       filePath: page.filePath,
       fileExists: page.exists,
+      error: page.error ?? '',
       title,
       titleLength: title.length,
       descriptionLength: description.length,
@@ -141,7 +168,7 @@ export async function runSeoDiagnostics() {
   }
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt: process.env.PIPELINE_FIXED_NOW || new Date().toISOString(),
     baseUrl,
     sitemapUrl: seoReport.sitemapUrl,
     robotsUrl: seoReport.robotsUrl,
@@ -161,7 +188,7 @@ export async function runSeoDiagnostics() {
       summary.queuedUrls === summary.schemaBacked &&
       summary.queuedUrls === summary.indexable
         ? 'pass'
-        : 'warning',
+        : 'fail',
   }
 }
 

@@ -30,6 +30,7 @@ storage/imports/
 tmp/
 scripts/.__*.mjs
 wiki/.obsidian/workspace.json
+automations/automiora-change-alert/memory.md
 
 # Editor directories and files
 .vscode/*

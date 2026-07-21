@@ -478,7 +478,7 @@
 
 如果要记录审查结果，使用：
 
-- [`storage/design-review.template.json`](/Users/max/code/trend-site-mvp/storage/design-review.template.json)
+- [`storage/design-review.template.json`](<repo-root>/storage/design-review.template.json)
 
 ---
 
