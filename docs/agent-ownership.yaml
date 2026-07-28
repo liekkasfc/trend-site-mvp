@@ -1,0 +1,51 @@
+# Project policy consumed by humans and coding Agents.
+# This is not a native Orca configuration file.
+
+version: 1
+
+integration:
+  owner: primary-anchor
+  sole_openwiki_writer: primary-anchor
+  require_full_validation: true
+  default_base_ref: origin/main
+
+worker_defaults:
+  forbidden_paths:
+    - openwiki/**
+    - AGENTS.md
+    - CLAUDE.md
+    - .github/workflows/**
+    - pnpm-lock.yaml
+  approval_required_paths:
+    - config/**
+    - workers/**/schema.sql
+    - workers/**/migrations/**
+    - scripts/release-*.mjs
+    - scripts/publish-gate.mjs
+    - scripts/route-manifest.mjs
+  require_owned_paths: true
+  require_forbidden_paths: true
+  allow_openwiki_update: false
+  allow_branch_integration: false
+
+validation:
+  focused:
+    - pnpm test
+  full:
+    - pnpm run validate
+
+completion_report:
+  require_commit_sha: true
+  require_files_modified: true
+  require_validation_commands: true
+  require_validation_results: true
+  require_risk_summary: true
+
+reviewer:
+  read_only: true
+  require_file_evidence: true
+  severities:
+    - critical
+    - high
+    - medium
+    - low
