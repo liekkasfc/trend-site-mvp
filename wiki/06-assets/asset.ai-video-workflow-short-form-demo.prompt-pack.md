@@ -2,24 +2,28 @@
 id: "asset.ai-video-workflow-short-form-demo.prompt-pack"
 type: "conversion_asset"
 thesis_id: "thesis.video-creation"
+title: "Prompt Pack"
 asset_kind: "template_pack"
 status: "active"
 intent_stage: "consideration"
 delivery_mode: "download"
-primary_pages: ["index","faq","best-tools","pricing","free-vs-paid","use-cases","template-kit","case-study"]
+primary_pages: ["index","faq","best-tools","pricing","free-vs-paid","use-cases","template-kit","case-study","ai-video-diy-vs-freelancer","ai-video-production-cost","ai-video-editor"]
 conversion_event: "generate_lead"
 click_event: "asset_cta_click"
 form_event: "asset_form_submit"
 delivery_event: "asset_delivery"
 refresh_cycle: "monthly"
 refresh_priority: "medium"
-reuse_score: 0
+last_verified: "2026-07-14"
+staleness_days: 30
+change_triggers: ["Landing copy changed","Delivery flow changed","Primary tool shortlist changed","Workflow steps changed"]
+reuse_score: 61
 acceptance_mode: "B"
 acceptance_status: "human_quick_review"
 accepted_version: "v1-accepted"
-landing_path: "/generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack.html"
-thank_you_path: "/generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack-thank-you.html"
-download_path: "/generated-sites/ai-video-workflow-short-form-demo/downloads/prompt-pack.md"
+landing_path: "/prompt-pack/"
+thank_you_path: "/prompt-pack/ready/"
+download_path: "/downloads/prompt-pack.md"
 ---
 ## Asset promise
 
@@ -39,7 +43,7 @@ indie hackers, product marketers, and content operators shipping short-form prod
 
 ## Why it converts
 
-It gives the visitor a concrete next step from index, faq, best-tools, pricing, free-vs-paid, use-cases, template-kit, case-study.
+It gives the visitor a concrete next step from index, faq, best-tools, pricing, free-vs-paid, use-cases, template-kit, case-study, ai-video-diy-vs-freelancer, ai-video-production-cost, ai-video-editor.
 
 ## Best-fit use cases
 
@@ -61,6 +65,9 @@ short-form product demo videos
 - use-cases
 - template-kit
 - case-study
+- ai-video-diy-vs-freelancer
+- ai-video-production-cost
+- ai-video-editor
 
 ## Placement rules
 
@@ -72,12 +79,15 @@ short-form product demo videos
 - use-cases
 - template-kit
 - case-study
+- ai-video-diy-vs-freelancer
+- ai-video-production-cost
+- ai-video-editor
 
 ## Delivery rules
 
-- Landing page: /generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack.html
-- Thank-you page: /generated-sites/ai-video-workflow-short-form-demo/asset-prompt-pack-thank-you.html
-- Download file: /generated-sites/ai-video-workflow-short-form-demo/downloads/prompt-pack.md
+- Landing page: /prompt-pack/
+- Thank-you page: /prompt-pack/ready/
+- Download file: /downloads/prompt-pack.md
 - Track asset_cta_click, asset_form_submit, generate_lead, and asset_delivery in GA4.
 - Refresh on a monthly cycle or when the workflow changes.
 
@@ -101,9 +111,24 @@ Quick human review recommended before release.
 
 medium
 
+## Last verified
+
+2026-07-14
+
+## Staleness days
+
+30
+
+## Change triggers
+
+- Landing copy changed
+- Delivery flow changed
+- Primary tool shortlist changed
+- Workflow steps changed
+
 ## Reuse score
 
-0
+61
 
 ## Asset performance view
 
@@ -111,4 +136,4 @@ medium
 - Submit rate: 95%
 - Delivery rate: 95%
 - Deeper action rate: 0%
-- Live ops data: 7 lead(s), 7 delivered, 0 qualified, 0 won, $0 revenue.
+- Live ops data: 11 lead(s), 11 delivered, 0 qualified, 0 won, $0 revenue.

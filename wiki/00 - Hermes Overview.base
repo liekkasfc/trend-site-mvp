@@ -1,0 +1,59 @@
+filters:
+  or:
+    - type == "thesis"
+    - type == "cluster"
+    - type == "conversion_asset"
+    - type == "review"
+    - type == "experiment"
+formulas:
+  updated_at: file.mtime.format("YYYY-MM-DD HH:mm")
+properties:
+  file.name:
+    displayName: Note
+  type:
+    displayName: Type
+  status:
+    displayName: Status
+  label:
+    displayName: Label
+  primary_keyword:
+    displayName: Primary Keyword
+  asset_kind:
+    displayName: Asset Kind
+  decision:
+    displayName: Decision
+  action:
+    displayName: Action
+  formula.updated_at:
+    displayName: Updated
+views:
+  - type: table
+    name: Active Stack
+    groupBy:
+      property: type
+      direction: ASC
+    order:
+      - file.name
+      - status
+      - label
+      - primary_keyword
+      - asset_kind
+      - decision
+      - action
+      - formula.updated_at
+  - type: cards
+    name: Thesis and Cluster Focus
+    filters:
+      or:
+        - type == "thesis"
+        - type == "cluster"
+        - type == "conversion_asset"
+    order:
+      - file.name
+      - type
+      - status
+      - label
+      - offer
+      - primary_keyword
+      - asset_kind
+      - conversion_event

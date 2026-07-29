@@ -1,5 +1,5 @@
-# Trend Site Pipeline
+# Automiora
 
-This project generates compact decision pages from validated trend clusters.
+Automiora publishes practical guides, workflow pages, and downloadable templates for teams evaluating AI-powered production workflows.
 
-- AI video workflow for short-form product and demo content: https://automiora.com/generated-sites/ai-video-workflow-short-form-demo/index.html
+- AI video workflow for short-form product and demo content: https://automiora.com/

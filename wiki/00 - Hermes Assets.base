@@ -1,0 +1,56 @@
+filters: type == "conversion_asset"
+formulas:
+  updated_at: file.mtime.format("YYYY-MM-DD HH:mm")
+properties:
+  file.name:
+    displayName: Note
+  asset_kind:
+    displayName: Asset Kind
+  status:
+    displayName: Status
+  intent_stage:
+    displayName: Intent Stage
+  delivery_mode:
+    displayName: Delivery
+  primary_pages:
+    displayName: Primary Pages
+  conversion_event:
+    displayName: Conversion Event
+  refresh_priority:
+    displayName: Refresh Priority
+  acceptance_status:
+    displayName: Acceptance
+  download_path:
+    displayName: Download Path
+  formula.updated_at:
+    displayName: Updated
+views:
+  - type: table
+    name: Delivery Assets
+    groupBy:
+      property: asset_kind
+      direction: ASC
+    order:
+      - file.name
+      - status
+      - intent_stage
+      - delivery_mode
+      - primary_pages
+      - conversion_event
+      - refresh_priority
+      - acceptance_status
+      - download_path
+      - formula.updated_at
+  - type: cards
+    name: Ready to Sell
+    filters:
+      and:
+        - type == "conversion_asset"
+        - status == "active"
+    order:
+      - file.name
+      - asset_kind
+      - intent_stage
+      - delivery_mode
+      - conversion_event
+      - acceptance_status

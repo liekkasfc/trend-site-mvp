@@ -4,10 +4,47 @@ import {
   createReleaseRunDirectory,
   projectRoot,
   queryD1,
+  readJsonIfExists,
   toNumber,
   writeJson,
   writeText,
 } from './release-lib.mjs'
+
+function normalizeAffiliatePerformance(snapshot) {
+  const summary = snapshot?.summary ?? {}
+  return {
+    status: snapshot?.status ?? 'missing',
+    generatedAt: snapshot?.generatedAt ?? null,
+    dataThroughDate: snapshot?.dataThroughDate ?? null,
+    summary: {
+      clicks: toNumber(summary.clicks, 0),
+      registrations: toNumber(summary.registrations, 0),
+      ftb: toNumber(summary.ftb, 0),
+      commission: toNumber(summary.commission, 0),
+      clickToRegistrationRate: toNumber(summary.clickToRegistrationRate, 0),
+      clickToFtbRate: toNumber(summary.clickToFtbRate, 0),
+      registrationToFtbRate: toNumber(summary.registrationToFtbRate, 0),
+      commissionPerClick: toNumber(summary.commissionPerClick, 0),
+      commissionPerFtb: toNumber(summary.commissionPerFtb, 0),
+    },
+    byTrackingCode: Array.isArray(snapshot?.byTrackingCode)
+      ? snapshot.byTrackingCode.map((row) => ({
+          trackingCode: row.trackingCode,
+          clicks: toNumber(row.clicks, 0),
+          registrations: toNumber(row.registrations, 0),
+          ftb: toNumber(row.ftb, 0),
+          commission: toNumber(row.commission, 0),
+          clickToRegistrationRate: toNumber(row.clickToRegistrationRate, 0),
+          clickToFtbRate: toNumber(row.clickToFtbRate, 0),
+          commissionPerClick: toNumber(row.commissionPerClick, 0),
+        }))
+      : [],
+    unmatchedTrackingCodes: Array.isArray(snapshot?.unmatchedTrackingCodes)
+      ? snapshot.unmatchedTrackingCodes
+      : [],
+    anomalies: Array.isArray(snapshot?.anomalies) ? snapshot.anomalies : [],
+  }
+}
 
 function renderMarkdown(report) {
   const lines = [
@@ -25,6 +62,10 @@ function renderMarkdown(report) {
     `- Qualified events: ${report.summary.qualifiedEvents}`,
     `- Won events: ${report.summary.wonEvents}`,
     `- Revenue USD: $${report.summary.revenueUsd.toFixed(2)}`,
+    `- Affiliate clicks: ${report.summary.affiliateClicks}`,
+    `- Affiliate registrations: ${report.summary.affiliateRegistrations}`,
+    `- Affiliate first-time buyers: ${report.summary.affiliateFtb}`,
+    `- Affiliate commission USD: $${report.summary.affiliateCommissionUsd.toFixed(2)}`,
     '',
     '## Asset performance',
   ]
@@ -39,7 +80,45 @@ function renderMarkdown(report) {
   }
 
   lines.push('')
+  lines.push('## Affiliate performance')
+  if (report.affiliatePerformance.status === 'missing') {
+    lines.push('- No affiliate performance snapshot found. Run `pnpm affiliate:import:fiverr` after adding Fiverr CSV exports.')
+  } else if (report.affiliatePerformance.status === 'no_data') {
+    lines.push('- Affiliate report exists, but no imported rows were available yet.')
+  } else {
+    lines.push(
+      `- ${report.affiliatePerformance.summary.clicks} click(s), ${report.affiliatePerformance.summary.registrations} registration(s), ${report.affiliatePerformance.summary.ftb} first-time buyer(s), $${report.affiliatePerformance.summary.commission.toFixed(2)} commission`,
+    )
+    if (report.affiliatePerformance.dataThroughDate) {
+      lines.push(`- Data through: ${report.affiliatePerformance.dataThroughDate}`)
+    }
+    for (const row of report.affiliatePerformance.byTrackingCode.slice(0, 5)) {
+      lines.push(
+        `- ${row.trackingCode}: ${row.clicks} click(s), ${row.registrations} registration(s), ${row.ftb} FTB, $${row.commission.toFixed(2)} commission`,
+      )
+    }
+    for (const anomaly of report.affiliatePerformance.anomalies) {
+      lines.push(`- anomaly: ${anomaly}`)
+    }
+    if (report.affiliatePerformance.unmatchedTrackingCodes.length > 0) {
+      lines.push(`- unmatched tracking codes: ${report.affiliatePerformance.unmatchedTrackingCodes.join(', ')}`)
+    }
+  }
+
+  lines.push('')
+  lines.push('## Consult activity')
+  if (report.consultsBySite.length === 0) {
+    lines.push('- No consult requests captured yet.')
+  }
+  for (const row of report.consultsBySite) {
+    lines.push(`- ${row.site_slug}: ${row.request_count} consult request(s)`)
+  }
+
+  lines.push('')
   lines.push('## Follow-up queue by owner')
+  if (report.followupsByOwner.length === 0) {
+    lines.push('- No open owner queue rows in this snapshot.')
+  }
   for (const row of report.followupsByOwner) {
     lines.push(
       `- ${row.owner_email || 'unassigned'} / ${row.status}: ${row.total} follow-up(s)`,
@@ -133,6 +212,9 @@ function buildAssetPerformance(assetLeadsByAsset, eventRows, followupRows, sourc
 
 async function main() {
   const runDirectory = await createReleaseRunDirectory('commercial-ops')
+  const affiliatePerformance = normalizeAffiliatePerformance(
+    await readJsonIfExists(path.join(projectRoot, 'storage', 'affiliate-performance.json')),
+  )
   const [assetLeadSummaryRow] = await queryD1(
     `
       select
@@ -146,8 +228,8 @@ async function main() {
   const [followupSummaryRow] = await queryD1(
     `
       select
-        sum(case when status != 'completed' then 1 else 0 end) as open_followups,
-        sum(case when status != 'completed' and due_at is not null and due_at < datetime('now') then 1 else 0 end) as overdue_followups
+        sum(case when lower(status) not in ('completed', 'won', 'lost', 'cancelled') then 1 else 0 end) as open_followups,
+        sum(case when lower(status) not in ('completed', 'won', 'lost', 'cancelled') and due_at is not null and due_at < datetime('now') then 1 else 0 end) as overdue_followups
       from lead_followups
     `,
   )
@@ -202,6 +284,7 @@ async function main() {
     `
       select owner_email, status, count(*) as total
       from lead_followups
+      where lower(status) not in ('completed', 'won', 'lost', 'cancelled')
       group by owner_email, status
       order by owner_email asc, status asc
     `,
@@ -211,8 +294,8 @@ async function main() {
       select
         site_slug,
         coalesce(asset_slug, '') as asset_slug,
-        sum(case when status != 'completed' then 1 else 0 end) as open_followups,
-        sum(case when status != 'completed' and due_at is not null and due_at < datetime('now') then 1 else 0 end) as overdue_followups
+        sum(case when lower(status) not in ('completed', 'won', 'lost', 'cancelled') then 1 else 0 end) as open_followups,
+        sum(case when lower(status) not in ('completed', 'won', 'lost', 'cancelled') and due_at is not null and due_at < datetime('now') then 1 else 0 end) as overdue_followups
       from lead_followups
       group by site_slug, coalesce(asset_slug, '')
     `,
@@ -273,6 +356,13 @@ async function main() {
       qualifiedEvents: toNumber(eventSummaryTotalRow?.qualified_events, 0),
       wonEvents: toNumber(eventSummaryTotalRow?.won_events, 0),
       revenueUsd: toNumber(eventSummaryTotalRow?.revenue_usd, 0),
+      affiliateClicks: affiliatePerformance.summary.clicks,
+      affiliateRegistrations: affiliatePerformance.summary.registrations,
+      affiliateFtb: affiliatePerformance.summary.ftb,
+      affiliateCommissionUsd: affiliatePerformance.summary.commission,
+      affiliateClickToRegistrationRate: affiliatePerformance.summary.clickToRegistrationRate,
+      affiliateClickToFtbRate: affiliatePerformance.summary.clickToFtbRate,
+      affiliateCommissionPerClick: affiliatePerformance.summary.commissionPerClick,
     },
     assetLeadsByAsset,
     consultsBySite,
@@ -285,6 +375,7 @@ async function main() {
       revenue_usd: toNumber(row.revenue_usd, 0),
     })),
     assetPerformance,
+    affiliatePerformance,
   }
 
   const markdown = renderMarkdown(report)

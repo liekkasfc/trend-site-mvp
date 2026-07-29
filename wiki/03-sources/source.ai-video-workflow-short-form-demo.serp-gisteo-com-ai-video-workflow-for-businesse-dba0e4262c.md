@@ -1,14 +1,15 @@
 ---
 id: "source.ai-video-workflow-short-form-demo.serp-gisteo-com-ai-video-workflow-for-businesse-dba0e4262c"
-type: "source"
+type: "source_summary"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 source_kind: "serp"
+raw_source_id: "serp-gisteo-com-ai-video-workflow-for-businesse-dba0e4262c"
 title: "AI Video Workflow for Businesses: From Idea to Finished Video"
 url: "https://gisteo.com/blogs/ai-videos/ai-video-workflow-for-businesses/"
 domain: "gisteo.com"
 published_at: null
-captured_at: "2026-05-03T08:37:39.354Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 70
 status: "active"
@@ -20,7 +21,7 @@ Learn an AI video workflow businesses can use to move from idea to finished vide
 ## Key facts extracted
 
 - AI Video Workflow for Businesses: From Idea to Finished Video
-- Intent: workflow
+- Intent: ai video workflow
 - Category: serp
 
 ## Buyer pain signals

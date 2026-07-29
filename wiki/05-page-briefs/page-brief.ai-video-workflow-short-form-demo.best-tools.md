@@ -6,11 +6,13 @@ cluster_id: "cluster.ai-video-workflow-short-form-demo"
 page_type: "best-tools"
 target_intent: "category_shortlist"
 target_asset: "AI Video Workflow prompt pack"
-primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.recommendation.913017be","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25"]
+status: "active"
+primary_claim_ids: ["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378"]
 secondary_claim_ids: ["claim.ai-video-workflow-short-form-demo.caveat.a9652179"]
 required_sections: ["Ranked shortlist","Fit framing","CTA asset"]
 cta_strategy: "comparison_to_asset"
 review_priority: "high"
+workflow_steps: []
 completeness_score: 100
 ---
 ## Page goal
@@ -29,9 +31,10 @@ See a ranked field with clearer fit signals than a generic listicle.
 
 ## Required claims
 
-- The right next step is to grab ai video workflow prompt pack before opening more tabs.
 - ltx.studio is the recommended first shortlist review because it fits the highest-intent visitor best.
 - Buyers should compare workflow cost and review overhead before they compare plan names.
+- Buyers should compare workflow cost and review overhead before they compare plan names.
+- Runway is the recommended first shortlist review because it fits the highest-intent visitor best.
 
 ## Required examples
 

@@ -1,0 +1,23 @@
+{
+  "maxMajorSections": 6,
+  "maxH2Count": 6,
+  "maxVisibleWordCount": 1400,
+  "maxPrimaryCtaOccurrences": 2,
+  "maxSecondaryCtaOccurrences": 1,
+  "maxToolDetailCards": 2,
+  "maxFaqItems": 4,
+  "maxInteractiveModules": 1,
+  "maxComparisonRows": 2,
+  "maxRepeatedVerdictOccurrences": 1,
+  "maxRepeatedParagraphRatio": 0.1,
+  "primaryCtaText": "Get the Product Demo Workflow Pack",
+  "secondaryCtaText": "See the 5-Step Workflow",
+  "requiredChildPageLinks": [
+    "/compare/",
+    "/workflow/",
+    "/pricing/",
+    "/free-vs-paid/",
+    "/templates/",
+    "/case-study/"
+  ]
+}

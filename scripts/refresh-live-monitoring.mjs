@@ -19,13 +19,28 @@ const gscSiteUrl = String(process.env.GSC_SITE_URL ?? '').trim()
 const ga4PropertyId = String(process.env.GA4_PROPERTY_ID ?? '').replace(/^properties\//, '').trim()
 const gscLookbackDays = Number.parseInt(process.env.GSC_LOOKBACK_DAYS ?? '30', 10) || 30
 const ga4LookbackDays = Number.parseInt(process.env.GA4_LOOKBACK_DAYS ?? '30', 10) || 30
-const ga4ConversionEvents = String(process.env.GA4_CONVERSION_EVENTS ?? 'generate_lead,sign_up,purchase')
+const affiliateFeatureEnabled = ['1', 'true', 'yes', 'on'].includes(
+  String(process.env.AFFILIATE_FEATURE_ENABLED ?? '').trim().toLowerCase(),
+)
+const ga4ConversionEvents = String(process.env.GA4_CONVERSION_EVENTS ?? 'generate_lead,sign_up,purchase,affiliate_click')
   .split(',')
   .map((value) => value.trim())
   .filter(Boolean)
 
 const siteSlug = 'ai-video-workflow-short-form-demo'
-const publicPaths = ['/', '/workflow/', '/compare/', '/prompt-pack/', '/audit/']
+const commercialPublicPaths = [
+  '/guides/ai-video-diy-vs-freelancer/',
+  '/cost/ai-video-production-cost/',
+  '/hire/ai-video-editor/',
+]
+const publicPaths = [
+  '/',
+  '/workflow/',
+  '/compare/',
+  '/prompt-pack/',
+  '/audit/',
+  ...(affiliateFeatureEnabled ? commercialPublicPaths : []),
+]
 const contentUrls = publicPaths.map((routePath) => new URL(routePath, `${baseUrl}/`).toString())
 
 function meaningfulText(value) {

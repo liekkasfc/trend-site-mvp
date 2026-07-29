@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Workflow Checklist ready</title>
+    <meta name="description" content="Download Workflow Checklist and move straight into the first pilot." />
+    <link rel="canonical" href="https://automiora.com/workflow-checklist/ready/" />
+    <meta property="og:image" content="https://automiora.com/media/workflow-checklist-cover.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Workflow Checklist ready" />
+    <meta name="twitter:description" content="Download Workflow Checklist and move straight into the first pilot." />
+    <meta name="twitter:image" content="https://automiora.com/media/workflow-checklist-cover.svg" />
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-0YDYHQCDQC"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      window.gtag = window.gtag || gtag;
+      gtag('js', new Date());
+      gtag('config', "G-0YDYHQCDQC", {
+        page_title: "Workflow Checklist ready",
+        page_path: "/workflow-checklist/ready/",
+        send_page_view: true
+      });
+
+      window.addEventListener('DOMContentLoaded', function () {
+        
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', "asset_form_submit", {
+            page_path: "/workflow-checklist/ready/",
+            page_title: "Workflow Checklist ready",
+            event_label: "Workflow Checklist",
+            cta_title: "Workflow Checklist",
+            ...{"asset_slug":"workflow-checklist","asset_kind":"checklist","stage":"submit"}
+          });
+        }
+
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', "download_checklist", {
+            page_path: "/workflow-checklist/ready/",
+            page_title: "Workflow Checklist ready",
+            event_label: "Workflow Checklist",
+            cta_title: "Workflow Checklist",
+            ...{"asset_slug":"workflow-checklist","asset_kind":"checklist","stage":"unlock"}
+          });
+        }
+
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', "generate_lead", {
+            page_path: "/workflow-checklist/ready/",
+            page_title: "Workflow Checklist ready",
+            event_label: "Workflow Checklist",
+            cta_title: "Workflow Checklist",
+            ...{"asset_slug":"workflow-checklist","asset_kind":"checklist","stage":"lead_alias"}
+          });
+        }
+
+        var affiliateClickSent = typeof WeakSet === 'function' ? new WeakSet() : null;
+        document.querySelectorAll('[data-ga4-event]').forEach(function (element) {
+          element.addEventListener('click', function () {
+            if (typeof window.gtag !== 'function') return;
+            if (element.dataset.ga4Event === 'affiliate_click' && affiliateClickSent) {
+              if (affiliateClickSent.has(element)) return;
+              affiliateClickSent.add(element);
+            }
+            var eventParams = {
+              page_path: "/workflow-checklist/ready/",
+              page_title: "Workflow Checklist ready",
+              event_label: element.dataset.ga4Label || '',
+              cta_title: "Workflow Checklist"
+            };
+            if (element.dataset.ga4Event === 'affiliate_click') {
+              eventParams.affiliate_program = element.dataset.affiliateProgram || '';
+              eventParams.offer_id = element.dataset.offerId || '';
+              eventParams.tracking_code = element.dataset.trackingCode || '';
+              eventParams.page_slug = element.dataset.pageSlug || '';
+              eventParams.page_type = element.dataset.pageType || '';
+              eventParams.cta_position = element.dataset.ctaPosition || '';
+              eventParams.cta_variant = element.dataset.ctaVariant || '';
+              eventParams.destination_category = element.dataset.destinationCategory || '';
+            }
+            window.gtag('event', element.dataset.ga4Event, eventParams);
+          });
+        });
+
+        document.querySelectorAll('form[data-ga4-submit-event]').forEach(function (form) {
+          form.addEventListener('submit', function () {
+            if (typeof window.gtag !== 'function') return;
+            window.gtag('event', form.dataset.ga4SubmitEvent, {
+              page_path: "/workflow-checklist/ready/",
+              page_title: "Workflow Checklist ready",
+              event_label: form.dataset.ga4Label || '',
+              cta_title: "Workflow Checklist"
+            });
+          });
+        });
+      });
+    </script>
+  
+
+    <script>
+      window.addEventListener('DOMContentLoaded', function () {
+        var downloadLink = document.querySelector('[data-delivery-download-link]');
+        if (!downloadLink) return;
+
+        var config = {"apiBaseUrl":"https://api.automiora.com","fallbackHref":"/downloads/workflow-checklist.md"};
+        var params = new URLSearchParams(window.location.search);
+        var token = params.get('delivery_token');
+        var note = document.querySelector('[data-delivery-note]');
+        var resendButton = document.querySelector('[data-delivery-resend-button]');
+        var resendStatus = document.querySelector('[data-delivery-resend-status]');
+
+        function setResendStatus(message, isError) {
+          if (!resendStatus) return;
+          resendStatus.hidden = !message;
+          resendStatus.textContent = message || '';
+          resendStatus.dataset.state = isError ? 'error' : 'info';
+        }
+
+        if (token) {
+          downloadLink.href = config.apiBaseUrl + '/v1/deliver/' + encodeURIComponent(token);
+          if (note) {
+            note.hidden = false;
+            note.textContent = 'This delivery link is tied to the request that just unlocked the asset.';
+          }
+        } else {
+          downloadLink.href = config.fallbackHref;
+          if (note) {
+            note.hidden = false;
+            note.textContent = 'Fallback download is active because no delivery token was present on this page load.';
+          }
+        }
+
+        if (resendButton) {
+          resendButton.hidden = !token;
+          resendButton.addEventListener('click', async function () {
+            if (!token) return;
+            resendButton.disabled = true;
+            setResendStatus('', false);
+            try {
+              var response = await fetch(
+                config.apiBaseUrl + '/v1/deliver/' + encodeURIComponent(token) + '/resend',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                }
+              );
+              var result = {};
+              try {
+                result = await response.json();
+              } catch (error) {
+                result = {};
+              }
+              if (!response.ok || !result.deliveryToken) {
+                throw new Error(result.error || 'resend_failed');
+              }
+              token = result.deliveryToken;
+              downloadLink.href = config.apiBaseUrl + '/v1/deliver/' + encodeURIComponent(token);
+              setResendStatus('A fresh delivery link was sent to the same email address.', false);
+            } catch (error) {
+              setResendStatus(error instanceof Error ? error.message : 'Resend failed.', true);
+            } finally {
+              resendButton.disabled = false;
+            }
+          });
+        }
+      });
+    </script>
+  
+    <style>
+
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, sans-serif;
+        --page-bg: #171717;
+        --surface: #1f1f1f;
+        --surface-alt: #262626;
+        --surface-glass: rgba(239, 237, 231, 0.03);
+        --text-strong: #efede7;
+        --text-muted: #d3cec3;
+        --accent: #8eb777;
+        --accent-soft: rgba(142, 183, 119, 0.12);
+        --accent-2: #dcb45c;
+        --accent-2-soft: rgba(220, 180, 92, 0.1);
+        --warning: #c98c66;
+        --border-soft: rgba(239, 237, 231, 0.08);
+        --border-muted: rgba(239, 237, 231, 0.12);
+        --content-width: 820px;
+      }
+    
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--text-strong); }
+      main { width: min(var(--content-width), calc(100% - 32px)); margin: 0 auto; padding: 40px 0 48px; }
+      section { padding: 22px 0; border-top: 1px solid var(--border-muted); }
+      h1, h2, p, ul { margin: 0; }
+      h1 { font-size: 2.2rem; line-height: 1.08; margin-bottom: 12px; }
+      h2 { font-size: 1.05rem; margin-bottom: 10px; }
+      p, li { color: var(--text-muted); line-height: 1.7; }
+      .eyebrow { color: var(--accent); font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
+      .hero-shell { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr); align-items: start; }
+      .hero-shell--single { grid-template-columns: 1fr; }
+      .lede { max-width: 62ch; }
+      .hero-visual {
+        margin: 0;
+        border: 1px solid var(--border-soft);
+        background: var(--surface-glass);
+        overflow: hidden;
+      }
+      .hero-visual img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 3 / 2;
+        object-fit: cover;
+        background: var(--surface);
+      }
+      .hero-visual figcaption {
+        display: grid;
+        gap: 6px;
+        padding: 14px;
+        border-top: 1px solid var(--border-soft);
+        background: var(--surface-glass);
+      }
+      .hero-visual figcaption strong { color: var(--text-strong); }
+      .hero-visual figcaption span { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
+      .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .card { border: 1px solid var(--border-soft); background: var(--surface-glass); padding: 14px; }
+      .card strong { display: block; color: var(--text-strong); margin-bottom: 8px; }
+      .button {
+        display: inline-block;
+        margin-top: 14px;
+        padding: 12px 16px;
+        background: var(--accent-2);
+        color: var(--page-bg);
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .secondary-button {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 11px 14px;
+        border: 1px solid var(--border-muted);
+        background: transparent;
+        color: var(--text-strong);
+        text-decoration: none;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .delivery-note {
+        margin-top: 10px;
+        font-size: 0.92rem;
+        color: var(--text-muted);
+      }
+      .delivery-note[data-state="error"] {
+        color: var(--warning);
+      }
+      .text-link { color: var(--accent-2); }
+      ul { padding-left: 20px; }
+      @media (max-width: 720px) {
+        .hero-shell { grid-template-columns: 1fr; }
+        .grid { grid-template-columns: 1fr; }
+        h1 { font-size: 1.95rem; }
+      }
+    </style>
+  </head>
+  <body data-design-profile="video-creation">
+    <main>
+      <div class="hero-shell">
+        <div>
+          <p class="eyebrow">AI Video Workflow</p>
+          <h1>Workflow Checklist is ready</h1>
+          <p class="lede">Download the asset, use the first module on one narrow pilot, and keep the workflow notes that make the second run cleaner than the first.</p>
+        </div>
+        
+    <figure class="hero-visual" data-visual-mode="fallback">
+      <img src="/media/workflow-checklist-cover.svg" alt="Workflow Checklist cover visual showing reusable ai video workflow workflow materials." loading="eager" decoding="async" />
+      <figcaption>
+        <strong>Workflow Checklist ready</strong>
+        <span>Start with pick the use case</span>
+      </figcaption>
+    </figure>
+  
+      </div>
+
+      <section>
+        <h2>Start here in the first 30 minutes</h2>
+        <div class="grid">
+          
+                <article class="card">
+                  <strong>Assign the owner</strong>
+                  <p>Fill the checklist with the person who owns source material, execution, and final approval before any tool testing begins.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Mark the pass/fail line</strong>
+                  <p>Define the success metric and failure point for the first production-shaped pilot before the team debates output quality by instinct.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Record the first failure mode</strong>
+                  <p>As soon as the pilot breaks, log the exact review, rework, or quality issue so the next operator does not rediscover it.</p>
+                </article>
+              
+        </div>
+        <a
+          class="button"
+          href="downloads/workflow-checklist.md"
+          download
+          data-ga4-event="asset_delivery"
+          data-ga4-label="Workflow Checklist"
+          data-delivery-download-link
+        >
+          Download Workflow Checklist
+        </a>
+        <button class="secondary-button" type="button" data-delivery-resend-button hidden>
+          Send me a fresh delivery link
+        </button>
+        <p class="delivery-note" data-delivery-note hidden></p>
+        <p class="delivery-note" data-delivery-resend-status hidden></p>
+      </section>
+
+      <section>
+        <h2>What is inside</h2>
+        <div class="grid">
+          
+                <article class="card">
+                  <strong>Choose the first production-shaped use case</strong>
+                  <p>Owner: The operator or marketer responsible for the first live test. Done when: A pass/fail definition before any tool or prompt testing starts. Failure point: Trying to solve the entire category in one pass.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Collect the source asset and operating constraints</strong>
+                  <p>Owner: The teammate who owns source material and final approval. Done when: Everyone can name the input, output, and review bar without reopening search. Failure point: Comparing tools before the team agrees on what “good” looks like.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Shortlist the obvious options</strong>
+                  <p>Owner: The buyer, operator, or builder making the implementation decision. Done when: The field collapses to a manageable shortlist instead of another endless tool list. Failure point: Keeping every visible option in play because the page never makes a recommendation.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Run one measurable pilot</strong>
+                  <p>Owner: The person executing and reviewing the first production-shaped test. Done when: The team learns where review overhead, rework, or output quality actually breaks down. Failure point: Calling the pilot a success without naming what had to be fixed by hand.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Turn the pilot into a reusable asset</strong>
+                  <p>Owner: The teammate who will hand this process to the next operator. Done when: The next run starts from an asset instead of from fresh research. Failure point: Leaving the learning inside a single person’s head instead of packaging it.</p>
+                </article>
+              
+        </div>
+      </section>
+
+      
+
+      
+
+      <section>
+        <h2>Why this asset should help</h2>
+        <div class="grid">
+          
+                <article class="card">
+                  <strong>Five-step workflow spine</strong>
+                  <p>5 named workflow checkpoints already exist in the system, each with an owner, success metric, and failure point. The checklist turns that research into a repeatable operating document.</p>
+                  
+                </article>
+              
+                <article class="card">
+                  <strong>Review-risk control</strong>
+                  <p>Collect the source asset and operating constraints and Run one measurable pilot are where teams usually lose time. The checklist makes those review thresholds explicit before the next pass.</p>
+                  
+                </article>
+              
+                <article class="card">
+                  <strong>Handoff proof</strong>
+                  <p>Turn the pilot into a reusable asset is already part of the workflow model, which means this asset exists to transfer the process to the next operator instead of trapping it in one person’s head.</p>
+                  
+                </article>
+              
+        </div>
+      </section>
+
+      <section>
+        <h2>Pair it with these pages</h2>
+        <ul><li><a class="text-link" href="/compare/">Alternatives</a></li><li><a class="text-link" href="/workflow/">Workflow</a></li><li><a class="text-link" href="/case-study/">Case Study</a></li></ul>
+      </section>
+    </main>
+    <script type="application/json" id="section-provenance">[{"section_id":"intro","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. alternatives","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","competitive-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.workflow-checklist","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"evidence","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. alternatives","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","competitive-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.workflow-checklist","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"scenario","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. alternatives","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","competitive-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.workflow-checklist","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"deliverables","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. alternatives","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","competitive-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.workflow-checklist","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"preview","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. alternatives","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","competitive-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.workflow-checklist","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"first_30_minutes","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. alternatives","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","competitive-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.workflow-checklist","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"cta","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. alternatives","claim_ids":["claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","official-runwayml-com-runway-pricing-2d8653383f","official-pika-art-pika-pricing-4d74a5c6ee","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","competitive-deepai-org-deepai-b3b47fbf18","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.workflow-checklist","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"}]</script>
+  </body>
+</html>

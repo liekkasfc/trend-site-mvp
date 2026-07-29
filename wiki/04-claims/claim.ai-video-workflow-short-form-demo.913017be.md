@@ -10,9 +10,13 @@ confidence: 0.7
 quality_score: 99
 freshness: "current-run"
 reuse_priority: "medium"
+refresh_priority: ""
 lifecycle_decision: "active"
 source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92"]
 status: "active"
+last_verified: "2026-07-11"
+staleness_days: 14
+change_triggers: ["Refresh when pricing, rankings, or community complaints change materially."]
 ---
 ## Claim
 
@@ -41,6 +45,9 @@ If the asset does not help the first pilot happen faster, it is not strong enoug
 
 medium
 
+## Refresh priority
+
+
 ## Quality score
 
 99
@@ -56,3 +63,15 @@ active
 ## Refresh condition
 
 Refresh when pricing, rankings, or community complaints change materially.
+
+## Last verified
+
+2026-07-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- Refresh when pricing, rankings, or community complaints change materially.

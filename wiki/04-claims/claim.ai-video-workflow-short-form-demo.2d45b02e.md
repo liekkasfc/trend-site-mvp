@@ -8,11 +8,15 @@ claim_kind: "use_case"
 decision_stage: "discover"
 confidence: 0.82
 quality_score: 100
-freshness: "current-run"
-reuse_priority: "high"
-lifecycle_decision: "active"
+freshness: "manual"
+reuse_priority: ""
+refresh_priority: ""
+lifecycle_decision: ""
 source_ids: ["source.ai-video-workflow-short-form-demo.serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","source.ai-video-workflow-short-form-demo.serp-tavus-io-how-to-build-an-ai-video-workflow-2e761f5248"]
-status: "active"
+status: "accepted"
+last_verified: "2026-05-10"
+staleness_days: 14
+change_triggers: []
 ---
 ## Claim
 
@@ -41,7 +45,9 @@ A use case page gets weak when multiple jobs collapse into the same generic reco
 
 ## Reuse priority
 
-high
+
+## Refresh priority
+
 
 ## Quality score
 
@@ -49,12 +55,21 @@ high
 
 ## Performance note
 
-Used in 4 page type(s), backed by 2 source anchor(s), confidence 0.82.
 
 ## Lifecycle decision
 
-active
 
 ## Refresh condition
 
-Refresh when pricing, rankings, or community complaints change materially.
+
+## Last verified
+
+2026-05-10
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- None yet.

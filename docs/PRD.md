@@ -1,6 +1,6 @@
 # Trend Site Pipeline PRD
 
-> 状态提示（2026-05-03）：当前系统最新完成度、缺口判断和执行顺序，请优先看 [CURRENT-GAPS-V2.md](/Users/max/code/trend-site-mvp/docs/CURRENT-GAPS-V2.md)。本文件更适合看产品定义、目标形态和历史阶段描述。
+> 状态提示（2026-05-03）：当前系统最新完成度、缺口判断和执行顺序，请优先看 [CURRENT-GAPS-V2.md](<repo-root>/docs/CURRENT-GAPS-V2.md)。本文件更适合看产品定义、目标形态和历史阶段描述。
 
 ## 1. 文档信息
 

@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.pnpm-store/
 dist
 dist-ssr
 .wrangler
@@ -17,13 +18,19 @@ dist-ssr
 !.env.example
 *.local
 storage/release-runs/
+storage/apimart-live-test/
 public/generated/
 public/*.txt
 !public/llms.txt
 !public/robots.txt
 storage/*.json
 storage/*.md
+storage/imports/
 !storage/review-overrides.template.json
+tmp/
+scripts/.__*.mjs
+wiki/.obsidian/workspace.json
+automations/automiora-change-alert/memory.md
 
 # Editor directories and files
 .vscode/*

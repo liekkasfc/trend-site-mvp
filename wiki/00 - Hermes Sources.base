@@ -1,0 +1,42 @@
+filters: type == "source"
+formulas:
+  updated_at: file.mtime.format("YYYY-MM-DD HH:mm")
+properties:
+  title:
+    displayName: Title
+  source_kind:
+    displayName: Source Kind
+  domain:
+    displayName: Domain
+  freshness_score:
+    displayName: Freshness
+  credibility_score:
+    displayName: Credibility
+  status:
+    displayName: Status
+  captured_at:
+    displayName: Captured At
+  formula.updated_at:
+    displayName: Updated
+views:
+  - type: table
+    name: Source Library
+    groupBy:
+      property: source_kind
+      direction: ASC
+    order:
+      - title
+      - domain
+      - freshness_score
+      - credibility_score
+      - status
+      - captured_at
+      - formula.updated_at
+  - type: cards
+    name: Official vs Market Context
+    order:
+      - title
+      - source_kind
+      - domain
+      - freshness_score
+      - credibility_score

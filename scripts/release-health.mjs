@@ -5,6 +5,7 @@ import {
   getAssetFilePaths,
   getDefaultAssetSlug,
   getDefaultSiteSlug,
+  flag,
   option,
   parseArgs,
   projectRoot,
@@ -14,6 +15,14 @@ import {
   writeJson,
   writeText,
 } from './release-lib.mjs'
+import {
+  COMMERCIAL_PAGE_SPECS,
+  parseBooleanFlag,
+} from './affiliate-lib.mjs'
+import {
+  evaluateHomepageCompositionHtml,
+  loadHomepageBudget,
+} from './homepage-composition-gate.mjs'
 
 async function checkUrl(url, options = {}) {
   const response = await fetch(url, {
@@ -30,7 +39,56 @@ async function checkUrl(url, options = {}) {
     status: response.status,
     ok: response.ok,
     bodyPreview: bodyText.slice(0, 240),
+    ...(options.includeBody ? { body: bodyText } : {}),
     contentType: response.headers.get('content-type') ?? '',
+  }
+}
+
+function htmlContainsTestDomain(html) {
+  return /https:\/\/[^"'\s>]+(?:example\.test|\.test)/i.test(html)
+}
+
+async function checkCommercialPage(siteBaseUrl, spec) {
+  const url = `${trimTrailingSlash(siteBaseUrl)}${spec.publicPath}`
+  const response = await fetch(url, {
+    method: 'GET',
+    redirect: 'follow',
+  })
+  const html = await response.text().catch(() => '')
+  const expectedCanonical = new URL(spec.publicPath, `${trimTrailingSlash(siteBaseUrl)}/`).toString()
+  const affiliateFeatureEnabled = parseBooleanFlag(process.env.AFFILIATE_FEATURE_ENABLED, false)
+  const allowTestUrls = parseBooleanFlag(process.env.AFFILIATE_ALLOW_TEST_URLS, false)
+  const checks = [
+    response.ok,
+    /text\/html/i.test(response.headers.get('content-type') ?? ''),
+    /<title>[^<]+<\/title>/i.test(html),
+    html.includes(`rel="canonical" href="${expectedCanonical}"`),
+    !/<meta\s+name="robots"[^>]+noindex/i.test(html),
+    !/\b(None yet|TODO|Lorem ipsum)\b/i.test(html),
+    allowTestUrls || !htmlContainsTestDomain(html),
+  ]
+
+  if (affiliateFeatureEnabled) {
+    checks.push(
+      html.includes('This page contains affiliate links'),
+      /data-ga4-event="affiliate_click"/.test(html),
+      /rel="[^"]*\bsponsored\b[^"]*\bnofollow\b[^"]*"/i.test(html),
+    )
+  }
+
+  return {
+    label: `Commercial page: ${spec.publicPath}`,
+    url,
+    method: 'GET',
+    status: response.status,
+    ok: checks.every(Boolean),
+    bodyPreview: html.slice(0, 240),
+    contentType: response.headers.get('content-type') ?? '',
+    note: [
+      `canonical=${html.includes(`rel="canonical" href="${expectedCanonical}"`) ? 'pass' : 'fail'}`,
+      `index=${/<meta\s+name="robots"[^>]+noindex/i.test(html) ? 'fail' : 'pass'}`,
+      `affiliateCta=${/data-ga4-event="affiliate_click"/.test(html) ? 'present' : 'not_required'}`,
+    ].join('; '),
   }
 }
 
@@ -63,11 +121,40 @@ export async function runReleaseHealth(options = {}) {
   const assetPaths = getAssetFilePaths(siteSlug, assetSlug)
   const checks = []
 
-  const root = await checkUrl(trimTrailingSlash(siteBaseUrl))
+  const root = await checkUrl(trimTrailingSlash(siteBaseUrl), { includeBody: true })
   checks.push({
     label: 'Site root',
     ...root,
+    body: undefined,
     note: root.bodyPreview.includes('Redirecting') ? 'Root redirect shell is present.' : '',
+  })
+
+  const homepageBudget = await loadHomepageBudget()
+  const homepageComposition = evaluateHomepageCompositionHtml(root.body ?? '', {
+    budget: homepageBudget,
+    path: '/',
+  })
+  checks.push({
+    label: 'Homepage composition gate',
+    url: root.url,
+    method: 'GET',
+    status: root.status,
+    ok: root.ok && homepageComposition.status === 'pass',
+    bodyPreview: root.bodyPreview,
+    contentType: root.contentType,
+    note:
+      homepageComposition.status === 'pass'
+        ? `sections=${homepageComposition.majorSectionCount}; words=${homepageComposition.visibleWordCount}`
+        : homepageComposition.violations
+            .slice(0, 3)
+            .map((item) => item.code)
+            .join(', '),
+    report: {
+      status: homepageComposition.status,
+      majorSectionCount: homepageComposition.majorSectionCount,
+      visibleWordCount: homepageComposition.visibleWordCount,
+      violations: homepageComposition.violations,
+    },
   })
 
   const landing = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}${assetPaths.liveLandingRoute}`)
@@ -75,6 +162,16 @@ export async function runReleaseHealth(options = {}) {
     label: 'Primary asset landing',
     ...landing,
     note: landing.bodyPreview.includes('Request the asset') ? 'Lead capture shell rendered.' : '',
+  })
+
+  const ops = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}/ops/`)
+  checks.push({
+    label: 'Ops dashboard',
+    ...ops,
+    note:
+      ops.bodyPreview.includes('Trend Site Ops') || ops.bodyPreview.includes('Trend Site Pipeline')
+        ? 'Ops dashboard shell rendered.'
+        : '',
   })
 
   const sitemap = await checkUrl(`${trimTrailingSlash(siteBaseUrl)}/sitemap.xml`)
@@ -105,12 +202,21 @@ export async function runReleaseHealth(options = {}) {
     note: apiHealth.bodyPreview.includes('"ok": true') ? 'Worker health route is live.' : '',
   })
 
+  if (options.includeCommercialPages) {
+    checks.push(
+      ...(await Promise.all(
+        COMMERCIAL_PAGE_SPECS.map((spec) => checkCommercialPage(siteBaseUrl, spec)),
+      )),
+    )
+  }
+
   return {
     generatedAt: new Date().toISOString(),
     siteSlug,
     assetSlug,
     siteBaseUrl,
     apiBaseUrl,
+    includeCommercialPages: Boolean(options.includeCommercialPages),
     checks,
     overallStatus: checks.every((check) => check.ok) ? 'pass' : 'fail',
   }
@@ -124,6 +230,7 @@ async function main() {
     assetSlug: option(args, 'asset-slug'),
     siteBaseUrl: option(args, 'site-base-url'),
     apiBaseUrl: option(args, 'api-base-url'),
+    includeCommercialPages: flag(args, 'include-commercial-pages', false),
   })
 
   const markdown = renderMarkdown(report)

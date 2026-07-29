@@ -2,6 +2,7 @@
 id: "asset.ai-video-workflow-short-form-demo.workflow-checklist"
 type: "conversion_asset"
 thesis_id: "thesis.video-creation"
+title: "Workflow Checklist"
 asset_kind: "checklist"
 status: "active"
 intent_stage: "implementation"
@@ -13,13 +14,16 @@ form_event: "asset_form_submit"
 delivery_event: "asset_delivery"
 refresh_cycle: "monthly"
 refresh_priority: "low"
-reuse_score: 0
+last_verified: "2026-07-14"
+staleness_days: 14
+change_triggers: ["Landing copy changed","Delivery flow changed","Primary tool shortlist changed","Workflow steps changed"]
+reuse_score: 37
 acceptance_mode: "A"
 acceptance_status: "auto_release_candidate"
 accepted_version: "v1-accepted"
-landing_path: "/generated-sites/ai-video-workflow-short-form-demo/asset-workflow-checklist.html"
-thank_you_path: "/generated-sites/ai-video-workflow-short-form-demo/asset-workflow-checklist-thank-you.html"
-download_path: "/generated-sites/ai-video-workflow-short-form-demo/downloads/workflow-checklist.md"
+landing_path: "/workflow-checklist/"
+thank_you_path: "/workflow-checklist/ready/"
+download_path: "/downloads/workflow-checklist.md"
 ---
 ## Asset promise
 
@@ -43,11 +47,13 @@ It gives the visitor a concrete next step from alternatives.
 
 ## Best-fit use cases
 
-- No explicit use-case mapping yet.
+- short-form product demo videos
+- launch and product update videos
+- screenshot-to-video launch clips
 
 ## Strongest use case
 
-alternatives page visitors
+short-form product demo videos
 
 ## Best page types
 
@@ -59,9 +65,9 @@ alternatives page visitors
 
 ## Delivery rules
 
-- Landing page: /generated-sites/ai-video-workflow-short-form-demo/asset-workflow-checklist.html
-- Thank-you page: /generated-sites/ai-video-workflow-short-form-demo/asset-workflow-checklist-thank-you.html
-- Download file: /generated-sites/ai-video-workflow-short-form-demo/downloads/workflow-checklist.md
+- Landing page: /workflow-checklist/
+- Thank-you page: /workflow-checklist/ready/
+- Download file: /downloads/workflow-checklist.md
 - Track asset_cta_click, asset_form_submit, download_checklist, and asset_delivery in GA4.
 - Refresh on a monthly cycle or when the workflow changes.
 
@@ -85,14 +91,29 @@ Auto-gate candidate; sample human spot-check only.
 
 low
 
+## Last verified
+
+2026-07-14
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- Landing copy changed
+- Delivery flow changed
+- Primary tool shortlist changed
+- Workflow steps changed
+
 ## Reuse score
 
-0
+37
 
 ## Asset performance view
 
 - Strongest path: alternatives -> workflow-checklist
-- Submit rate: 30.1%
-- Delivery rate: 25.3%
-- Deeper action rate: 7.1%
+- Submit rate: 31%
+- Delivery rate: 26%
+- Deeper action rate: 7.3%
 - These rates are modeled from page intent, asset acceptance, and CTA placement until per-asset GA4 event splits are available.

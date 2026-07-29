@@ -1,26 +1,27 @@
 ---
 id: "source.ai-video-workflow-short-form-demo.serp-aivideo-school-ai-video-workflow-67aaab53cc"
-type: "source"
+type: "source_summary"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 source_kind: "serp"
+raw_source_id: "serp-aivideo-school-ai-video-workflow-67aaab53cc"
 title: "AI VIDEO WORKFLOW"
 url: "https://aivideo.school/ai-video-workflow"
 domain: "aivideo.school"
 published_at: null
-captured_at: "2026-05-03T08:37:39.354Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 70
 status: "active"
 ---
 ## Source summary
 
-Creating AI videos involves a unique workflow distinct from traditional TV production. Each step of the process utilizes different AI tools to achieve stunning results, and these workflows vary based on the type of vide...
+Creating AI videos involves a unique workflow distinct from traditional TV production. Each step of the process utilizes different AI tools to achieve stunning results, and these workflows vary based on the type of
 
 ## Key facts extracted
 
 - AI VIDEO WORKFLOW
-- Intent: workflow
+- Intent: ai video workflow
 - Category: serp
 
 ## Buyer pain signals

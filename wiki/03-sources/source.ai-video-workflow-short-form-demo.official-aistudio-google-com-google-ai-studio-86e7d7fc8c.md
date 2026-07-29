@@ -1,14 +1,15 @@
 ---
 id: "source.ai-video-workflow-short-form-demo.official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
-type: "source"
+type: "source_summary"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 source_kind: "official"
+raw_source_id: "official-aistudio-google-com-google-ai-studio-86e7d7fc8c"
 title: "Google AI Studio"
 url: "https://aistudio.google.com/"
 domain: "aistudio.google.com"
 published_at: null
-captured_at: "2026-05-03T08:37:39.354Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 92
 status: "active"
@@ -20,7 +21,7 @@ Holywater Holywater scales content analysis and creation by integrating Gemini P
 ## Key facts extracted
 
 - Google AI Studio
-- Intent: overview
+- Intent: ai video workflow
 - Category: official
 
 ## Buyer pain signals

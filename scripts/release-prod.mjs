@@ -136,6 +136,7 @@ async function main() {
   const deploySequence = [
     ...(skipLint ? [] : [['lint', ['pnpm', ['run', 'lint']]]]),
     ...(skipPipeline ? [] : [['pipeline', ['pnpm', ['run', 'pipeline']]]]),
+    ['homepage:gate', ['pnpm', ['run', 'homepage:gate']]],
     ['seo:indexnow:init', ['pnpm', ['run', 'seo:indexnow:init']]],
     ...(skipBuild ? [] : [['build', ['pnpm', ['run', 'build']]]]),
     ['worker:r2:sync', ['pnpm', ['run', 'worker:r2:sync']]],

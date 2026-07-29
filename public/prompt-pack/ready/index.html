@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Prompt Pack ready</title>
+    <meta name="description" content="Download Prompt Pack and move straight into the first pilot." />
+    <link rel="canonical" href="https://automiora.com/prompt-pack/ready/" />
+    <meta property="og:image" content="https://automiora.com/media/prompt-pack-cover.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Prompt Pack ready" />
+    <meta name="twitter:description" content="Download Prompt Pack and move straight into the first pilot." />
+    <meta name="twitter:image" content="https://automiora.com/media/prompt-pack-cover.svg" />
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-0YDYHQCDQC"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      window.gtag = window.gtag || gtag;
+      gtag('js', new Date());
+      gtag('config', "G-0YDYHQCDQC", {
+        page_title: "Prompt Pack ready",
+        page_path: "/prompt-pack/ready/",
+        send_page_view: true
+      });
+
+      window.addEventListener('DOMContentLoaded', function () {
+        
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', "asset_form_submit", {
+            page_path: "/prompt-pack/ready/",
+            page_title: "Prompt Pack ready",
+            event_label: "Prompt Pack",
+            cta_title: "Prompt Pack",
+            ...{"asset_slug":"prompt-pack","asset_kind":"template_pack","stage":"submit"}
+          });
+        }
+
+        if (typeof window.gtag === 'function') {
+          window.gtag('event', "generate_lead", {
+            page_path: "/prompt-pack/ready/",
+            page_title: "Prompt Pack ready",
+            event_label: "Prompt Pack",
+            cta_title: "Prompt Pack",
+            ...{"asset_slug":"prompt-pack","asset_kind":"template_pack","stage":"unlock"}
+          });
+        }
+
+        var affiliateClickSent = typeof WeakSet === 'function' ? new WeakSet() : null;
+        document.querySelectorAll('[data-ga4-event]').forEach(function (element) {
+          element.addEventListener('click', function () {
+            if (typeof window.gtag !== 'function') return;
+            if (element.dataset.ga4Event === 'affiliate_click' && affiliateClickSent) {
+              if (affiliateClickSent.has(element)) return;
+              affiliateClickSent.add(element);
+            }
+            var eventParams = {
+              page_path: "/prompt-pack/ready/",
+              page_title: "Prompt Pack ready",
+              event_label: element.dataset.ga4Label || '',
+              cta_title: "Prompt Pack"
+            };
+            if (element.dataset.ga4Event === 'affiliate_click') {
+              eventParams.affiliate_program = element.dataset.affiliateProgram || '';
+              eventParams.offer_id = element.dataset.offerId || '';
+              eventParams.tracking_code = element.dataset.trackingCode || '';
+              eventParams.page_slug = element.dataset.pageSlug || '';
+              eventParams.page_type = element.dataset.pageType || '';
+              eventParams.cta_position = element.dataset.ctaPosition || '';
+              eventParams.cta_variant = element.dataset.ctaVariant || '';
+              eventParams.destination_category = element.dataset.destinationCategory || '';
+            }
+            window.gtag('event', element.dataset.ga4Event, eventParams);
+          });
+        });
+
+        document.querySelectorAll('form[data-ga4-submit-event]').forEach(function (form) {
+          form.addEventListener('submit', function () {
+            if (typeof window.gtag !== 'function') return;
+            window.gtag('event', form.dataset.ga4SubmitEvent, {
+              page_path: "/prompt-pack/ready/",
+              page_title: "Prompt Pack ready",
+              event_label: form.dataset.ga4Label || '',
+              cta_title: "Prompt Pack"
+            });
+          });
+        });
+      });
+    </script>
+  
+
+    <script>
+      window.addEventListener('DOMContentLoaded', function () {
+        var downloadLink = document.querySelector('[data-delivery-download-link]');
+        if (!downloadLink) return;
+
+        var config = {"apiBaseUrl":"https://api.automiora.com","fallbackHref":"/downloads/prompt-pack.md"};
+        var params = new URLSearchParams(window.location.search);
+        var token = params.get('delivery_token');
+        var note = document.querySelector('[data-delivery-note]');
+        var resendButton = document.querySelector('[data-delivery-resend-button]');
+        var resendStatus = document.querySelector('[data-delivery-resend-status]');
+
+        function setResendStatus(message, isError) {
+          if (!resendStatus) return;
+          resendStatus.hidden = !message;
+          resendStatus.textContent = message || '';
+          resendStatus.dataset.state = isError ? 'error' : 'info';
+        }
+
+        if (token) {
+          downloadLink.href = config.apiBaseUrl + '/v1/deliver/' + encodeURIComponent(token);
+          if (note) {
+            note.hidden = false;
+            note.textContent = 'This delivery link is tied to the request that just unlocked the asset.';
+          }
+        } else {
+          downloadLink.href = config.fallbackHref;
+          if (note) {
+            note.hidden = false;
+            note.textContent = 'Fallback download is active because no delivery token was present on this page load.';
+          }
+        }
+
+        if (resendButton) {
+          resendButton.hidden = !token;
+          resendButton.addEventListener('click', async function () {
+            if (!token) return;
+            resendButton.disabled = true;
+            setResendStatus('', false);
+            try {
+              var response = await fetch(
+                config.apiBaseUrl + '/v1/deliver/' + encodeURIComponent(token) + '/resend',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  }
+                }
+              );
+              var result = {};
+              try {
+                result = await response.json();
+              } catch (error) {
+                result = {};
+              }
+              if (!response.ok || !result.deliveryToken) {
+                throw new Error(result.error || 'resend_failed');
+              }
+              token = result.deliveryToken;
+              downloadLink.href = config.apiBaseUrl + '/v1/deliver/' + encodeURIComponent(token);
+              setResendStatus('A fresh delivery link was sent to the same email address.', false);
+            } catch (error) {
+              setResendStatus(error instanceof Error ? error.message : 'Resend failed.', true);
+            } finally {
+              resendButton.disabled = false;
+            }
+          });
+        }
+      });
+    </script>
+  
+    <style>
+
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, sans-serif;
+        --page-bg: #171717;
+        --surface: #1f1f1f;
+        --surface-alt: #262626;
+        --surface-glass: rgba(239, 237, 231, 0.03);
+        --text-strong: #efede7;
+        --text-muted: #d3cec3;
+        --accent: #8eb777;
+        --accent-soft: rgba(142, 183, 119, 0.12);
+        --accent-2: #dcb45c;
+        --accent-2-soft: rgba(220, 180, 92, 0.1);
+        --warning: #c98c66;
+        --border-soft: rgba(239, 237, 231, 0.08);
+        --border-muted: rgba(239, 237, 231, 0.12);
+        --content-width: 820px;
+      }
+    
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--page-bg); color: var(--text-strong); }
+      main { width: min(var(--content-width), calc(100% - 32px)); margin: 0 auto; padding: 40px 0 48px; }
+      section { padding: 22px 0; border-top: 1px solid var(--border-muted); }
+      h1, h2, p, ul { margin: 0; }
+      h1 { font-size: 2.2rem; line-height: 1.08; margin-bottom: 12px; }
+      h2 { font-size: 1.05rem; margin-bottom: 10px; }
+      p, li { color: var(--text-muted); line-height: 1.7; }
+      .eyebrow { color: var(--accent); font-size: 0.82rem; text-transform: uppercase; margin-bottom: 8px; }
+      .hero-shell { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr); align-items: start; }
+      .hero-shell--single { grid-template-columns: 1fr; }
+      .lede { max-width: 62ch; }
+      .hero-visual {
+        margin: 0;
+        border: 1px solid var(--border-soft);
+        background: var(--surface-glass);
+        overflow: hidden;
+      }
+      .hero-visual img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 3 / 2;
+        object-fit: cover;
+        background: var(--surface);
+      }
+      .hero-visual figcaption {
+        display: grid;
+        gap: 6px;
+        padding: 14px;
+        border-top: 1px solid var(--border-soft);
+        background: var(--surface-glass);
+      }
+      .hero-visual figcaption strong { color: var(--text-strong); }
+      .hero-visual figcaption span { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
+      .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .card { border: 1px solid var(--border-soft); background: var(--surface-glass); padding: 14px; }
+      .card strong { display: block; color: var(--text-strong); margin-bottom: 8px; }
+      .button {
+        display: inline-block;
+        margin-top: 14px;
+        padding: 12px 16px;
+        background: var(--accent-2);
+        color: var(--page-bg);
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .secondary-button {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 11px 14px;
+        border: 1px solid var(--border-muted);
+        background: transparent;
+        color: var(--text-strong);
+        text-decoration: none;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .delivery-note {
+        margin-top: 10px;
+        font-size: 0.92rem;
+        color: var(--text-muted);
+      }
+      .delivery-note[data-state="error"] {
+        color: var(--warning);
+      }
+      .text-link { color: var(--accent-2); }
+      ul { padding-left: 20px; }
+      @media (max-width: 720px) {
+        .hero-shell { grid-template-columns: 1fr; }
+        .grid { grid-template-columns: 1fr; }
+        h1 { font-size: 1.95rem; }
+      }
+    </style>
+  </head>
+  <body data-design-profile="video-creation">
+    <main>
+      <div class="hero-shell">
+        <div>
+          <p class="eyebrow">AI Video Workflow</p>
+          <h1>Prompt Pack is ready</h1>
+          <p class="lede">Download the asset, use the first module on one narrow pilot, and keep the workflow notes that make the second run cleaner than the first.</p>
+        </div>
+        
+    <figure class="hero-visual" data-visual-mode="fallback">
+      <img src="/media/prompt-pack-cover.svg" alt="Prompt Pack cover visual showing reusable ai video workflow workflow materials." loading="eager" decoding="async" />
+      <figcaption>
+        <strong>Prompt Pack ready</strong>
+        <span>Start with pick the use case</span>
+      </figcaption>
+    </figure>
+  
+      </div>
+
+      <section>
+        <h2>Start here in the first 30 minutes</h2>
+        <div class="grid">
+          
+                <article class="card">
+                  <strong>Lock the first job</strong>
+                  <p>Fill the intake block with one source asset, one target channel, one CTA, and one reviewer before you write anything else.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Run the first-pass prompt set</strong>
+                  <p>Generate one short brief, one 4-6 scene sequence, and one CTA line before adding decorative flourishes or extra workflow complexity.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Repair one failure and save the delta</strong>
+                  <p>Fix the first obvious failure mode, then save the winning hook, scene order, and review note so the second run starts cleaner.</p>
+                </article>
+              
+        </div>
+        <a
+          class="button"
+          href="downloads/prompt-pack.md"
+          download
+          data-ga4-event="asset_delivery"
+          data-ga4-label="Prompt Pack"
+          data-delivery-download-link
+        >
+          Download Prompt Pack
+        </a>
+        <button class="secondary-button" type="button" data-delivery-resend-button hidden>
+          Send me a fresh delivery link
+        </button>
+        <p class="delivery-note" data-delivery-note hidden></p>
+        <p class="delivery-note" data-delivery-resend-status hidden></p>
+      </section>
+
+      <section>
+        <h2>What is inside</h2>
+        <div class="grid">
+          
+                <article class="card">
+                  <strong>Brief intake block</strong>
+                  <p>A one-screen intake for source asset, target channel, conversion goal, reviewer, and publish-ready definition before prompting begins.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Variable prompt matrix</strong>
+                  <p>Prompt blocks for hooks, screenshot sequence, transitions, CTA framing, and variable placeholders that map directly to the first publish-ready short-form demo pass.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Repair prompts</strong>
+                  <p>Fallback prompts for generic output, weak motion, unclear CTA framing, or sequence drift after the first pass.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Review rubric</strong>
+                  <p>A compact QA rubric for clarity, motion quality, sequencing, and CTA placement before the clip leaves review.</p>
+                </article>
+              
+                <article class="card">
+                  <strong>Reuse notes</strong>
+                  <p>A fill-in handoff note to capture what changed between launch one and launch two, including the winning angle, reviewer note, and failure point.</p>
+                </article>
+              
+        </div>
+      </section>
+
+      
+
+      
+
+      <section>
+        <h2>Why this asset should help</h2>
+        <div class="grid">
+          
+                <article class="card">
+                  <strong>Feature-release screenshot set into a short-form product demo</strong>
+                  <p>The operator had screenshots, release notes, and a CTA, but no fixed brief, no stable shot order, and no reviewer-ready success bar. The first draft risk was a generic opening and a late CTA. Intervention: Use the Prompt Pack to lock the input, write the first-pass brief, generate hook options, build a 4-6 scene sequence, and define one reviewer note before the first render. Final output: A reviewer-ready short-form demo brief with a usable opening hook, a clearer screenshot sequence, and one CTA line that could be reused on the next release cycle.</p>
+                  
+                </article>
+              
+                <article class="card">
+                  <strong>What the proof teaches</strong>
+                  <p>The pack is most useful when it reduces first-run ambiguity. It should make the first pass narrower, the first failure easier to name, and the second run faster than the first.</p>
+                  
+                </article>
+              
+        </div>
+      </section>
+
+      <section>
+        <h2>Pair it with these pages</h2>
+        <ul><li><a class="text-link" href="/workflow/">Workflow</a></li><li><a class="text-link" href="/pricing/">Pricing</a></li><li><a class="text-link" href="/case-study/">Case Study</a></li></ul>
+      </section>
+    </main>
+    <script type="application/json" id="section-provenance">[{"section_id":"intro","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53","claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.conversion.d39f9439","claim.ai-video-workflow-short-form-demo.conversion.3a209114","claim.ai-video-workflow-short-form-demo.conversion.66350350","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf","claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f","claim.ai-video-workflow-short-form-demo.failure-mode.91504777","claim.ai-video-workflow-short-form-demo.use-case.19fb40a8"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","community-reddit-com-which-ai-video-generation-workf-ded74c1191","competitive-deepai-org-deepai-b3b47fbf18","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","community-reddit-com-what-does-your-ai-video-workflo-d7f53ec617","serp-reddit-com-my-complete-ai-video-workflow-t-04c326932c","community-reddit-com-andrew-ng-building-faster-with--ae3571962b","community-news-ycombinator-com-since-subreddits-rela-801e908404","community-news-ycombinator-com-my-ai-assisted-workfl-a925fdd020","community-news-ycombinator-com-my-workflow-is-70-ai--5a53d435a7"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"evidence","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53","claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.conversion.d39f9439","claim.ai-video-workflow-short-form-demo.conversion.3a209114","claim.ai-video-workflow-short-form-demo.conversion.66350350","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf","claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f","claim.ai-video-workflow-short-form-demo.failure-mode.91504777","claim.ai-video-workflow-short-form-demo.use-case.19fb40a8"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","community-reddit-com-which-ai-video-generation-workf-ded74c1191","competitive-deepai-org-deepai-b3b47fbf18","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","community-reddit-com-what-does-your-ai-video-workflo-d7f53ec617","serp-reddit-com-my-complete-ai-video-workflow-t-04c326932c","community-reddit-com-andrew-ng-building-faster-with--ae3571962b","community-news-ycombinator-com-since-subreddits-rela-801e908404","community-news-ycombinator-com-my-ai-assisted-workfl-a925fdd020","community-news-ycombinator-com-my-workflow-is-70-ai--5a53d435a7"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"scenario","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53","claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.conversion.d39f9439","claim.ai-video-workflow-short-form-demo.conversion.3a209114","claim.ai-video-workflow-short-form-demo.conversion.66350350","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf","claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f","claim.ai-video-workflow-short-form-demo.failure-mode.91504777","claim.ai-video-workflow-short-form-demo.use-case.19fb40a8"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","community-reddit-com-which-ai-video-generation-workf-ded74c1191","competitive-deepai-org-deepai-b3b47fbf18","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","community-reddit-com-what-does-your-ai-video-workflo-d7f53ec617","serp-reddit-com-my-complete-ai-video-workflow-t-04c326932c","community-reddit-com-andrew-ng-building-faster-with--ae3571962b","community-news-ycombinator-com-since-subreddits-rela-801e908404","community-news-ycombinator-com-my-ai-assisted-workfl-a925fdd020","community-news-ycombinator-com-my-workflow-is-70-ai--5a53d435a7"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"deliverables","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53","claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.conversion.d39f9439","claim.ai-video-workflow-short-form-demo.conversion.3a209114","claim.ai-video-workflow-short-form-demo.conversion.66350350","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf","claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f","claim.ai-video-workflow-short-form-demo.failure-mode.91504777","claim.ai-video-workflow-short-form-demo.use-case.19fb40a8"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","community-reddit-com-which-ai-video-generation-workf-ded74c1191","competitive-deepai-org-deepai-b3b47fbf18","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","community-reddit-com-what-does-your-ai-video-workflo-d7f53ec617","serp-reddit-com-my-complete-ai-video-workflow-t-04c326932c","community-reddit-com-andrew-ng-building-faster-with--ae3571962b","community-news-ycombinator-com-since-subreddits-rela-801e908404","community-news-ycombinator-com-my-ai-assisted-workfl-a925fdd020","community-news-ycombinator-com-my-workflow-is-70-ai--5a53d435a7"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"preview","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53","claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.conversion.d39f9439","claim.ai-video-workflow-short-form-demo.conversion.3a209114","claim.ai-video-workflow-short-form-demo.conversion.66350350","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf","claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f","claim.ai-video-workflow-short-form-demo.failure-mode.91504777","claim.ai-video-workflow-short-form-demo.use-case.19fb40a8"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","community-reddit-com-which-ai-video-generation-workf-ded74c1191","competitive-deepai-org-deepai-b3b47fbf18","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","community-reddit-com-what-does-your-ai-video-workflo-d7f53ec617","serp-reddit-com-my-complete-ai-video-workflow-t-04c326932c","community-reddit-com-andrew-ng-building-faster-with--ae3571962b","community-news-ycombinator-com-since-subreddits-rela-801e908404","community-news-ycombinator-com-my-ai-assisted-workfl-a925fdd020","community-news-ycombinator-com-my-workflow-is-70-ai--5a53d435a7"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"first_30_minutes","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53","claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.conversion.d39f9439","claim.ai-video-workflow-short-form-demo.conversion.3a209114","claim.ai-video-workflow-short-form-demo.conversion.66350350","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf","claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f","claim.ai-video-workflow-short-form-demo.failure-mode.91504777","claim.ai-video-workflow-short-form-demo.use-case.19fb40a8"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","community-reddit-com-which-ai-video-generation-workf-ded74c1191","competitive-deepai-org-deepai-b3b47fbf18","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","community-reddit-com-what-does-your-ai-video-workflo-d7f53ec617","serp-reddit-com-my-complete-ai-video-workflow-t-04c326932c","community-reddit-com-andrew-ng-building-faster-with--ae3571962b","community-news-ycombinator-com-since-subreddits-rela-801e908404","community-news-ycombinator-com-my-ai-assisted-workfl-a925fdd020","community-news-ycombinator-com-my-workflow-is-70-ai--5a53d435a7"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"},{"section_id":"cta","page_brief_id":"page-brief. ai-video-workflow-short-form-demo. hub","claim_ids":["claim.ai-video-workflow-short-form-demo.workflow.0084dbce","claim.ai-video-workflow-short-form-demo.workflow.12dac942","claim.ai-video-workflow-short-form-demo.workflow.38df7e25","claim.ai-video-workflow-short-form-demo.workflow.5a37958a","claim.ai-video-workflow-short-form-demo.use-case.6739219d","claim.ai-video-workflow-short-form-demo.use-case.2a023172","claim.ai-video-workflow-short-form-demo.use-case.03008a53","claim.ai-video-workflow-short-form-demo.conversion.4bff7e9c","claim.ai-video-workflow-short-form-demo.conversion.d39f9439","claim.ai-video-workflow-short-form-demo.conversion.3a209114","claim.ai-video-workflow-short-form-demo.conversion.66350350","claim.ai-video-workflow-short-form-demo.workflow.a2f8a06e","claim.ai-video-workflow-short-form-demo.comparison.7507b7f7","claim.ai-video-workflow-short-form-demo.pricing.4a485d25","claim.ai-video-workflow-short-form-demo.pricing.9aa118ab","claim.ai-video-workflow-short-form-demo.comparison.a46ee378","claim.ai-video-workflow-short-form-demo.caveat.a9652179","claim.ai-video-workflow-short-form-demo.caveat.22d99525","claim.ai-video-workflow-short-form-demo.caveat.268dec38","claim.ai-video-workflow-short-form-demo.caveat.40a1d1bf","claim.ai-video-workflow-short-form-demo.failure-mode.b64a610c","claim.ai-video-workflow-short-form-demo.failure-mode.2f3b3f5f","claim.ai-video-workflow-short-form-demo.failure-mode.91504777","claim.ai-video-workflow-short-form-demo.use-case.19fb40a8"],"source_ids":["serp-ltx-studio-the-best-ai-video-workflow-guid-3b525a0a92","workflow-longstories-ai-5-steps-to-build-an-ai-vide-4d6eb7f61c","serp-ltx-io-the-best-ai-video-workflow-guide-to-16f0c1185e","serp-n8n-io-fully-automated-ai-video-generation-01b51f2d35","serp-wireflow-ai-ai-video-workflow-12-models-on-1a65c4add9","video-mindstudio-ai-how-to-build-an-ai-workflow--7f4285d07b","workflow-ability-ai-ai-video-production-workflow-th-4713b9139b","competitive-melies-co-cheapest-ai-video-generators-4-b-ca360f74e3","competitive-hiregrowth-ai-15-best-ai-video-generators--d6fe3178f3","official-runwayml-com-runway-pricing-2d8653383f","official-learn-runwayml-com-runway-docs-83afeee7c9","official-runwayml-com-runway-official-changelog-169f3a9512","official-pika-art-pika-pricing-4d74a5c6ee","official-pika-art-pika-official-docs-18492e0a83","official-pika-art-pika-official-changelog-46109c5d4a","official-seed-bytedance-com-seedance-pricing-4803781ba0","official-seed-bytedance-com-seedance-docs-e0286f0f0b","official-seed-bytedance-com-seedance-2-0-14e7a76628","deep-research-pricing-75b11e4c","official-kling-ai-kling-pricing-116439c694","official-kling-ai-kling-docs-a7b836873c","official-kling-ai-kling-official-changelog-7adc91573a","deep-research-blog-kling-3-0-complete-guide-0bd3a318","serp-seedancev2ai-com-the-complete-ai-video-wor-39d0cae196","official-vidworkflow-com-ai-video-generation-workfl-1978ca8ae5","official-aistudio-google-com-google-ai-studio-86e7d7fc8c","community-reddit-com-which-ai-video-generation-workf-ded74c1191","competitive-deepai-org-deepai-b3b47fbf18","competitive-stealwhatworks-com-we-compared-the-pricing-0aeff332da","competitive-homebusinessmag-com-affordable-ai-video-ge-3af3150b22","competitive-aimultiple-com-ai-video-pricing-compare-sy-c559aac601","competitive-imagine-art-how-much-ai-video-generators-c-809f456f0d","community-reddit-com-what-does-your-ai-video-workflo-d7f53ec617","serp-reddit-com-my-complete-ai-video-workflow-t-04c326932c","community-reddit-com-andrew-ng-building-faster-with--ae3571962b","community-news-ycombinator-com-since-subreddits-rela-801e908404","community-news-ycombinator-com-my-ai-assisted-workfl-a925fdd020","community-news-ycombinator-com-my-workflow-is-70-ai--5a53d435a7"],"asset_or_offer_id":"asset.ai-video-workflow-short-form-demo.prompt-pack","ranking_id":"tool-ranking. ai-video-workflow-short-form-demo. alternatives"}]</script>
+  </body>
+</html>

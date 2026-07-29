@@ -1,0 +1,17 @@
+[
+  {
+    "id": "fiverr",
+    "name": "Fiverr",
+    "enabled": true,
+    "defaultDisclosure": "This page contains affiliate links. Automiora may earn a commission if you purchase through these links, at no additional cost to you.",
+    "linkRel": ["sponsored", "nofollow"],
+    "reportType": "fiverr-media-report",
+    "allowedPageTypes": [
+      "cost-guide",
+      "diy-vs-hire",
+      "hire-service",
+      "service-comparison",
+      "commercial-guide"
+    ]
+  }
+]

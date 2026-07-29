@@ -10,9 +10,13 @@ confidence: 0.82
 quality_score: 100
 freshness: "current-run"
 reuse_priority: "high"
+refresh_priority: ""
 lifecycle_decision: "active"
 source_ids: ["source.ai-video-workflow-short-form-demo.community-reddit-com-which-ai-video-generation-workf-ded74c1191","source.ai-video-workflow-short-form-demo.community-reddit-com-which-video-editing-ai-tool-is-c953fa0136"]
 status: "active"
+last_verified: "2026-07-11"
+staleness_days: 14
+change_triggers: ["Refresh when pricing, rankings, or community complaints change materially."]
 ---
 ## Claim
 
@@ -42,6 +46,9 @@ Failure modes shift by audience and use case, so they should be refreshed as new
 
 high
 
+## Refresh priority
+
+
 ## Quality score
 
 100
@@ -57,3 +64,15 @@ active
 ## Refresh condition
 
 Refresh when pricing, rankings, or community complaints change materially.
+
+## Last verified
+
+2026-07-11
+
+## Staleness days
+
+14
+
+## Change triggers
+
+- Refresh when pricing, rankings, or community complaints change materially.

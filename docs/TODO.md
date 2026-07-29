@@ -1,6 +1,6 @@
 # Trend Site Pipeline 待办列表
 
-> 状态提示（2026-05-03）：这份 TODO 保留了大量阶段性设计与历史任务。当前最新缺口和优先级，请优先看 [CURRENT-GAPS-V2.md](/Users/max/code/trend-site-mvp/docs/CURRENT-GAPS-V2.md)。
+> 状态提示（2026-05-03）：这份 TODO 保留了大量阶段性设计与历史任务。当前最新缺口和优先级，请优先看 [CURRENT-GAPS-V2.md](<repo-root>/docs/CURRENT-GAPS-V2.md)。
 
 ## P1
 

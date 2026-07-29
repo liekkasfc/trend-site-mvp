@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "globalProfile": {
+    "key": "global-default",
+    "brandTone": "research-backed AI ops product",
+    "tone": "calm, operator-first, direct, evidence-backed",
+    "primaryOutcome": "help the visitor make the next workflow or buying decision with less friction",
+    "proofObjects": [
+      "workflow steps",
+      "comparison matrix",
+      "asset preview"
+    ],
+    "primaryCtaType": "download",
+    "primaryCtaLabel": "Get the working asset",
+    "secondaryCtaType": "consult",
+    "secondaryCtaLabel": "Request an audit",
+    "palette": {
+      "background": "#171717",
+      "surface": "#1f1f1f",
+      "surfaceAlt": "#262626",
+      "text": "#efede7",
+      "mutedText": "#d3cec3",
+      "accent": "#8eb777",
+      "secondaryAccent": "#dcb45c",
+      "warning": "#c98c66"
+    },
+    "hero": {
+      "showProofStrip": true,
+      "showActionRow": true,
+      "showAudienceSummary": true,
+      "requireProofAboveFold": true
+    },
+    "visual": {
+      "style": "realistic editorial product scene",
+      "lighting": "warm neutral lighting",
+      "composition": "landscape",
+      "pageTypes": [
+        "hub",
+        "workflow",
+        "use-cases",
+        "template-kit",
+        "case-study"
+      ],
+      "assetKinds": [
+        "template_pack",
+        "checklist",
+        "worksheet"
+      ],
+      "motifs": [
+        "workflow board",
+        "review notes",
+        "comparison sheet"
+      ],
+      "forbiddenMotifs": [
+        "abstract AI brain",
+        "generic robot",
+        "neon circuit board",
+        "floating gradient orbs"
+      ]
+    },
+    "review": {
+      "highValuePageTypes": [
+        "hub",
+        "alternatives",
+        "pricing",
+        "free-vs-paid",
+        "workflow",
+        "template-kit",
+        "case-study"
+      ],
+      "requiresSecondaryCtaOn": [
+        "hub",
+        "alternatives",
+        "pricing",
+        "workflow",
+        "template-kit",
+        "case-study"
+      ],
+      "maxGenericParagraphs": 1,
+      "maxRepeatedSentencePatterns": 1,
+      "requireNonFallbackHeroOn": [
+        "hub",
+        "workflow",
+        "template-kit",
+        "case-study"
+      ]
+    }
+  },
+  "profiles": [
+    {
+      "key": "video-creation",
+      "brandPositioning": "AI workflow decision and execution layer for short-form product content",
+      "primaryOutcome": "turn scattered tools, prompts, and approvals into a repeatable launch workflow",
+      "proofObjects": [
+        "workflow steps",
+        "comparison matrix",
+        "asset preview",
+        "ROI note",
+        "failure modes"
+      ],
+      "primaryCtaLabel": "Get the workflow pack",
+      "secondaryCtaLabel": "Request a workflow audit",
+      "visual": {
+        "motifs": [
+          "workflow board",
+          "storyboard frames",
+          "prompt notes",
+          "review checklist",
+          "screen-to-video scenes"
+        ],
+        "forbiddenMotifs": [
+          "abstract AI brain",
+          "generic robot",
+          "neon circuit board",
+          "decorative floating orbs"
+        ],
+        "pageScenes": {
+          "hub": "a product marketing decision desk with shortlist cards, storyboard frames, workflow notes, and one high-confidence next-step asset preview",
+          "workflow": "a realistic operator workflow board with source screenshots, prompt notes, a review loop, and a short-form demo timeline",
+          "use-cases": "a three-panel operator scene showing product demo, launch update, and screenshot-to-video workflows for one SaaS team",
+          "template-kit": "a premium but grounded team handoff kit with a prompt pack, checklist, worksheet, and annotated review notes",
+          "case-study": "a before-and-after product operations wall showing scattered tabs on one side and a reusable workflow pack on the other"
+        },
+        "assetScenes": {
+          "template_pack": "a real prompt pack cover scene with storyboard cards, hook notes, transition prompts, and product screenshots organized like a working deliverable",
+          "checklist": "a workflow checklist scene with an annotated launch board, owner notes, and a product demo review checklist that looks ready to use",
+          "worksheet": "a comparison worksheet scene with option columns, scoring notes, time-to-value comparisons, and review criteria laid out like a real decision sheet"
+        }
+      }
+    },
+    {
+      "key": "agent-infrastructure",
+      "brandPositioning": "Decision and implementation surface for production-grade AI agent stacks",
+      "primaryOutcome": "help builders choose the next runtime, orchestration, or tooling decision without reopening broad research",
+      "proofObjects": [
+        "architecture tradeoffs",
+        "benchmark criteria",
+        "stack shortlist",
+        "failure modes"
+      ],
+      "primaryCtaLabel": "Get the stack worksheet",
+      "secondaryCtaLabel": "Request a stack review",
+      "palette": {
+        "accent": "#7cb7df",
+        "secondaryAccent": "#d4b36a"
+      },
+      "visual": {
+        "motifs": [
+          "system diagram board",
+          "runtime checklist",
+          "tool-call map",
+          "observability dashboard"
+        ],
+        "forbiddenMotifs": [
+          "humanoid robot",
+          "glowing brain",
+          "cyberpunk circuit wallpaper",
+          "generic hacker room"
+        ],
+        "pageScenes": {
+          "hub": "a systems decision desk with runtime cards, architecture notes, evaluation criteria, and one recommended next-step worksheet",
+          "workflow": "an engineering workflow board showing runtime selection, tool-calling, memory, observability, and failure review checkpoints",
+          "use-cases": "three engineering scenarios covering orchestration choice, memory stack fit, and production tool-calling review",
+          "template-kit": "an architecture handoff kit with evaluation sheets, benchmark notes, and implementation templates arranged like a real engineering package",
+          "case-study": "a before-and-after systems review wall with messy framework notes on one side and a reusable stack decision pack on the other"
+        },
+        "assetScenes": {
+          "shortlist": "a stack shortlist cover with architecture cards, risk markers, and production readiness notes",
+          "checklist": "a benchmark checklist scene with failure checkpoints, latency criteria, and observability review notes",
+          "worksheet": "a runtime evaluation worksheet scene with stack columns, scoring criteria, and deployment caveats"
+        }
+      }
+    }
+  ]
+}

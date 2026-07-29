@@ -1,0 +1,116 @@
+[
+  {
+    "id": "fiverr-ai-video-editor",
+    "programId": "fiverr",
+    "category": "ai-video-editing",
+    "label": "AI video editors",
+    "description": "Freelancers offering AI-assisted video creation and final editing.",
+    "affiliateUrlEnvKey": "FIVERR_AI_VIDEO_EDITOR_URL",
+    "fallbackDestinationUrl": "https://www.fiverr.com/categories/video-animation",
+    "trackingCode": "automiora_ai_video_editor",
+    "status": "active",
+    "lastVerifiedAt": "2026-07-11",
+    "eligiblePageTypes": ["diy-vs-hire", "hire-service", "cost-guide"],
+    "eligibleIntents": ["commercial", "transactional"],
+    "ctaLabels": [
+      "Browse AI video editors",
+      "Compare video professionals",
+      "Find help with your final edit"
+    ]
+  },
+  {
+    "id": "fiverr-short-form-video-editor",
+    "programId": "fiverr",
+    "category": "short-form-video-editing",
+    "label": "Short-form video editors",
+    "description": "Freelancers who edit short-form videos for social, launch, and product channels.",
+    "affiliateUrlEnvKey": "FIVERR_SHORT_FORM_EDITOR_URL",
+    "fallbackDestinationUrl": "https://www.fiverr.com/categories/video-animation/video-editing",
+    "trackingCode": "automiora_short_form_editor",
+    "status": "active",
+    "lastVerifiedAt": "2026-07-11",
+    "eligiblePageTypes": ["diy-vs-hire", "hire-service", "service-comparison"],
+    "eligibleIntents": ["commercial", "transactional"],
+    "ctaLabels": [
+      "Browse short-form video editors",
+      "Compare social video editors",
+      "Find short-form editing help"
+    ]
+  },
+  {
+    "id": "fiverr-product-demo-video",
+    "programId": "fiverr",
+    "category": "product-demo-video",
+    "label": "Product demo video creators",
+    "description": "Freelancers who turn scripts, screenshots, or product flows into demo videos.",
+    "affiliateUrlEnvKey": "FIVERR_PRODUCT_DEMO_VIDEO_URL",
+    "fallbackDestinationUrl": "https://www.fiverr.com/categories/video-animation/product-videos",
+    "trackingCode": "automiora_product_demo_video",
+    "status": "active",
+    "lastVerifiedAt": "2026-07-11",
+    "eligiblePageTypes": ["diy-vs-hire", "hire-service", "commercial-guide"],
+    "eligibleIntents": ["commercial", "transactional"],
+    "ctaLabels": [
+      "Browse product demo creators",
+      "Compare product video services",
+      "Find demo video help"
+    ]
+  },
+  {
+    "id": "fiverr-video-scriptwriter",
+    "programId": "fiverr",
+    "category": "video-scriptwriting",
+    "label": "Video scriptwriters",
+    "description": "Freelancers who write scripts, hooks, shot lists, and narration plans for video projects.",
+    "affiliateUrlEnvKey": "FIVERR_VIDEO_SCRIPTWRITER_URL",
+    "fallbackDestinationUrl": "https://www.fiverr.com/categories/writing-translation/scriptwriting",
+    "trackingCode": "automiora_video_scriptwriter",
+    "status": "active",
+    "lastVerifiedAt": "2026-07-11",
+    "eligiblePageTypes": ["diy-vs-hire", "hire-service", "commercial-guide"],
+    "eligibleIntents": ["commercial", "transactional"],
+    "ctaLabels": [
+      "Browse video scriptwriters",
+      "Compare scriptwriting help",
+      "Find help with the video script"
+    ]
+  },
+  {
+    "id": "fiverr-voice-over-artist",
+    "programId": "fiverr",
+    "category": "voice-over",
+    "label": "Voice-over artists",
+    "description": "Freelancers offering narration and voice-over work for video projects.",
+    "affiliateUrlEnvKey": "FIVERR_VOICE_OVER_URL",
+    "fallbackDestinationUrl": "https://www.fiverr.com/categories/music-audio/voice-overs",
+    "trackingCode": "automiora_voice_over",
+    "status": "active",
+    "lastVerifiedAt": "2026-07-11",
+    "eligiblePageTypes": ["cost-guide", "hire-service", "commercial-guide"],
+    "eligibleIntents": ["commercial", "transactional"],
+    "ctaLabels": [
+      "Browse voice-over artists",
+      "Compare narration help",
+      "Find a voice-over provider"
+    ]
+  },
+  {
+    "id": "fiverr-motion-graphics",
+    "programId": "fiverr",
+    "category": "motion-graphics",
+    "label": "Motion graphics designers",
+    "description": "Freelancers who create motion graphics, title cards, animated elements, and polish passes.",
+    "affiliateUrlEnvKey": "FIVERR_MOTION_GRAPHICS_URL",
+    "fallbackDestinationUrl": "https://www.fiverr.com/categories/video-animation/animated-gifs",
+    "trackingCode": "automiora_motion_graphics",
+    "status": "active",
+    "lastVerifiedAt": "2026-07-11",
+    "eligiblePageTypes": ["cost-guide", "hire-service", "service-comparison"],
+    "eligibleIntents": ["commercial", "transactional"],
+    "ctaLabels": [
+      "Browse motion graphics designers",
+      "Compare motion graphics help",
+      "Find animation polish support"
+    ]
+  }
+]

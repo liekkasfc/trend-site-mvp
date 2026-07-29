@@ -1,14 +1,15 @@
 ---
 id: "source.ai-video-workflow-short-form-demo.official-ariaflow-ai-ariaflow-ai-create-viral-facel-6c4ae0bac8"
-type: "source"
+type: "source_summary"
 thesis_id: "thesis.video-creation"
 cluster_id: "cluster.ai-video-workflow-short-form-demo"
 source_kind: "official"
+raw_source_id: "official-ariaflow-ai-ariaflow-ai-create-viral-facel-6c4ae0bac8"
 title: "AriaFlow.ai | Create Viral Faceless Videos with AI, Auto-Post to ..."
 url: "https://ariaflow.ai/"
 domain: "ariaflow.ai"
 published_at: null
-captured_at: "2026-05-03T08:37:39.354Z"
+captured_at: "2026-07-14T09:11:40.376Z"
 freshness_score: 72
 credibility_score: 92
 status: "active"
@@ -20,7 +21,7 @@ Create Viral Faceless Videos on Autopilot Choose from dedicated workflows for fa
 ## Key facts extracted
 
 - AriaFlow.ai | Create Viral Faceless Videos with AI, Auto-Post to ...
-- Intent: overview
+- Intent: ai video workflow
 - Category: official
 
 ## Buyer pain signals
